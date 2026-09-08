@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.suggestion-inbox.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/ami/Documents/deepseek harness/项目/记录软件/server.js</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/ami/Documents/deepseek harness/项目/记录软件</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/ami/Documents/deepseek harness/项目/记录软件/data/server.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ami/Documents/deepseek harness/项目/记录软件/data/server.err.log</string>
+</dict>
+</plist>

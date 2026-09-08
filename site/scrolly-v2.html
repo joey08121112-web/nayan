@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrollytelling v2 · 纳言 NaYan</title>
+<!--
+  ════════════════════════════════════════════════════════════════
+  滚动叙事特性展示组件 · 第二版（scrolly-v2）
+  技术栈：原生 HTML + CSS + JS，零依赖
+  参考：mubu.com/home（左栏 sticky 100vh + 右侧内容流，styled-components 实现）
+
+  相比 v1（scrolly.html）的升级：
+  0. 结构改为幕布真身同款（2026-09-05 二次调整）：左栏 sticky 100vh 钉住，
+     右栏是正常滚动流——卡片随手指连续滑过视口，居中经过即点亮（半透明→全亮微放大）；
+  1. 预览区为「仿真实 App 界面」的 CSS mock（伪窗口 chrome + 场景化内容），
+     内部元素错峰入场（stagger）；
+  2. 左侧「步骤回声」：跟随滚动实时显示当前步骤编号与名称，与进度线刻度联动；
+  3. 标签导航 sticky 悬浮 + 完成态：滚过的步骤编号变 ✓；
+  4. 浅色体系，色板借鉴 mubu.com：白底 + #f4f4f5 面板 + #1d1d1f 近黑字
+     + #5856d5 紫蓝 + 黑色低透明软影。
+
+  数据仍与逻辑解耦：改 <script type="application/json" class="scrolly-data">
+  即可换内容；填 previewImage 后自动替换 CSS mock，mock 模板可整体删除。
+  高度按步骤数自动 = (n+1)×100vh，支持一页多实例（[data-scrolly]）。
+  集成到 index.html：拷 <style> 的 SCROLLY 区块、组件 HTML、JS 三段即可。
+  ════════════════════════════════════════════════════════════════
+-->
+<style>
+:root{
+  /* 浅色体系 · 色板借鉴 mubu.com：白底 + #f4f4f5 灰面板 + #1d1d1f 近黑字 + #5856d5 紫蓝 + 黑色低透明软影 */
+  --bg:#ffffff; --panel:#ffffff; --canvas:#f4f4f5;
+  --line:rgba(0,0,0,.09); --hair:rgba(0,0,0,.05);
+  --ink:#1d1d1f; --sub:#66666d; --dim:#92929c;
+  --blue:#5856d5; --blue-deep:#4644c0; --green:#1d9e6e;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{ background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Helvetica Neue',sans-serif;
+  font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a{ color:inherit; text-decoration:none; }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 32px; }
+.eyebrow-pill{ display:inline-flex; font-family:var(--mono); font-size:11px; letter-spacing:.22em;
+  color:var(--sub); border:1px solid var(--line); background:rgba(0,0,0,.025);
+  border-radius:99px; padding:6px 16px; text-transform:uppercase; }
+
+/* ===== 演示页脚手架（非组件本体） ===== */
+/* 调试：URL 带 #nomotion 时禁用全部过渡/动画，便于逐帧截图验证终态 */
+.no-trans *, .no-trans *::before, .no-trans *::after{ transition:none !important; animation:none !important; }
+.demo-hero{ min-height:78vh; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; text-align:center; gap:18px; position:relative; overflow:hidden; }
+.demo-hero::before{ content:''; position:absolute; left:50%; top:-300px; transform:translateX(-50%);
+  width:1100px; height:560px; border-radius:50%; filter:blur(64px); pointer-events:none;
+  background:radial-gradient(closest-side,rgba(88,86,213,.12),rgba(88,86,213,.05) 52%,transparent 98%); }
+.demo-hero h1{ position:relative; font-size:clamp(34px,5vw,58px); font-weight:800; letter-spacing:-.02em; }
+.demo-hero p{ position:relative; color:var(--sub); max-width:560px; }
+.demo-hero .hint{ position:relative; font-family:var(--mono); font-size:12px; color:var(--dim); }
+.demo-gap{ padding:110px 0; text-align:center; color:var(--dim); font-size:13px; }
+.demo-gap b{ display:block; color:var(--sub); font-size:16px; font-weight:600; margin-bottom:8px; }
+
+/* ══════════════ SCROLLY COMPONENT v2（组件本体样式 · 幕布式滚动流） ══════════════ */
+.scrolly{ position:relative; /* 高度=右侧内容流自然高度，无需 JS 设置 */ }
+.scrolly-grid{ max-width:1120px; margin:0 auto; padding:0 32px;
+  display:grid; grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); gap:56px; align-items:start; }
+
+/* 左栏：sticky 钉在视口左侧（幕布真身同款结构），滚动全程不动 */
+.scrolly-left{ position:sticky; top:0; height:100vh; height:100svh;
+  display:flex; flex-direction:column; justify-content:center; }
+
+/* 右栏：正常滚动流——卡片随手指连续滑过视口，经过哪张点亮哪张 */
+.scrolly-right{ display:grid; grid-template-columns:172px minmax(0,1fr); gap:20px; align-items:start; }
+.scrolly-panels{ position:relative; }
+.spanel{ min-height:100vh; min-height:100svh; display:flex; align-items:center; }
+
+/* ---- 左侧说明区（sticky 布局见上方 .scrolly-left 规则） ---- */
+.scrolly-left .eyebrow-pill{ margin-bottom:22px; }
+.scrolly-title{ font-size:clamp(30px,3.6vw,44px); font-weight:800; letter-spacing:-.02em;
+  line-height:1.22; margin-bottom:16px; }
+.scrolly-title .px{ font-family:var(--mono); font-weight:800; letter-spacing:.04em;
+  background:linear-gradient(120deg,#7b79ff,#5856d5); -webkit-background-clip:text;
+  background-clip:text; -webkit-text-fill-color:transparent; }
+.scrolly-sub{ color:var(--sub); font-size:15.5px; max-width:400px; }
+.scrolly-pains{ list-style:none; margin-top:26px; display:grid; gap:11px; }
+.scrolly-pains li{ display:flex; gap:10px; align-items:baseline; color:var(--dim);
+  font-size:13.5px; line-height:1.6; transition:color .4s ease; }
+.scrolly-pains li::before{ content:'—'; color:rgba(88,86,213,.4); font-family:var(--mono);
+  transition:color .4s ease; }
+.scrolly-pains li.on{ color:var(--sub); }
+.scrolly-pains li.on::before{ color:rgba(88,86,213,.9); }
+
+/* 步骤回声：跟随滚动显示当前步骤 */
+.scrolly-echo{ margin-top:30px; height:52px; }
+.scrolly-echo .echo-inner{ display:flex; align-items:baseline; gap:12px; }
+.scrolly-echo .echo-idx{ font-family:var(--mono); font-size:34px; font-weight:800; letter-spacing:.02em;
+  background:linear-gradient(160deg,#7b79ff,#5856d5); -webkit-background-clip:text;
+  background-clip:text; -webkit-text-fill-color:transparent; }
+.scrolly-echo .echo-name{ font-size:15px; font-weight:600; color:var(--ink); }
+.scrolly-echo .echo-name::after{ content:attr(data-desc); display:block; font-size:12px;
+  font-weight:400; color:var(--dim); line-height:1.5; margin-top:2px; }
+.echo-anim{ animation:echoIn .45s cubic-bezier(.22,1,.36,1) both; }
+@keyframes echoIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+
+/* 进度线 + 刻度 */
+.scrolly-meter{ margin-top:20px; display:flex; align-items:center; gap:14px; }
+.scrolly-count{ font-family:var(--mono); font-size:11px; letter-spacing:.18em; color:var(--dim);
+  min-width:64px; }
+.scrolly-count b{ color:var(--ink); font-weight:700; }
+.scrolly-rail{ flex:1; position:relative; height:2px; border-radius:99px; background:rgba(0,0,0,.08); }
+.scrolly-rail .fill{ position:absolute; inset:0; border-radius:99px; overflow:hidden; }
+.scrolly-rail .fill i{ display:block; height:100%; background:linear-gradient(90deg,#7b79ff,#5856d5);
+  transform:scaleX(0); transform-origin:0 50%; will-change:transform; }
+.scrolly-rail .tick{ position:absolute; top:50%; width:2px; height:2px; border-radius:50%;
+  background:rgba(0,0,0,.22); transform:translate(-50%,-50%); transition:background .3s ease; }
+.scrolly-rail .tick.on{ background:#5856d5; box-shadow:0 0 6px rgba(88,86,213,.4); }
+
+/* ---- 右侧布局见上方 .scrolly-right 规则 ---- */
+
+/* 悬浮白玻璃标签导航：sticky 悬在右栏左侧，竖排 */
+.scrolly-tabs{ position:sticky; top:calc(50vh - 110px); display:grid; gap:4px; padding:8px;
+  background:linear-gradient(165deg,rgba(255,255,255,.92),rgba(255,255,255,.68) 55%),rgba(255,255,255,.6);
+  border:1px solid rgba(0,0,0,.07); border-radius:17px;
+  backdrop-filter:blur(22px) saturate(1.6); -webkit-backdrop-filter:blur(22px) saturate(1.6);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95), 0 12px 40px rgba(0,0,0,.10); }
+.scrolly-glider{ position:absolute; left:0; top:0; width:150px; height:44px;
+  border-radius:11px; opacity:0; pointer-events:none; will-change:transform;
+  background:linear-gradient(165deg,rgba(88,86,213,.10),rgba(88,86,213,.05));
+  border:1px solid rgba(88,86,213,.30);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85), 0 4px 14px rgba(88,86,213,.16);
+  transition:transform .42s cubic-bezier(.26,1.25,.35,1), opacity .25s ease; }
+.scrolly-tabs.on .scrolly-glider{ opacity:1; }
+.stab{ position:relative; z-index:1; display:flex; align-items:center; gap:9px; width:100%;
+  padding:10px 12px; border:0; background:none; cursor:pointer; text-align:left;
+  font:inherit; font-size:13px; font-weight:500; color:var(--dim); border-radius:11px;
+  transition:color .25s ease; }
+.stab .idx{ font-family:var(--mono); font-size:10px; letter-spacing:.1em; opacity:.65; width:16px; }
+.stab:hover{ color:var(--sub); }
+.stab.on{ color:var(--ink); font-weight:600; }
+.stab.done .idx{ opacity:1; color:var(--blue); }
+
+/* 内容卡片：在滚动流中经过即点亮——未经过的半透明微缩，居中经过时放大到全亮 */
+.spanel .scard{ width:100%; height:min(540px,70svh); display:flex; flex-direction:column;
+  background:var(--panel);
+  border:1px solid rgba(0,0,0,.08); border-radius:20px; overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,.06), 0 24px 64px rgba(0,0,0,.10);
+  opacity:.35; transform:scale(.965); will-change:opacity,transform;
+  transition:opacity .5s ease, transform .55s cubic-bezier(.22,1,.36,1); }
+.spanel.on .scard{ opacity:1; transform:none; }
+.scard .preview{ position:relative; flex:1; min-height:250px; background:var(--canvas);
+  border-bottom:1px solid var(--hair); overflow:hidden; }
+.scard .preview img{ width:100%; height:100%; object-fit:cover; display:block; }
+.scard .info{ padding:18px 22px 20px; }
+.scard h3{ font-size:17px; font-weight:700; letter-spacing:-.01em; margin-bottom:7px; }
+.scard .desc{ font-size:13px; color:var(--sub); line-height:1.8; }
+.scard .meta{ display:flex; gap:8px; margin-top:13px; flex-wrap:wrap; }
+.scard .chip{ font-family:var(--mono); font-size:10px; letter-spacing:.08em; color:var(--sub);
+  border:1px solid rgba(0,0,0,.08); border-radius:99px; padding:2.5px 10px; background:rgba(0,0,0,.02); }
+
+/* 卡片内部元素错峰入场：panel 点亮时按 --i 依次播放；
+   不设静态 opacity:0——隐藏交给 rise 的 fill-mode:both（delay 期间处于 from 态），
+   动画被禁用（reduce-motion / 调试）时元素直接可见 */
+@keyframes rise{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+.spanel.on .preview .mstag{ animation:rise .5s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:calc(90ms + var(--i,0)*70ms); }
+
+/* ---- 仿 App 界面 mock（无真截图时的内置预览，接真图后可整体删除） ---- */
+.mock{ position:absolute; inset:0; padding:14px; display:flex; align-items:center; justify-content:center; }
+.mwin{ width:100%; max-width:400px; background:#fff; border:1px solid rgba(0,0,0,.09);
+  border-radius:13px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.10); }
+.mwin .mbar{ display:flex; align-items:center; gap:6px; padding:8px 12px;
+  border-bottom:1px solid var(--hair); background:rgba(0,0,0,.02); }
+.mwin .mbar i{ width:9px; height:9px; border-radius:50%; }
+.mwin .mbar i:nth-child(1){ background:#ff5f57; } .mwin .mbar i:nth-child(2){ background:#febc2e; }
+.mwin .mbar i:nth-child(3){ background:#28c840; }
+.mwin .mbar b{ margin-left:6px; font-size:10.5px; color:var(--dim); font-weight:500; }
+.mwin .mbar .kbd{ margin-left:auto; }
+.mbody{ padding:11px; display:grid; gap:7px; }
+
+.mrow{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px;
+  background:rgba(0,0,0,.035); font-size:11px; color:rgba(29,29,31,.78); }
+.mrow .ph{ height:7px; border-radius:4px; background:rgba(0,0,0,.08); }
+.msel{ background:rgba(88,86,213,.14); border-radius:4px; padding:1px 3px;
+  box-shadow:0 0 0 1px rgba(88,86,213,.35); color:#4644c0; font-weight:500; }
+.kbd{ font-family:var(--mono); font-size:9.5px; color:#3a3a41;
+  border:1px solid rgba(0,0,0,.2); border-radius:5px; padding:1px 7px; white-space:nowrap;
+  background:rgba(0,0,0,.02); }
+
+.mpop{ margin-left:auto; width:236px; background:rgba(255,255,255,.94);
+  border:1px solid rgba(0,0,0,.09); border-radius:12px; padding:10px 12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,1), 0 16px 44px rgba(0,0,0,.16);
+  backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5); }
+.mpop .t{ font-size:11px; color:var(--ink); line-height:1.55; }
+.mpop .src{ font-family:var(--mono); font-size:9px; color:var(--dim); margin-top:5px; }
+.mpop .go{ margin-top:8px; display:flex; align-items:center; gap:6px; font-size:10px;
+  color:#fff; background:var(--blue); border-radius:7px; padding:4px 10px; font-weight:600; width:fit-content; }
+
+.mquote{ border-left:2px solid rgba(88,86,213,.5); background:rgba(88,86,213,.05);
+  border-radius:0 8px 8px 0; padding:7px 11px; font-size:11px; color:rgba(29,29,31,.85); }
+.mquote .lb{ font-family:var(--mono); font-size:8.5px; letter-spacing:.16em; color:#7b79ff;
+  display:block; margin-bottom:3px; }
+.mstep{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:9px;
+  background:rgba(0,0,0,.035); font-size:11px; color:#2c3034; }
+.mstep:nth-child(even){ background:rgba(0,0,0,.055); }
+.mstep .dot{ width:13px; height:13px; border-radius:4.5px; border:1.5px solid rgba(0,0,0,.35);
+  flex-shrink:0; position:relative; }
+.mstep.done .dot{ background:var(--blue); border-color:var(--blue); }
+.mstep.done .dot::after{ content:'✓'; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:8px; color:#fff; font-weight:800; }
+.mstep.done .tx{ text-decoration:line-through; opacity:.5; }
+.mstep.act{ background:rgba(88,86,213,.07); box-shadow:inset 0 0 0 1px rgba(88,86,213,.35); }
+.mstep .cmd{ font-family:var(--mono); font-size:10px; background:rgba(88,86,213,.10);
+  padding:1px 7px; border-radius:5px; color:#4644c0; }
+.mstep .cp{ margin-left:auto; font-size:9px; color:var(--sub);
+  border:1px solid rgba(0,0,0,.18); padding:1px 7px; border-radius:4px; flex-shrink:0; }
+.mfoot{ font-family:var(--mono); font-size:9px; color:var(--dim); text-align:right; }
+.mdate{ font-family:var(--mono); font-size:9px; letter-spacing:.12em; color:var(--dim);
+  margin-top:2px; }
+.mcard2{ display:flex; align-items:center; gap:9px; background:#fff;
+  border:1px solid rgba(0,0,0,.07); border-radius:10px; padding:9px 11px; font-size:11px; color:#2c3034;
+  box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.mcard2 .mtag{ margin-left:auto; font-family:var(--mono); font-size:8.5px; color:var(--blue);
+  border:1px solid rgba(88,86,213,.28); background:rgba(88,86,213,.08);
+  border-radius:99px; padding:1.5px 8px; flex-shrink:0; }
+.mcard2 .mtag.g{ color:var(--sub); border-color:rgba(0,0,0,.09); background:rgba(0,0,0,.03); }
+
+/* ---- 移动端：说明区置顶（不 sticky），标签横排吸顶，卡片流式 ---- */
+@media (max-width:960px){
+  .scrolly-grid{ grid-template-columns:1fr; gap:18px; padding-top:64px; }
+  .scrolly-left{ position:static; height:auto; padding:0 0 10px; }
+  .scrolly-title{ font-size:25px; margin-bottom:10px; }
+  .scrolly-sub{ font-size:13.5px; }
+  .scrolly-pains, .scrolly-echo{ display:none; }
+  .scrolly-meter{ margin-top:14px; }
+  .scrolly-right{ grid-template-columns:1fr; gap:12px; }
+  .scrolly-tabs{ position:sticky; top:10px; z-index:5;
+    grid-auto-flow:column; justify-content:start; overflow-x:auto; scrollbar-width:none; }
+  .scrolly-tabs::-webkit-scrollbar{ display:none; }
+  .stab{ width:auto; white-space:nowrap; }
+  .spanel{ min-height:0; padding:22px 0; }
+  .spanel .scard{ height:min(470px,66svh); }
+  .mock{ padding:14px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  .scrolly-glider, .scard, .scrolly-pains li, .scrolly-pains li::before{ transition:none; }
+  .scard .preview .mstag, .echo-anim{ animation:none; opacity:1; }
+}
+/* ══════════════ /SCROLLY COMPONENT v2 ══════════════ */
+</style>
+</head>
+<body>
+
+<!-- 演示页上半部分：证明组件外页面正常滚动 -->
+<header class="demo-hero">
+  <div class="eyebrow-pill" style="position:relative">SCROLLYTELLING · V2</div>
+  <h1 style="position:relative">往下滚，右边自己讲故事。</h1>
+  <p style="position:relative">v2：卡片切换带方向感、预览升级为仿 App 界面、左侧步骤回声联动、标签完成态、液态玻璃材质。继续向下滑动进入组件。</p>
+  <div class="hint">调试：URL 加 #p=0.45 可直达组件 45% 进度</div>
+</header>
+
+<!-- ══════════════ SCROLLY COMPONENT v2（组件本体 HTML · 幕布式：左 sticky + 右滚动流） ══════════════ -->
+<section class="scrolly" data-scrolly>
+  <div class="scrolly-grid">
+
+    <!-- 左：sticky 固定说明区 -->
+    <div class="scrolly-left">
+      <div class="eyebrow-pill">建议收件箱 · 如何工作</div>
+      <h2 class="scrolly-title">说到，<span class="px">做到。</span></h2>
+      <p class="scrolly-sub">从「收到一条 AI 建议」到「做完一条建议」，纳言把中间的每一步都接住。</p>
+      <ul class="scrolly-pains" id="scrolly-pains">
+        <li>AI 的好建议散落在聊天记录里，划走就再也找不回来</li>
+        <li>长命令被顶上去，回头翻找要花五分钟</li>
+        <li>十条建议一起到，不知道先做哪条，最后一条都没做</li>
+      </ul>
+      <div class="scrolly-echo" id="scrolly-echo">
+        <div class="echo-inner">
+          <span class="echo-idx">01</span>
+          <span class="echo-name" data-desc="">一键捕获</span>
+        </div>
+      </div>
+      <div class="scrolly-meter">
+        <span class="scrolly-count"><b class="scrolly-now">01</b> / <span class="scrolly-all">04</span></span>
+        <div class="scrolly-rail"><span class="fill"><i class="scrolly-fill"></i></span></div>
+      </div>
+    </div>
+
+    <!-- 右：sticky 玻璃标签 + 卡片滚动流 -->
+    <div class="scrolly-right">
+      <nav class="scrolly-tabs" id="scrolly-tabs" aria-label="特性步骤">
+        <span class="scrolly-glider" id="scrolly-glider"></span>
+        <!-- 标签由 JS 按 SCROLLY 数据渲染 -->
+      </nav>
+      <div class="scrolly-panels" id="scrolly-panels">
+        <!-- 每个步骤一个整屏 panel，由 JS 按 SCROLLY 数据渲染 -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 内容数据：与逻辑解耦，直接改这个数组即可换内容；previewImage 填路径即替换 mock -->
+  <script type="application/json" class="scrolly-data">
+  [
+    {
+      "id": "capture",
+      "tabTitle": "一键捕获",
+      "contentTitle": "任何 App 里，⌥⇧S 一按进箱",
+      "description": "终端、Electron 应用、浏览器——选中 AI 的回复按下快捷键，角落弹出确认小窗，顺手记一句想法，回车即入库。",
+      "previewImage": "",
+      "chips": ["GLOBAL HOTKEY", "零学习成本"],
+      "mock": "capture"
+    },
+    {
+      "id": "steps",
+      "tabTitle": "AI 拆步",
+      "contentTitle": "建议自动拆成有序步骤",
+      "description": "调用你自己配置的模型 API，把建议与命令拆成可勾选的步骤；命令保持原文原样，随时一键复制，不用回聊天记录里翻。",
+      "previewImage": "",
+      "chips": ["YOUR API KEY", "命令原文"],
+      "mock": "steps"
+    },
+    {
+      "id": "focus",
+      "tabTitle": "专注执行",
+      "contentTitle": "一次只做一件事，做一步勾一步",
+      "description": "「今日专注」把当前卡片置顶，其余建议安静排队。进度走到头，整卡收工——执行感来自看见勾一个个亮起。",
+      "previewImage": "",
+      "chips": ["ONE AT A TIME", "进度可视"],
+      "mock": "focus"
+    },
+    {
+      "id": "trace",
+      "tabTitle": "全程可溯",
+      "contentTitle": "每一条建议都有来处",
+      "description": "来源 App、窗口标题、项目路径、捕获时间自动入档；按天分组、按项目归档，本地 SQLite 单文件，备份即带走。",
+      "previewImage": "",
+      "chips": ["LOCAL-FIRST", "SQLite"],
+      "mock": "trace"
+    }
+  ]
+  </script>
+</section>
+<!-- ══════════════ /SCROLLY COMPONENT v2 ══════════════ -->
+
+<!-- 演示页下半部分：证明滚出组件后页面恢复正常滚动 -->
+<div class="demo-gap">
+  <b>↓ 组件到此结束</b>
+  这段文字用于验证：离开组件区域后，页面恢复普通的整页滚动，没有粘滞与回弹。
+</div>
+<footer style="border-top:1px solid var(--hair); padding:26px 0 40px">
+  <div class="wrap" style="display:flex; gap:20px; font-size:12.5px; color:var(--dim)">
+    <span>© 2026 纳言 NaYan</span><span style="flex:1"></span>
+    <span>Scrollytelling v2 · 原生实现</span>
+  </div>
+</footer>
+
+<script>
+/* ══════════════ SCROLLY COMPONENT v2（组件本体 JS） ══════════════ */
+(function () {
+  'use strict';
+  var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* 仿 App 界面 mock 模板：数据里 previewImage 为空时按 mock 字段取用；
+     接入真截图后可整体删掉。元素带 style="--i:n" 参与错峰入场。 */
+  var MOCKS = {
+    /* 场景一：任意 App 里选中文字 → 确认浮窗弹出 */
+    capture: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>AI 对话 · 任意应用</b><span class="kbd">⌥⇧S</span></div>' +
+        '<div class="mbody">' +
+          '<div class="mrow mstag" style="--i:0"><span class="ph" style="width:44px"></span>建议把日志写入 <span class="msel">data/ 目录</span>，避免污染工作区</div>' +
+          '<div class="mrow mstag" style="--i:1"><span class="ph" style="width:64px"></span><span class="ph" style="width:28px"></span><span class="ph" style="width:90px"></span></div>' +
+          '<div class="mpop mstag" style="--i:2">' +
+            '<div class="t">收进纳言？<br>「把日志写入 data/ 目录，避免污染工作区」</div>' +
+            '<div class="src">来自 ZCode · 📁 记录软件 · 可顺手记一句想法</div>' +
+            '<div class="go">↩ 回车入库</div>' +
+          '</div>' +
+        '</div></div></div>';
+    },
+    /* 场景二：AI 拆步——原建议引用 + 有序步骤 */
+    steps: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>纳言 · AI 拆步</b></div>' +
+        '<div class="mbody">' +
+          '<div class="mquote mstag" style="--i:0"><span class="lb">原建议 · 来自 Claude Code</span>安装 PostgreSQL 并配置开机自启</div>' +
+          '<div class="mstep mstag done" style="--i:1"><span class="dot"></span><span class="tx cmd">brew install postgresql@16</span><span class="cp">⧉ 复制</span></div>' +
+          '<div class="mstep mstag done" style="--i:2"><span class="dot"></span><span class="tx">初始化数据库目录</span></div>' +
+          '<div class="mstep mstag" style="--i:3"><span class="dot"></span><span class="tx">配置开机自启</span></div>' +
+          '<div class="mfoot mstag" style="--i:4">模型：你自己配的 API · Key 只存本地</div>' +
+        '</div></div></div>';
+    },
+    /* 场景三：今日专注 + 排队 */
+    focus: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>纳言 · 今日专注</b></div>' +
+        '<div class="mbody">' +
+          '<div class="mquote mstag" style="--i:0"><span class="lb">一次只做这一条</span>安装 PostgreSQL 并配置开机自启 · 2/3</div>' +
+          '<div class="mstep mstag done" style="--i:1"><span class="dot"></span><span class="tx cmd">brew install postgresql@16</span></div>' +
+          '<div class="mstep mstag done" style="--i:2"><span class="dot"></span><span class="tx">初始化数据库目录</span></div>' +
+          '<div class="mstep mstag act" style="--i:3"><span class="dot"></span><span class="tx">配置开机自启 ← 正在做</span></div>' +
+          '<div class="mcard2 mstag" style="--i:4;opacity:.55">给设置页搜索框加 300ms 防抖<span class="mtag g">排队中</span></div>' +
+        '</div></div></div>';
+    },
+    /* 场景四：来源可溯列表 */
+    trace: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>纳言 · 全部记录</b></div>' +
+        '<div class="mbody">' +
+          '<div class="mdate mstag" style="--i:0">今天 · 3 条</div>' +
+          '<div class="mcard2 mstag" style="--i:1">给设置页搜索框加 300ms 防抖<span class="mtag">ZCode</span></div>' +
+          '<div class="mcard2 mstag" style="--i:2">把日志写入 data/ 目录<span class="mtag">Claude Code</span></div>' +
+          '<div class="mcard2 mstag" style="--i:3">这篇对比文章存一下<span class="mtag g">浏览器</span></div>' +
+          '<div class="mdate mstag" style="--i:4">昨天 · 2 条</div>' +
+          '<div class="mcard2 mstag" style="--i:5;opacity:.6">升级 Tauri 到 2.6<span class="mtag g">Codex</span></div>' +
+        '</div></div></div>';
+    }
+  };
+
+  function initScrolly(section) {
+    var dataEl = section.querySelector('script.scrolly-data');
+    var steps;
+    try { steps = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    var n = steps.length;
+    if (!n) return;
+
+    var tabsBox  = section.querySelector('.scrolly-tabs');
+    var panelsBox = section.querySelector('.scrolly-panels');
+    var glider   = section.querySelector('.scrolly-glider');
+    var nowEl = section.querySelector('.scrolly-now');
+    var allEl = section.querySelector('.scrolly-all');
+    var fill  = section.querySelector('.scrolly-fill');
+    var rail  = section.querySelector('.scrolly-rail');
+    var echoIdx  = section.querySelector('.echo-idx');
+    var echoName = section.querySelector('.echo-name');
+    var pains = section.querySelectorAll('.scrolly-pains li');
+    if (allEl) allEl.textContent = String(n).padStart(2, '0');
+
+    /* 进度线刻度：每步一个点 */
+    var ticks = [];
+    if (rail) {
+      for (var t = 0; t < n; t++) {
+        var k = document.createElement('span');
+        k.className = 'tick';
+        k.style.left = ((t + 0.5) / n * 100) + '%';
+        rail.appendChild(k); ticks.push(k);
+      }
+    }
+
+    /* 渲染标签 */
+    var tabBtns = steps.map(function (s, i) {
+      var b = document.createElement('button');
+      b.className = 'stab'; b.type = 'button';
+      b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', 'false');
+      b.innerHTML = '<span class="idx">' + String(i + 1).padStart(2, '0') + '</span>' + s.tabTitle;
+      b.addEventListener('click', function () { scrollToStep(i); });
+      tabsBox.appendChild(b);
+      return b;
+    });
+
+    /* 渲染卡片滚动流：每个步骤一个整屏 panel，previewImage 有值用真图，否则走内置 mock */
+    var panels = steps.map(function (s) {
+      var p = document.createElement('div');
+      p.className = 'spanel';
+      var c = document.createElement('article');
+      c.className = 'scard';
+      c.setAttribute('role', 'tabpanel');
+      var preview = s.previewImage
+        ? '<img src="' + s.previewImage + '" alt="' + s.contentTitle + '">'
+        : (MOCKS[s.mock] || MOCKS.steps)();
+      c.innerHTML =
+        '<div class="preview">' + preview + '</div>' +
+        '<div class="info"><h3>' + s.contentTitle + '</h3>' +
+        '<p class="desc">' + s.description + '</p>' +
+        '<div class="meta">' + (s.chips || []).map(function (t) { return '<span class="chip">' + t + '</span>'; }).join('') + '</div></div>';
+      p.appendChild(c);
+      panelsBox.appendChild(p);
+      return p;
+    });
+
+    var active = -1;
+    function setActive(i) {
+      if (i === active) return;
+      active = i;
+      panels.forEach(function (p, k) {
+        p.classList.toggle('on', k === i);
+        p.querySelector('.scard').setAttribute('aria-hidden', String(k !== i));
+      });
+
+      tabBtns.forEach(function (b, k) {
+        var idxEl = b.querySelector('.idx');
+        b.classList.toggle('on', k === i);
+        b.classList.toggle('done', k < i);
+        b.setAttribute('aria-selected', String(k === i));
+        idxEl.textContent = k < i ? '✓' : String(k + 1).padStart(2, '0');
+      });
+      tabsBox.classList.add('on');
+      moveGlider();
+
+      /* 刻度点亮到当前步 */
+      ticks.forEach(function (k, m) { k.classList.toggle('on', m <= i); });
+      /* 痛点列表逐条点亮（对齐前 n 条） */
+      pains.forEach(function (li, m) { li.classList.toggle('on', m <= Math.min(i, pains.length - 1)); });
+
+      /* 步骤回声：换内容 + 重放入场动画 */
+      if (echoIdx) {
+        echoIdx.textContent = String(i + 1).padStart(2, '0');
+        echoName.textContent = steps[i].tabTitle;
+        echoName.setAttribute('data-desc', steps[i].contentTitle);
+        var inner = echoIdx.parentElement;
+        inner.classList.remove('echo-anim'); void inner.offsetWidth; inner.classList.add('echo-anim');
+      }
+      if (nowEl) nowEl.textContent = String(i + 1).padStart(2, '0');
+    }
+
+    /* 高亮胶囊平滑跟随：坐标按「容器内减去内边距」计算，竖排/横排通用 */
+    function moveGlider() {
+      var b = tabBtns[active];
+      if (!b) return;
+      glider.style.width = b.offsetWidth + 'px';
+      glider.style.height = b.offsetHeight + 'px';
+      glider.style.transform = 'translate(' + (b.offsetLeft - 8) + 'px,' + (b.offsetTop - 8) + 'px)';
+    }
+
+    /* 滚动驱动：直接随 scroll 事件更新（scroll 本身按帧派发，无需 rAF 节流——
+       后台/隐藏标签页中 rAF 不执行，直接调用才能保证状态切换始终可见） */
+    function update() {
+      var secRect = section.getBoundingClientRect();
+      if (secRect.bottom < 0 || secRect.top > innerHeight) return;  /* 视口外不工作 */
+      var mid = innerHeight * 0.5;
+      var idx = 0, best = Infinity;
+      for (var k = 0; k < n; k++) {
+        var r = panels[k].getBoundingClientRect();
+        var d = Math.abs(r.top + r.height / 2 - mid);
+        if (d < best) { best = d; idx = k; }
+      }
+      setActive(idx);
+      /* 进度 = 已完整经过的 panel 数 + 当前 panel 内的局部进度 */
+      var r2 = panels[idx].getBoundingClientRect();
+      var local = Math.min(1, Math.max(0, (mid - r2.top) / r2.height));
+      if (fill) fill.style.transform = 'scaleX(' + ((idx + local) / n) + ')';
+    }
+    addEventListener('scroll', update, { passive: true });
+    addEventListener('resize', function () { moveGlider(); update(); });
+
+    /* 点击标签 → 滚到该步骤卡片居中的位置（隐藏页中 smooth 滚动同样被冻结，降级为瞬时） */
+    function scrollToStep(i) {
+      var r = panels[i].getBoundingClientRect();
+      window.scrollTo({
+        top: r.top + scrollY - (innerHeight - r.height) / 2,
+        behavior: (reduceMotion || document.visibilityState === 'hidden') ? 'auto' : 'smooth'
+      });
+    }
+
+    /* 初始定位 + 字体加载后重测胶囊位置 */
+    update();
+    setActive(0);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveGlider);
+    if ('ResizeObserver' in window) new ResizeObserver(moveGlider).observe(tabsBox);
+  }
+
+  document.querySelectorAll('[data-scrolly]').forEach(initScrolly);
+
+  /* 隐藏标签页中 CSS 过渡/动画时钟会被冻结（状态切换停在旧帧），自动降级为
+     无过渡模式保证效果始终可见；页面重新可见时恢复动画。#nomotion 可强制。 */
+  function syncMotion() {
+    document.documentElement.classList.toggle('no-trans', document.visibilityState === 'hidden');
+  }
+  syncMotion();
+  addEventListener('visibilitychange', syncMotion);
+
+  /* 调试开关：#nomotion 禁用过渡（便于逐帧截图验证终态布局） */
+  if (location.hash.indexOf('nomotion') !== -1) document.documentElement.classList.add('no-trans');
+
+  /* 演示深链：#p=0.45 打开时直接定位到组件 45% 进度（便于测试与分享） */
+  var pm = location.hash.match(/^#p=(0?\.\d+|1(?:\.0+)?)$/);
+  if (pm) (function () {
+    var sec = document.querySelector('[data-scrolly]');
+    var travel = sec.offsetHeight - innerHeight;
+    window.scrollTo({ top: sec.getBoundingClientRect().top + scrollY + travel * parseFloat(pm[1]), behavior: 'instant' });
+  })();
+})();
+/* ══════════════ /SCROLLY COMPONENT v2 ══════════════ */
+</script>
+</body>
+</html>

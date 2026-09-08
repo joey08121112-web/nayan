@@ -1,0 +1,26 @@
+# === 构建产物 ===
+app/src-tauri/target/
+app/node_modules/
+node_modules/
+*.dmg
+NaYan.app
+
+# === 个人数据（绝不上线）===
+data/inbox.db
+data/inbox.db-*
+data/config.json
+data/*.log
+data/server.log
+data/server.err.log
+*.log
+
+# === 系统 ===
+.DS_Store
+.env
+
+# === 开发临时 ===
+__test_detail.html
+Thumbs.db
+
+# === 分发包 ===
+site/assets/*.dmg

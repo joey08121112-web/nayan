@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>框选捕获</title>
+<style>
+  /* 全屏框选 overlay：透明窗口 + 暗化 + 十字光标。视觉语言与浏览器扩展框选同源。 */
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;
+    cursor:crosshair;user-select:none;-webkit-user-select:none;touch-action:none;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  #dim{position:fixed;inset:0;background:rgba(4,5,9,.45)}
+  #rect{position:absolute;left:0;top:0;display:none;border:1.5px dashed rgba(140,210,215,.95);border-radius:6px;
+    background:rgba(140,210,215,.07);box-shadow:0 0 26px rgba(140,210,215,.16);pointer-events:none;z-index:3;
+    will-change:transform}
+  #rect.ok{border-color:rgba(240,148,100,.95);background:rgba(240,148,100,.09);
+    box-shadow:0 0 26px rgba(240,148,100,.2)}
+  .blk{position:absolute;border:1px solid rgba(240,148,100,.8);border-radius:4px;
+    background:rgba(240,148,100,.12);pointer-events:none}
+  #blocks{position:absolute;inset:0;pointer-events:none;z-index:2;will-change:transform}
+  #hint{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:5;
+    display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border-radius:999px;
+    background:rgba(40,42,48,.6);backdrop-filter:blur(20px) saturate(120%);-webkit-backdrop-filter:blur(20px) saturate(120%);
+    border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.1);
+    font-size:13px;color:rgba(255,255,255,.88);white-space:nowrap;pointer-events:none;
+    opacity:0;transition:opacity .3s ease,transform .34s cubic-bezier(.05,.7,.1,1);
+    transform:translateX(-50%) translateY(8px) scale(.96)}
+  #hint.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  #hint .k{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:1px 6px;border-radius:4px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-bottom-width:1.5px;
+    color:rgba(255,255,255,.72)}
+  #hint b{color:#f09464;font-weight:600}
+  #hint .load{color:rgba(255,255,255,.55)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="dim"></div>
+<div id="blocks"></div>
+<div id="rect"></div>
+<div id="hint"><span class="load">正在读取界面文本…</span> <span class="k">Esc</span></div>
+<script>
+/* 框选 overlay：候选块由 Rust 走查后以 overlay 局部坐标推来；
+   矩形映射在本地做（双阈值：垂直覆盖≥50% 且横向≥24px，或面积≥45%），
+   与浏览器扩展 / HS 版同源。 */
+var TAPI = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core : null;
+var cands = [];
+var dragging = false, x0 = 0, y0 = 0, lastMap = 0;
+var rectEl = document.getElementById('rect');
+var blocksEl = document.getElementById('blocks');
+var hintEl = document.getElementById('hint');
+requestAnimationFrame(function(){ hintEl.classList.add('show'); });
+
+function setHint(html){ hintEl.innerHTML = html + ' <span class="k">Esc</span>'; }
+
+/* 候选块入口：Rust 走查完成后直接注入（eval），事件监听仅作兜底。
+   候选块 <8 = 该 App 不向 AX 暴露内容（ZCode 这类 Electron）→ 自动切像素识别模式 */
+window.__setCandidates = function (p) {
+  p = p || {};
+  cands = Array.isArray(p.blocks) ? p.blocks : [];
+  window.__origin = { x: p.ox || 0, y: p.oy || 0 };
+  window.__mode = cands.length >= 8 ? 'ax' : 'ocr';
+  if (!dragging) {
+    setHint(window.__mode === 'ocr'
+      ? '<b>像素识别模式</b> · 直接框住要的文字'
+      : '拖拽以选取');
+  }
+};
+
+if (TAPI && TAPI.event) {
+  TAPI.event.listen('box-candidates', function (e) { window.__setCandidates(e.payload); });
+} else {
+  setHint('<span class="load">Tauri 接口未注入，请重启纳言</span>');
+}
+
+function hits(ax, ay, bx, by) {
+  var L = Math.min(ax, bx), R = Math.max(ax, bx);
+  var T = Math.min(ay, by), B = Math.max(ay, by);
+  var out = [];
+  for (var i = 0; i < cands.length; i++) {
+    var c = cands[i];
+    var ix = Math.min(R, c.x + c.w) - Math.max(L, c.x);
+    var iy = Math.min(B, c.y + c.h) - Math.max(T, c.y);
+    if (ix > 0 && iy > 0) {
+      var vCover = iy / Math.max(1, c.h);
+      var aCover = (ix * iy) / Math.max(1, c.w * c.h);
+      if ((vCover >= 0.5 && ix >= 24) || aCover >= 0.45) out.push(c);
+    }
+  }
+  return out;
+}
+
+/* 矩形框：每次 pointermove 立即跟手（GPU transform，无节流） */
+function updateRectNow(cx, cy) {
+  var x = Math.min(x0, cx), y = Math.min(y0, cy);
+  rectEl.style.display = 'block';
+  rectEl.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+  rectEl.style.width = Math.abs(cx - x0) + 'px';
+  rectEl.style.height = Math.abs(cy - y0) + 'px';
+}
+
+/* 命中块映射 + 提示：50ms 节流（重的是 DOM 重建） */
+function applyMapping(cx, cy) {
+  var hs = hits(x0, y0, cx, cy);
+  rectEl.classList.toggle('ok', hs.length > 0);
+  var shown = hs.length > 200 ? hs.slice(0, 200) : hs;
+  var html = '';
+  for (var i = 0; i < shown.length; i++) {
+    var c = shown[i];
+    html += '<div class="blk" style="left:' + c.x + 'px;top:' + c.y + 'px;width:' + c.w + 'px;height:' + c.h + 'px"></div>';
+  }
+  blocksEl.innerHTML = html;
+  setHint(hs.length > 0 ? '<b>已框到 ' + hs.length + ' 块</b> · 松手收录' : '拖拽以选取');
+}
+
+function render(cx, cy, force) {
+  var now = Date.now();
+  updateRectNow(cx, cy);
+  if (!force && now - lastMap < 50) return;
+  lastMap = now;
+  applyMapping(cx, cy);
+}
+
+document.addEventListener('pointerdown', function (e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+  dragging = true; x0 = e.clientX; y0 = e.clientY;
+  render(x0, y0, true);
+});
+document.addEventListener('pointermove', function (e) {
+  if (!dragging) return;
+  e.preventDefault();
+  render(e.clientX, e.clientY, false);
+});
+document.addEventListener('pointerup', function (e) {
+  if (!dragging) return;
+  dragging = false;
+  e.preventDefault();
+  var w = Math.abs(e.clientX - x0), h = Math.abs(e.clientY - y0);
+  if (w < 14 || h < 10) { if (TAPI) TAPI.invoke('box_select_cancel').catch(function(){}); return; }
+  if (!cands.length && window.__mode !== 'ocr') { setHint('<span class="load">文本还在读取，稍等半秒…</span>'); return; }
+  var payload;
+  if (window.__mode === 'ocr') {
+    // 像素识别：把框（换算成屏幕坐标）原样交给 Rust 截图 + Vision
+    var ox = (window.__origin || {}).x || 0, oy = (window.__origin || {}).y || 0;
+    payload = {
+      blocks: [],
+      rect: {
+        x: Math.min(x0, e.clientX) + ox, y: Math.min(y0, e.clientY) + oy,
+        w: Math.abs(e.clientX - x0), h: Math.abs(e.clientY - y0)
+      }
+    };
+  } else {
+    payload = { blocks: hits(x0, y0, e.clientX, e.clientY), rect: null };
+  }
+  setHint('正在处理…');
+  if (TAPI) TAPI.invoke('box_select_finish', payload).catch(function (err) {
+    setHint('<span style="color:#ff8a8a">处理出错：' + err + '</span>');
+  });
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && TAPI) TAPI.invoke('box_select_cancel').catch(function(){});
+});
+</script>
+</body>
+</html>

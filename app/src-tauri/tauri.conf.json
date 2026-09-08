@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "NaYan",
+  "version": "0.1.0",
+  "identifier": "com.nayan.app",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "纳言 · 建议收件箱",
+        "url": "index.html",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 26, "y": 28 },
+        "width": 1180,
+        "height": 780,
+        "minWidth": 960,
+        "minHeight": 600
+      },
+      {
+        "label": "capture",
+        "title": "收进收件箱",
+        "url": "capture-mini.html",
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "width": 400,
+        "height": 372,
+        "windowEffects": {
+          "effects": ["hudWindow"]
+        }
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "macOS": {
+      "signingIdentity": "Apple Development: 8618931968621 (NN4NA6MD64)"
+    },
+    "icon": [
+      "icons/icon.icns",
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png"
+    ]
+  }
+}

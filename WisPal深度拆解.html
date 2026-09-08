@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WisPal 深度拆解 · 划词高亮 + 语音批注 + AI 笔记的完整实现</title>
+<meta name="description" content="基于 CRX 逆向的 WisPal 插件全量技术拆解：框选、锚点、AI 笔记生成、语音转写、同步架构。">
+<style>
+  :root{
+    --bg:#08090d;
+    --ink:rgba(255,255,255,.92);
+    --mut:rgba(255,255,255,.58);
+    --dim:rgba(255,255,255,.38);
+    --coral:#F09464;
+    --coral-soft:rgba(240,148,100,.14);
+    --teal:#8CD2D7;
+    --teal-soft:rgba(140,210,215,.12);
+    --glass:rgba(255,255,255,.045);
+    --glass-hi:rgba(255,255,255,.07);
+    --line:rgba(255,255,255,.09);
+    --line-hi:rgba(255,255,255,.16);
+    --r:20px;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+    font-size:16px;line-height:1.75;letter-spacing:.01em;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  ::selection{background:rgba(240,148,100,.35)}
+
+  /* ---------- 背景 ---------- */
+  .orbs{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+  .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:drift 26s ease-in-out infinite alternate}
+  .orb.a{width:640px;height:640px;top:-220px;left:-160px;background:radial-gradient(circle,rgba(240,148,100,.22),transparent 65%)}
+  .orb.b{width:720px;height:720px;top:12%;right:-260px;background:radial-gradient(circle,rgba(140,210,215,.16),transparent 65%);animation-delay:-9s}
+  .orb.c{width:560px;height:560px;bottom:-200px;left:28%;background:radial-gradient(circle,rgba(150,130,255,.13),transparent 65%);animation-delay:-17s}
+  @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(60px,40px) scale(1.12)}}
+  .grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .03 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  .wrap{max-width:1060px;margin:0 auto;padding:0 28px}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:110px 0 60px;position:relative}
+  .badge-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px}
+  .badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(16px);
+    font-size:13px;color:var(--mut)}
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:var(--coral);box-shadow:0 0 8px var(--coral)}
+  .badge.teal .dot{background:var(--teal);box-shadow:0 0 8px var(--teal)}
+  h1{font-size:clamp(38px,6.5vw,64px);font-weight:700;line-height:1.15;letter-spacing:-.01em;
+    background:linear-gradient(105deg,#fff 20%,#ffd9bd 55%,var(--teal) 90%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero .sub{margin-top:20px;font-size:19px;color:var(--mut);max-width:720px}
+  .hero .sub b{color:var(--ink);font-weight:600}
+  .icon-float{position:absolute;right:2%;top:110px;width:96px;height:96px;border-radius:50%;
+    background:var(--glass-hi);border:1px solid var(--line-hi);backdrop-filter:blur(20px);
+    display:grid;place-items:center;box-shadow:0 18px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12);
+    animation:bob 5s ease-in-out infinite}
+  .icon-float svg{display:block}
+  .icon-float .wave rect,.icon-float .wave path{stroke:var(--coral)}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  @media(max-width:900px){.icon-float{display:none}}
+
+  .tldr{margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:820px){.tldr{grid-template-columns:1fr}}
+  .qcard{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;
+    backdrop-filter:blur(22px) saturate(140%);transition:transform .35s cubic-bezier(.2,.8,.2,1),border-color .35s,background .35s}
+  .qcard:hover{transform:translateY(-4px);border-color:var(--line-hi);background:var(--glass-hi)}
+  .qcard .q{font-size:14px;color:var(--coral);font-weight:600;margin-bottom:8px}
+  .qcard .a{font-size:14.5px;color:var(--mut);line-height:1.7}
+  .qcard .a b{color:var(--ink)}
+  .qcard .go{display:inline-block;margin-top:12px;font-size:13px;color:var(--teal);text-decoration:none}
+  .qcard .go:hover{text-decoration:underline}
+
+  /* ---------- 导航 ---------- */
+  nav{position:sticky;top:14px;z-index:50;margin:30px auto 10px;max-width:1060px;padding:0 28px}
+  .nav-pill{display:flex;gap:2px;overflow-x:auto;padding:6px;border-radius:999px;
+    background:rgba(14,16,22,.62);border:1px solid var(--line);backdrop-filter:blur(24px) saturate(140%);
+    box-shadow:0 12px 40px rgba(0,0,0,.35);scrollbar-width:none}
+  .nav-pill::-webkit-scrollbar{display:none}
+  .nav-pill a{flex-shrink:0;padding:8px 16px;border-radius:999px;font-size:13.5px;color:var(--mut);
+    text-decoration:none;transition:all .25s}
+  .nav-pill a:hover{color:var(--ink)}
+  .nav-pill a.on{background:var(--glass-hi);color:var(--ink);border:1px solid var(--line)}
+
+  /* ---------- 区块 ---------- */
+  section{padding:74px 0 8px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:10px}
+  .sec-no{font-family:var(--mono);font-size:14px;color:var(--coral);letter-spacing:.08em}
+  h2{font-size:clamp(25px,3.4vw,33px);font-weight:700;letter-spacing:-.01em}
+  .sec-lead{color:var(--mut);max-width:760px;margin-bottom:34px;font-size:16.5px}
+  .sec-lead b{color:var(--ink)}
+  h3{font-size:20px;font-weight:650;margin:44px 0 14px}
+  h3 .tag{font-size:12px;font-weight:500;color:var(--teal);border:1px solid rgba(140,210,215,.3);
+    border-radius:6px;padding:2px 8px;vertical-align:3px;margin-left:10px;font-family:var(--mono)}
+
+  .card{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);padding:26px 28px;
+    backdrop-filter:blur(22px) saturate(140%);margin-bottom:18px;
+    box-shadow:0 10px 40px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.06)}
+  .card p{color:var(--mut);font-size:15px}
+  .card p+p{margin-top:12px}
+  .card p b,.card li b{color:var(--ink);font-weight:600}
+  .card ul{padding-left:22px;color:var(--mut);font-size:15px}
+  .card li{margin:7px 0}
+  .card li::marker{color:var(--coral)}
+  code.inline{font-family:var(--mono);font-size:.86em;background:rgba(255,255,255,.08);
+    border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:var(--teal);white-space:nowrap}
+
+  pre.code{background:rgba(6,8,12,.72);border:1px solid var(--line);border-radius:14px;padding:20px 22px;
+    overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.75;color:rgba(255,255,255,.78);
+    margin:14px 0;position:relative}
+  pre.code .k{color:var(--teal)}   /* key */
+  pre.code .s{color:var(--coral)}  /* string/em */
+  pre.code .c{color:rgba(255,255,255,.32);font-style:italic} /* comment */
+  .code-cap{position:absolute;top:10px;right:12px;font-size:11px;color:var(--dim);font-family:var(--mono)}
+
+  table{width:100%;border-collapse:collapse;font-size:14.5px;margin:14px 0}
+  th{ text-align:left;color:var(--dim);font-weight:500;font-size:12.5px;letter-spacing:.05em;
+    padding:10px 14px;border-bottom:1px solid var(--line-hi)}
+  td{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--mut);vertical-align:top}
+  td:first-child{color:var(--ink);font-weight:550;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  table .hl{color:var(--teal)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  /* ---------- 架构图 ---------- */
+  .arch{display:flex;flex-direction:column;gap:12px}
+  .arch-layer{border:1px solid var(--line);border-radius:16px;padding:18px 20px;background:var(--glass);
+    backdrop-filter:blur(18px)}
+  .arch-layer .t{display:flex;align-items:center;gap:10px;font-weight:650;font-size:15.5px;margin-bottom:12px}
+  .arch-layer .t .where{font-family:var(--mono);font-size:11.5px;color:var(--dim);border:1px solid var(--line);
+    padding:2px 8px;border-radius:6px;font-weight:400}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:13px;color:var(--mut);background:rgba(255,255,255,.05);border:1px solid var(--line);
+    border-radius:9px;padding:6px 12px}
+  .chip.em{color:var(--teal);border-color:rgba(140,210,215,.28);background:var(--teal-soft)}
+  .chip.fire{color:var(--coral);border-color:rgba(240,148,100,.3);background:var(--coral-soft)}
+  .arch-link{align-self:center;font-family:var(--mono);font-size:12px;color:var(--dim);padding:2px 0}
+
+  /* ---------- Playground ---------- */
+  .pg{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:rgba(6,8,12,.6)}
+  .pg-toolbar{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .pg-toolbar .hint{font-size:13px;color:var(--dim)}
+  .btn{border:1px solid var(--line-hi);background:var(--glass-hi);color:var(--ink);border-radius:999px;
+    padding:8px 18px;font-size:13.5px;cursor:pointer;font-family:inherit;transition:all .25s;backdrop-filter:blur(10px)}
+  .btn:hover{border-color:rgba(240,148,100,.5);color:var(--coral)}
+  .btn.armed{background:var(--coral-soft);border-color:rgba(240,148,100,.5);color:var(--coral)}
+  .pg-stage{position:relative;height:400px;overflow-y:auto;padding:22px 26px;touch-action:pan-y}
+  .pg-stage.armed{cursor:crosshair;user-select:none;-webkit-user-select:none;touch-action:none}
+  .pg-stage.armed::before{content:"";position:sticky;inset:0;/*placeholder*/}
+  .pg-msg{position:relative;border:1px solid var(--line);border-radius:14px;padding:13px 17px;margin-bottom:13px;
+    background:rgba(255,255,255,.035);font-size:14px;color:var(--mut);transition:border-color .2s,background .2s,box-shadow .2s}
+  .pg-msg .role{font-size:11px;font-family:var(--mono);letter-spacing:.08em;color:var(--dim);display:block;margin-bottom:4px}
+  .pg-msg.user{margin-left:52px;background:rgba(140,210,215,.06)}
+  .pg-msg.user .role{color:rgba(140,210,215,.7)}
+  .pg-msg.covered{border-color:rgba(240,148,100,.65);background:rgba(240,148,100,.09);
+    box-shadow:0 0 0 1px rgba(240,148,100,.25),0 6px 22px rgba(240,148,100,.1)}
+  .pg-dim{position:absolute;inset:0;background:rgba(4,5,8,.55);opacity:0;pointer-events:none;transition:opacity .3s;z-index:3}
+  .pg.armed .pg-dim{opacity:1}
+  .pg-rect{position:absolute;border:1.5px dashed var(--teal);border-radius:6px;background:rgba(140,210,215,.06);
+    display:none;z-index:4;pointer-events:none;box-shadow:0 0 24px rgba(140,210,215,.15)}
+  .pg-count{position:absolute;top:12px;right:14px;z-index:5;display:none;font-family:var(--mono);font-size:12px;
+    color:var(--ink);background:rgba(20,22,28,.85);border:1px solid var(--line-hi);border-radius:999px;padding:5px 13px;
+    backdrop-filter:blur(8px)}
+  .pg-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%) translateY(8px) scale(.96);z-index:5;
+    display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border-radius:999px;opacity:0;pointer-events:none;
+    background:rgba(44,46,50,.6);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(20px);
+    font-size:13px;color:rgba(255,255,255,.86);transition:all .32s cubic-bezier(.05,.7,.1,1)}
+  .pg.armed .pg-hint{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  .pg-hint .k{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.14);border-bottom-width:1.5px;color:rgba(255,255,255,.72)}
+  .pg-hint .cur{color:var(--coral)}
+  .pg-result{border-top:1px solid var(--line);padding:16px 20px;display:none}
+  .pg-result.show{display:block;animation:fadeUp .4s cubic-bezier(.2,.8,.2,1)}
+  .pg-result .rt{font-size:13.5px;margin-bottom:10px;color:var(--ink)}
+  .pg-result .rt b{color:var(--coral)}
+  .pg-result pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:rgba(255,255,255,.7);
+    background:rgba(6,8,12,.7);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto;white-space:pre-wrap}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .pg-toast{position:absolute;top:52px;left:50%;transform:translateX(-50%);z-index:6;font-size:13px;
+    background:rgba(20,22,28,.92);border:1px solid var(--line-hi);color:var(--ink);border-radius:999px;
+    padding:8px 18px;opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(10px)}
+  .pg-toast.show{opacity:1}
+
+  /* ---------- 锚点降级 ---------- */
+  .anchor-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  @media(max-width:820px){.anchor-flow{grid-template-columns:1fr}}
+  .lv{border:1px solid var(--line);border-radius:16px;padding:20px;position:relative;overflow:hidden;
+    background:var(--glass);transition:border-color .4s,box-shadow .4s}
+  .lv .st{font-family:var(--mono);font-size:12.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .lv .st .led{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+  .lv h4{font-size:15.5px;font-weight:650;margin-bottom:6px}
+  .lv p{font-size:13.5px;color:var(--mut);line-height:1.65}
+  .lv.active{border-color:rgba(140,210,215,.55);box-shadow:0 0 0 1px rgba(140,210,215,.25),0 10px 34px rgba(140,210,215,.09)}
+  .lv.active .led{background:var(--teal);box-shadow:0 0 10px var(--teal)}
+  .lv.active .st{color:var(--teal)}
+
+  /* ---------- 笔记流水线 ---------- */
+  .pipe{display:flex;gap:0;align-items:stretch;margin:10px 0 4px;overflow-x:auto;padding-bottom:6px}
+  .pstep{flex:1;min-width:118px;position:relative;padding:16px 12px 14px;border:1px solid var(--line);
+    border-radius:14px;background:var(--glass);margin-right:26px;text-align:center}
+  .pstep:last-child{margin-right:0}
+  .pstep:not(:last-child)::after{content:"";position:absolute;right:-20px;top:50%;width:14px;height:1.5px;
+    background:repeating-linear-gradient(90deg,var(--coral) 0 4px,transparent 4px 8px);
+    background-size:8px 2px;animation:dashmove 1s linear infinite;transform:translateY(-50%)}
+  @keyframes dashmove{to{background-position:8px 0}}
+  .pstep .n{font-family:var(--mono);font-size:11px;color:var(--coral);display:block;margin-bottom:6px}
+  .pstep .t{display:block;font-size:13.5px;font-weight:600;line-height:1.4}
+  .pstep .d{display:block;font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.5}
+  @media(max-width:820px){.pipe{flex-direction:column}
+    .pstep{margin-right:0;margin-bottom:22px;text-align:left}
+    .pstep:not(:last-child)::after{right:auto;left:26px;top:auto;bottom:-18px;width:1.5px;height:14px;
+      background:repeating-linear-gradient(180deg,var(--coral) 0 4px,transparent 4px 8px);transform:none;
+      background-size:2px 8px;animation:dashmovev 1s linear infinite}
+    @keyframes dashmovev{to{background-position:0 8px}}}
+
+  .poll{display:flex;align-items:flex-end;gap:5px;height:76px;margin:16px 0 6px}
+  .poll .bar{flex:0 0 34px;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,rgba(140,210,215,.75),rgba(140,210,215,.25));
+    position:relative;animation:grow 1s cubic-bezier(.2,.8,.2,1) backwards}
+  .poll .bar span{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-family:var(--mono);
+    font-size:10.5px;color:var(--dim);white-space:nowrap}
+  .poll .bar.max{background:linear-gradient(180deg,rgba(240,148,100,.8),rgba(240,148,100,.25))}
+  @keyframes grow{from{height:0}}
+  .poll-cap{font-size:12px;color:var(--dim);margin:30px 0 0;font-family:var(--mono)}
+
+  /* ---------- 亮点 badge ---------- */
+  .glints{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+  .glint{border:1px solid var(--line);border-radius:15px;padding:18px 20px;background:var(--glass);
+    transition:transform .3s cubic-bezier(.2,.8,.2,1),border-color .3s}
+  .glint:hover{transform:translateY(-3px);border-color:rgba(240,148,100,.4)}
+  .glint .g-t{font-size:14.5px;font-weight:650;margin-bottom:5px;display:flex;gap:9px;align-items:center}
+  .glint .g-t svg{flex-shrink:0}
+  .glint p{font-size:13px;color:var(--mut);line-height:1.65}
+
+  /* ---------- 启发卡 ---------- */
+  .idea{display:flex;gap:16px;border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    background:var(--glass);margin-bottom:14px;transition:border-color .3s}
+  .idea:hover{border-color:rgba(140,210,215,.4)}
+  .idea .no{font-family:var(--mono);font-size:15px;color:var(--teal);flex-shrink:0;padding-top:2px}
+  .idea .t{font-weight:650;font-size:15.5px;margin-bottom:5px}
+  .idea p{font-size:14px;color:var(--mut)}
+  .idea p b{color:var(--ink)}
+
+  .divider{height:1px;background:linear-gradient(90deg,transparent,var(--line-hi),transparent);margin:60px 0 0}
+
+  footer{padding:56px 0 90px;color:var(--dim);font-size:13.5px}
+  footer .method{border:1px solid var(--line);border-radius:16px;padding:22px 26px;background:var(--glass);color:var(--mut)}
+  footer .method b{color:var(--ink)}
+  footer .sig{margin-top:26px;text-align:center;font-family:var(--mono);font-size:12px}
+
+  /* ---------- reveal ---------- */
+  .rv{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .rv.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .rv{opacity:1;transform:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<div class="orbs">
+  <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+</div>
+<div class="grain"></div>
+
+<!-- ================= HERO ================= -->
+<header class="hero wrap">
+  <div class="icon-float" aria-hidden="true">
+    <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round">
+      <g class="wave">
+        <path d="M4.5 10v4" stroke="#F09464"/>
+        <path d="M9.5 6.5v11" stroke="#F09464"/>
+        <path d="M14.5 9v6" stroke="#F09464"/>
+        <path d="M19.5 10.5v3" stroke="#F09464"/>
+      </g>
+    </svg>
+  </div>
+  <div class="badge-row rv">
+    <span class="badge"><span class="dot"></span>逆向调研报告</span>
+    <span class="badge teal"><span class="dot"></span>CRX v1.0.6 · 2026-09-02 构建</span>
+    <span class="badge">content.js 5.6 万行 · background 1.8 万行</span>
+    <span class="badge">私有 Beta</span>
+  </div>
+  <h1 class="rv">WisPal 深度拆解</h1>
+  <p class="sub rv">一款只服务 <b>ChatGPT / Claude / Gemini</b> 三个站点的「划词高亮 + 语音批注 + AI 笔记」插件。
+    我们把它的安装包从官方 CDN 下载下来、剥掉 CRX3 头、解包并读完了<b>全部源码</b>——这份页面是完整的技术拆解，含一个可以动手玩的框选模拟器。</p>
+
+  <div class="tldr">
+    <div class="qcard rv">
+      <div class="q">Q1 · 选完文字写批注，怎么做的？</div>
+      <div class="a">监听 <b>selectionchange</b> → 校验选区落在消息容器内 → 在选区末端光标处浮出铅笔按钮，点击弹出批注卡：<b>语音（默认）或文字</b>，存成一条 wisp。</div>
+      <a class="go" href="#mech-select">看机制 ① →</a>
+    </div>
+    <div class="qcard rv">
+      <div class="q">Q2 · 「框选一段内容」怎么实现的？</div>
+      <div class="a"><b>不是截图、没有 OCR。</b>拖一个矩形 → 矩形和每条消息的包围盒求交 → 被覆盖的消息整条 <b>cloneNode 克隆暂存</b> → 松手导出 markdown。</div>
+      <a class="go" href="#mech-box">玩模拟器 →</a>
+    </div>
+    <div class="qcard rv">
+      <div class="q">Q3 · AI 笔记怎么生成的？</div>
+      <div class="a"><b>在服务端生成</b>：全对话 markdown 快照 + 你的批注上传到 Supabase Edge Function → 服务端调 AI → 客户端轮询 + Realtime 拿结果。</div>
+      <a class="go" href="#mech-note">看机制 ④ →</a>
+    </div>
+  </div>
+</header>
+
+<nav aria-label="页面导航">
+  <div class="nav-pill" id="navpill">
+    <a href="#overview">定位</a>
+    <a href="#compare">对比 NaYan</a>
+    <a href="#stack">架构</a>
+    <a href="#data">数据模型</a>
+    <a href="#mech">核心机制</a>
+    <a href="#highlights">工程亮点</a>
+    <a href="#ideas">启发</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- ================= 01 定位 ================= -->
+  <section id="overview">
+    <div class="sec-head rv"><span class="sec-no">01</span><h2>它是做什么的</h2></div>
+    <p class="sec-lead rv">官网标语：<b>"Highlight anything. Say what you think. It all stays."</b>
+      产品由两部分组成——一个只在三家 AI 聊天站点注入的 Chrome 扩展，和一个集中管理所有标记内容的 Web 应用（library）。
+      私有 Beta，邀请制（jdong@wispal.ai），看起来是 1–2 人的小团队。</p>
+
+    <div class="card rv">
+      <h3 style="margin-top:0">四个名词，先对齐语言</h3>
+      <table>
+        <tr><th>名词</th><th>是什么</th></tr>
+        <tr><td>wisp</td><td>一条「高亮片段 + 你的批注」，带精确锚点，是产品的原子单位。支持语音批注（转写）或文字批注，可选 emoji 和高亮/下划线颜色。</td></tr>
+        <tr><td>note</td><td>一篇 AI 生成的笔记（markdown，支持 KaTeX 公式与代码高亮），来源是「整段对话快照 + 相关 wisp 的选中内容和批注」。</td></tr>
+        <tr><td>recipe（配方）</td><td>服务端下发的笔记生成角度卡片 <code class="inline">{id, name, description, illustration_svg}</code>。用户不写 prompt，选卡片即可。</td></tr>
+        <tr><td>anchor（锚点）</td><td>让高亮在页面刷新、对话重渲染后仍能找回位置的数据结构——全插件最值钱的技术，见 <a href="#mech-anchor" style="color:var(--teal)">机制③</a>。</td></tr>
+      </table>
+    </div>
+
+    <div class="grid2">
+      <div class="card rv">
+        <h3 style="margin-top:0;font-size:17px">权限与站点（manifest 实测）</h3>
+        <ul>
+          <li>content script 只注入 <code class="inline">chatgpt.com</code> / <code class="inline">claude.ai</code> / <code class="inline">gemini.google.com</code></li>
+          <li>权限：<code class="inline">storage</code> <code class="inline">offscreen</code>（录音）<code class="inline">identity</code>（Google 登录）<code class="inline">alarms</code> <code class="inline">unlimitedStorage</code> <code class="inline">scripting</code></li>
+          <li>两个快捷键：<b>Cmd+Shift+E</b> 开关侧栏、<b>Cmd+Shift+Y</b> 进入框选</li>
+          <li>最低 Chrome 123，MV3，最低权限思路（没要 <code class="inline">&lt;all_urls&gt;</code>）</li>
+        </ul>
+      </div>
+      <div class="card rv">
+        <h3 style="margin-top:0;font-size:17px">隐私姿态（隐私政策 × 代码互证）</h3>
+        <ul>
+          <li>高亮/笔记本地优先存 IndexedDB；开 Cloud Sync 才上云（美国区服务器）</li>
+          <li>语音录音<b>只存本地 Blob，7 天自动删除</b>；转写时音频瞬时发给 AI 提供商，不落库</li>
+          <li>生成笔记时对话快照<b>瞬时使用、不存储</b>；来源 URL 只存 origin+path（掐掉 query/fragment）</li>
+          <li>AI 提供商配置为「不用于训练、不留 prompt 日志」</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 02 对比 ================= -->
+  <section id="compare">
+    <div class="sec-head rv"><span class="sec-no">02</span><h2>和 NaYan 撞车了吗？</h2></div>
+    <p class="sec-lead rv">撞的是「灵感」，不撞的是「产品」。<b>WisPal 做片段收藏夹，NaYan 做工作日志</b>——它是浏览器里的金句捕捉，你是桌面端的多项目×多会话过程记录。逐项对比：</p>
+    <div class="card rv">
+      <table>
+        <tr><th>维度</th><th>WisPal</th><th>NaYan（你的记录软件）</th></tr>
+        <tr><td>定位</td><td>收藏 AI 对话里的金句 + 想法</td><td>记录多项目 × 多会话的完整工作过程</td></tr>
+        <tr><td>平台</td><td>仅 Chrome 扩展（3 个站点）+ Web library</td><td>macOS 桌面端（Tauri）+ 官网</td></tr>
+        <tr><td>捕捉粒度</td><td>选区/消息区间 + 手写批注</td><td>命令步骤清单 + 执行结果</td></tr>
+        <tr><td>AI 参与</td><td>服务端生成笔记（配方制、积分付费墙）</td><td>待定——可借鉴配方卡形态</td></tr>
+        <tr><td>数据架构</td><td>本地 IndexedDB 优先 + Supabase 云同步</td><td>本地优先（与它同路）</td></tr>
+        <tr><td>管理维度</td><td>按对话平铺（library/all）</td><td class="hl">项目 → 会话两级（它没有的腹地）</td></tr>
+        <tr><td>商业化信号</td><td>私有 Beta + note credits 积分制——<b>有人愿意为这个方向付费</b></td><td>目标上架产品</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= 03 架构 ================= -->
+  <section id="stack">
+    <div class="sec-head rv"><span class="sec-no">03</span><h2>技术架构总览</h2></div>
+    <p class="sec-lead rv">WXT 框架 + React + Supabase 全家桶。三份运行时各司其职，通过 <code class="inline">chrome.runtime</code> 消息通道串起来——是 MV3 扩展的标准解法，但每一层都做得很厚。</p>
+
+    <div class="card rv">
+      <div class="arch">
+        <div class="arch-layer">
+          <div class="t">页面层 · Content Script <span class="where">仅注入 3 个站点 · document_idle</span></div>
+          <div class="chips">
+            <span class="chip em">平台适配器 ×3（ChatGPT / Claude / Gemini）</span>
+            <span class="chip">划词触发器</span>
+            <span class="chip fire">框选引擎</span>
+            <span class="chip em">锚点解析引擎</span>
+            <span class="chip">侧栏（React · Shadow DOM）</span>
+            <span class="chip">Turndown HTML→markdown</span>
+            <span class="chip">KaTeX + highlight.js 渲染</span>
+          </div>
+        </div>
+        <div class="arch-link">▲ chrome.runtime 消息（wispal-storage-rpc / ef-invoke / 录音指令）</div>
+        <div class="arch-layer">
+          <div class="t">后台层 · Service Worker <span class="where">background.js · 394KB</span></div>
+          <div class="chips">
+            <span class="chip">Google OAuth（launchWebAuthFlow → ID token）</span>
+            <span class="chip em">Supabase 客户端（auth/REST/Realtime/functions）</span>
+            <span class="chip em">Dexie IndexedDB 本地库</span>
+            <span class="chip">同步引擎（LWW + 软删 + 幂等）</span>
+            <span class="chip">权益管理 get_my_entitlements</span>
+          </div>
+        </div>
+        <div class="arch-link">▲ offscreen 协议</div>
+        <div class="arch-layer">
+          <div class="t">录音层 · Offscreen Document <span class="where">MV3 录音唯一正解</span></div>
+          <div class="chips">
+            <span class="chip fire">getUserMedia + MediaRecorder（audio/webm）</span>
+            <span class="chip">本地 Blob · 7 天 TTL</span>
+          </div>
+        </div>
+        <div class="arch-link">▲ HTTPS（含 x-wispal-warmup 预热头）</div>
+        <div class="arch-layer">
+          <div class="t">云端 · Supabase <span class="where">lwyzhioymoabqfekhtno.supabase.co</span></div>
+          <div class="chips">
+            <span class="chip em">Postgres：wisps / notes / recipe_picker_sessions</span>
+            <span class="chip">Realtime 推送 note-changed</span>
+            <span class="chip fire">Edge Functions ×5：picker-create / picker-submit / picker-discard / note-regenerate / transcribe-annotation</span>
+            <span class="chip">RPC：get_my_entitlements</span>
+            <span class="chip">AI：Google / OpenAI / Anthropic（或经 OpenRouter）</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card rv">
+        <h3 style="margin-top:0;font-size:17px">聪明细节：推开式侧栏</h3>
+        <p>侧栏不悬浮遮挡对话，而是把整个页面挤窄——对聊天类布局零遮挡：</p>
+        <pre class="code"><span class="c">/* 侧栏展开时注入 */</span>
+html { width: calc(100% - <span class="s">${侧栏宽}px</span>) !important;
+       position: relative !important;
+       overflow-x: hidden !important; }
+html .w-screen { width: 100% !important; }  <span class="c">/* 修 Tailwind 全宽类 */</span></pre>
+        <p>侧栏本体：Shadow DOM 隔离样式 + 可拖拽的边缘 resize 手柄 + 宽度持久化。</p>
+      </div>
+      <div class="card rv">
+        <h3 style="margin-top:0;font-size:17px">聪明细节：边缘函数预热</h3>
+        <p>Edge Function 冷启动要几秒。它的解法是——<b>开始录音的瞬间</b>就发一个空预热请求：</p>
+        <pre class="code"><span class="c">// 录音一开始就发</span>
+invoke(<span class="s">"transcribe-annotation"</span>, {}, {
+  headers: { <span class="s">"x-wispal-warmup"</span>: <span class="s">"1"</span> }
+}).catch(() => {})
+
+<span class="c">// 等用户说完话，函数正好是热的</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 04 数据模型 ================= -->
+  <section id="data">
+    <div class="sec-head rv"><span class="sec-no">04</span><h2>数据模型与同步</h2></div>
+    <p class="sec-lead rv">两张核心表 + 一张会话表，Zod schema 前后端共用。同步是「本地优先 + 可选云同步」：写入永远先落 IndexedDB，云端用三个经典机制保证一致性。</p>
+
+    <div class="card rv">
+      <h3 style="margin-top:0">wisp —— 高亮批注记录</h3>
+      <pre class="code"><span class="code-cap">background.js · Zod schema 还原</span>
+{
+  <span class="k">id</span>, <span class="k">user_id</span>, <span class="k">conversation_id</span>, <span class="k">platform</span>,
+  <span class="k">message_index</span>,          <span class="c">// 第几条消息</span>
+  <span class="k">content_offset</span>,         <span class="c">// 消息内字符偏移</span>
+  <span class="k">anchor</span>,                 <span class="c">// 精确锚点 → 见机制③</span>
+  <span class="k">selected_content</span>,       <span class="c">// [{role, content}] 数组 → 支持跨消息框选</span>
+  <span class="k">annotation</span>,             <span class="c">// 批注：文字 或 语音转写结果</span>
+  <span class="k">annotation_type</span>,        <span class="c">// "custom" 手写 | 服务端注入类型</span>
+  <span class="k">style</span>: { <span class="k">highlight_color</span>, <span class="k">underline_color</span> },
+  <span class="k">status</span>, <span class="k">is_favorite</span>,
+  <span class="k">title_at_creation</span>, <span class="k">source_url</span>,   <span class="c">// 仅 origin+path</span>
+  <span class="k">mutated_at</span>, <span class="k">server_mutated_at</span>, <span class="k">deleted_at</span>, <span class="c">// 同步三件套</span>
+}</pre>
+    </div>
+
+    <div class="card rv">
+      <h3 style="margin-top:0">note —— AI 生成的笔记</h3>
+      <pre class="code">{
+  <span class="k">content</span>, <span class="k">content_format</span>: <span class="s">"markdown"</span>,
+  <span class="k">origin</span>: <span class="s">"ai"</span>,
+  <span class="k">recipe</span>: { <span class="k">id</span>, <span class="k">name</span>, <span class="k">description</span>,
+             <span class="k">illustration_svg</span> },      <span class="c">// 用的哪个配方</span>
+  <span class="k">status</span>: <span class="s">"note_generating"</span> → <span class="s">"active"</span> | <span class="s">"note_generation_failed"</span>,
+  <span class="k">note_generation_error</span>: { <span class="k">error_code</span>, <span class="k">message</span>, <span class="k">occurred_at</span> },
+  <span class="k">client_request_id</span>            <span class="c">// 幂等键</span>
+}
+<span class="c">// 另有 recipe_picker_sessions 表管理「选配方」会话：</span>
+<span class="c">//   recipe_generating → recipe_ready | recipe_generation_failed</span></pre>
+    </div>
+
+    <div class="grid3">
+      <div class="card rv" style="margin-bottom:0">
+        <h3 style="margin-top:0;font-size:16px">幂等写入</h3>
+        <p>每次写请求带 <code class="inline">client_request_id</code>（UUID），服务端遇重复返回 <code class="inline">409 + existing_id</code>，客户端复用已有记录——弱网重试不产生脏数据。</p>
+      </div>
+      <div class="card rv" style="margin-bottom:0">
+        <h3 style="margin-top:0;font-size:16px">最后写入优先</h3>
+        <p>每条记录有 <code class="inline">mutated_at</code>（客户端）与 <code class="inline">server_mutated_at</code>（服务端）双时间戳，upsert 时按时间戳决胜，多端编辑不丢更新方向。</p>
+      </div>
+      <div class="card rv" style="margin-bottom:0">
+        <h3 style="margin-top:0;font-size:16px">软删除</h3>
+        <p>删除只打 <code class="inline">deleted_at</code> 标记，同步按标记传播，永不物理删——多端最终一致，误删也可恢复。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 05 核心机制 ================= -->
+  <section id="mech">
+    <div class="sec-head rv"><span class="sec-no">05</span><h2>五大核心机制</h2></div>
+    <p class="sec-lead rv">以下全部来自源码逐行分析。每个机制先讲<b>怎么用</b>，再讲<b>怎么实现</b>，标注关键参数。</p>
+
+    <!-- ① 划词 -->
+    <div id="mech-select">
+      <h3 class="rv">机制 ① 划词浮动按钮<span class="tag">selectionchange + caret rect</span></h3>
+      <div class="card rv">
+        <ul>
+          <li>监听 document 级 <code class="inline">selectionchange</code>（防抖 ≈150ms），校验：选区非折叠、起止点都能映射进消息容器</li>
+          <li>按钮定位在<b>选区最后一个光标矩形（caret rect）</b>右侧，页面滚动 / resize 实时跟随重算</li>
+          <li><b>流式输出中 → 按钮禁用</b>（各平台适配器提供 isStreaming 检测），悬停提示，防止抓到半截回答</li>
+          <li>拖拽选词期间有一个 session 在持续 tick，追踪"选区移动端"扫过的消息——因为长对话是<b>虚拟列表</b>，滚动时旧消息随时被卸载</li>
+          <li>点击按钮 → session.finalize(boundary) → 产出 <code class="inline">{selected_content, anchor, message_index, content_offset}</code> → 弹批注卡</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ② 框选 -->
+    <div id="mech-box">
+      <h3 class="rv">机制 ② 框选一段内容<span class="tag">矩形 → 消息区间 · 全插件最重的工程</span></h3>
+      <div class="card rv">
+        <p><b>先破除误解：它不是截图、没有 OCR。</b>框选的本质是几何 → 结构的映射：拖一个矩形，插件实时算出矩形与每条消息包围盒的交集，把「覆盖到的消息」整条捕获，Turndown 转成 markdown 存为一条 wisp（<code class="inline">selected_content</code> 是数组，所以天然支持跨多条消息框选）。下面这个模拟器还原了核心算法，<b>进入框选模式后直接在消息上拖</b>：</p>
+
+        <div class="pg" id="pg" style="margin-top:16px">
+          <div class="pg-toolbar">
+            <button class="btn" id="pg-arm">进入框选模式</button>
+            <span class="hint">快捷键原型：Cmd/Ctrl+Shift+Y · 按 Esc 退出</span>
+          </div>
+          <div class="pg-stage" id="pg-stage">
+            <div class="pg-dim"></div>
+            <div class="pg-rect" id="pg-rect"></div>
+            <div class="pg-count" id="pg-count"></div>
+            <div class="pg-toast" id="pg-toast"></div>
+            <div class="pg-hint">
+              <svg class="cur" width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <rect x="2.5" y="3.5" width="12" height="7.5" rx="1.5" stroke="currentColor" stroke-dasharray="2 1.6"/>
+                <path d="M2.5 3.5 L2.5 11 L4.3 9.4 L5.4 11.8 L6.3 11.4 L5.3 9 L7.2 9 Z" fill="currentColor" stroke="none"/>
+              </svg>
+              拖拽以选取 <span class="k">Esc</span>
+            </div>
+            <div class="pg-msg user" data-md="帮我用一句话解释：什么是文本锚点（text anchor）？"><span class="role">USER</span>帮我用一句话解释：什么是文本锚点（text anchor）？</div>
+            <div class="pg-msg" data-md="文本锚点是一种把高亮/批注重新定位回原文的技术：不依赖行号或 XPath，而是记录选中文本本身和它的前后文指纹，页面结构变了也能找回位置。"><span class="role">ASSISTANT</span>文本锚点是一种把高亮/批注重新定位回原文的技术：不依赖行号或 XPath，而是记录选中文本本身和它的前后文指纹，页面结构变了也能找回位置。</div>
+            <div class="pg-msg" data-md="标准参照是 W3C 的 TextQuoteSelector：用 exact（原文）+ prefix / suffix（前后文）三元组定位。WisPal 的做法本质上是它的消息级变体，按每条消息切分锚定域，抗平台重渲染。"><span class="role">ASSISTANT</span>标准参照是 W3C 的 TextQuoteSelector：用 exact + prefix / suffix（前后文）三元组定位。WisPal 的做法本质上是它的消息级变体，按每条消息切分锚定域，抗平台重渲染。</div>
+            <div class="pg-msg user" data-md="那框选一整段对话是怎么办到的？"><span class="role">USER</span>那框选一整段对话是怎么办到的？</div>
+            <div class="pg-msg" data-md="框选不解析像素：拖拽矩形与消息包围盒求交，覆盖到的消息整条捕获。拖动过程中每 120ms 把扫过的消息容器 cloneNode 克隆暂存——虚拟列表滚动时 DOM 随时会被回收，先克隆才不丢内容。"><span class="role">ASSISTANT</span>框选不解析像素：拖拽矩形与消息包围盒求交，覆盖到的消息整条捕获。拖动过程中每 120ms 把扫过的消息容器 cloneNode 克隆暂存——虚拟列表滚动时 DOM 随时会被回收，先克隆才不丢内容。</div>
+          </div>
+          <div class="pg-result" id="pg-result">
+            <div class="rt" id="pg-result-title"></div>
+            <pre id="pg-result-md"></pre>
+            <p style="font-size:12px;color:var(--dim);margin-top:10px">真实实现里，这里会接：Turndown 转 markdown → 生成锚点 → 写本地 IndexedDB → 弹出语音/文字批注卡。</p>
+          </div>
+        </div>
+
+        <h3 style="font-size:16.5px;margin-top:26px">实现要点（源码参数）</h3>
+        <ul>
+          <li><b>克隆暂存对抗虚拟列表</b>：拖动中每 <b>120ms</b> tick 一次，把扫过的消息容器 <code class="inline">cloneNode(true)</code> 存进 stash（按消息索引排序），松手后按区间取出——不怕拖得慢、不怕 DOM 被回收</li>
+          <li><b>边缘自动滚动带物理</b>：指针靠近滚动容器上下边缘渐入加速（engagement 渐入 × 时间因子 × 帧时长），最大速度 <b>1.2× 容器高度/秒</b>，亚像素累积避免抖动；滚动中矩形端点持续追踪新消息</li>
+          <li><b>content-visibility 强制展开</b>：框选前给所有 <code class="inline">content-visibility:auto</code> 的祖先临时加 <code class="inline">visible !important</code>，否则包围盒量不准；之后做一次"布局健全性自检"（求和矩形高度 vs scrollHeight，偏差超 2× 或低于 0.25× 记警告）</li>
+          <li><b>全 capture 阶段接管事件</b>：mousedown/move/up/keydown 全部 capture + preventDefault，宿主页面完全无法干扰；Esc 随时取消并回滚一切 DOM 改动</li>
+          <li><b>入口 UI</b>：可拖动的浮动圆钮（位置持久化到 chrome.storage.local），十字光标模式 + 全页暗化 + 底部玻璃提示胶囊（带循环演示动画，respect <code class="inline">prefers-reduced-motion</code>）——你截图里那个小钮就是它</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ③ 锚点 -->
+    <div id="mech-anchor">
+      <h3 class="rv">机制 ③ 锚点系统<span class="tag">三级降级 · 全插件最值钱的技术</span></h3>
+      <div class="card rv">
+        <p>高亮要活过「页面刷新 + 平台重渲染 + 虚拟列表」。WisPal 的锚点 v2 schema 按<b>消息级</b>切分锚定域，每个 block 存：</p>
+        <pre class="code"><span class="code-cap">锚点 v2 · schema_version: 2</span>
+{
+  <span class="k">message_index</span>,                <span class="c">// 第几条消息（会漂移，只是首选线索）</span>
+  <span class="k">role</span>, <span class="k">platform_message_id</span>,    <span class="c">// 平台原生消息 ID —— 最稳的消息定位键</span>
+  <span class="k">blocks</span>: [{
+    <span class="k">block_id</span>,
+    <span class="k">start_path</span>, <span class="k">end_path</span>,       <span class="c">// 消息容器内的相对 DOM 路径（不是全页 XPath）</span>
+    <span class="k">start_offset</span>, <span class="k">end_offset</span>,   <span class="c">// 字符偏移</span>
+    <span class="k">normalized_selected_text</span>,   <span class="c">// 归一化后的选中文本</span>
+    <span class="k">text_offset_hint</span>,           <span class="c">// 文本搜索的起始提示位</span>
+    <span class="k">prefix_context_hash</span>,        <span class="c">// 前文指纹（不可逆哈希）</span>
+    <span class="k">suffix_context_hash</span>         <span class="c">// 后文指纹</span>
+  }]
+}</pre>
+        <p>回访页面时，解析引擎按<b>三级降级</b>逐个恢复 wisp（点击下方卡片或等自动演示）：</p>
+        <div class="anchor-flow" id="anchor-flow">
+          <div class="lv" data-lv="0">
+            <div class="st"><span class="led"></span>anchored</div>
+            <h4>精确锚定</h4>
+            <p>按 platform_message_id → block_id → 消息索引找到消息，再按相对路径 + 偏移命中，且归一化文本校验通过 → 原位渲染高亮。</p>
+          </div>
+          <div class="lv" data-lv="1">
+            <div class="st"><span class="led"></span>message_only</div>
+            <h4>仅消息级</h4>
+            <p>消息还在，但块内路径对不上（平台改版/DOM 变化）→ 退化到整条消息级高亮，内容不丢。</p>
+          </div>
+          <div class="lv" data-lv="2">
+            <div class="st"><span class="led"></span>orphaned</div>
+            <h4>孤儿</h4>
+            <p>消息已删除或对话不存在 → 不渲染，wisp 仍在 library 中可查（带有来源跳转）。</p>
+          </div>
+        </div>
+        <p style="margin-top:18px">两个针对性设计：<b>①</b> 模糊兜底 = 归一化文本 + <code class="inline">text_offset_hint</code> + 前后文哈希搜索——这正是 W3C TextQuoteSelector / Hypothesis 那一派的做法，但按消息切分后比整页 XPath 抗折腾得多；<b>②</b> 对话太老、更早消息未被虚拟列表加载时，<code class="inline">message_index</code> 直接置为「未知哨兵」，等加载后再二次解析。</p>
+      </div>
+    </div>
+
+    <!-- ④ 笔记 -->
+    <div id="mech-note">
+      <h3 class="rv">机制 ④ AI 笔记生成<span class="tag">快照上传 + 配方制 + 轮询/Realtime</span></h3>
+      <div class="card rv">
+        <p>笔记在<b>服务端</b>生成（AI 调用不经过本地），前端是一个状态机 + 轮询器。完整流水线：</p>
+        <div class="pipe">
+          <div class="pstep"><span class="n">STEP 1</span><span class="t">抓快照</span><span class="d">全对话转 markdown<br>+ 所有 wisp 批注</span></div>
+          <div class="pstep"><span class="n">STEP 2</span><span class="t">picker-create</span><span class="d">幂等上传<br>返回 3 个配方卡</span></div>
+          <div class="pstep"><span class="n">STEP 3</span><span class="t">选配方</span><span class="d">卡片选择器<br>不写 prompt</span></div>
+          <div class="pstep"><span class="n">STEP 4</span><span class="t">picker-submit</span><span class="d">服务端逐配方<br>生成笔记</span></div>
+          <div class="pstep"><span class="n">STEP 5</span><span class="t">轮询 + 推送</span><span class="d">1.5s→3s→5s<br>Realtime note-changed</span></div>
+          <div class="pstep"><span class="n">STEP 6</span><span class="t">渲染笔记</span><span class="d">markdown + KaTeX<br>可换配方重生成</span></div>
+        </div>
+
+        <h3 style="font-size:16.5px;margin-top:24px">快照格式（发给 AI 的全部内容）</h3>
+        <pre class="code">{
+  <span class="k">messages</span>: [{ <span class="k">message_index</span>, <span class="k">role</span>, <span class="k">platform_message_id</span>,
+               <span class="k">content</span>: <span class="s">"该条消息的 markdown"</span> }],
+  <span class="k">wisps</span>:   [{ <span class="k">selected_content</span>, <span class="k">annotation</span>,
+               <span class="k">annotation_type</span>, <span class="k">first_message_index</span> }],
+  <span class="k">conversation_title</span>, <span class="k">source_url</span>,   <span class="c">// URL 只存 origin+path</span>
+  <span class="k">client_snapshot_at</span>, <span class="k">conversation_surface</span>
+}
+<span class="c">// 隐私政策：快照瞬时使用、不存储，只保存生成结果</span></pre>
+
+        <h3 style="font-size:16.5px;margin-top:24px">轮询节奏（源码常量）</h3>
+        <div class="poll">
+          <div class="bar" style="height:22%;animation-delay:.05s"><span>1.5s</span></div>
+          <div class="bar" style="height:22%;animation-delay:.12s"><span>1.5s</span></div>
+          <div class="bar" style="height:22%;animation-delay:.19s"><span>1.5s</span></div>
+          <div class="bar" style="height:45%;animation-delay:.30s"><span>3s</span></div>
+          <div class="bar" style="height:45%;animation-delay:.37s"><span>3s</span></div>
+          <div class="bar" style="height:45%;animation-delay:.44s"><span>3s</span></div>
+          <div class="bar max" style="height:75%;animation-delay:.55s"><span>5s…</span></div>
+          <div class="bar max" style="height:75%;animation-delay:.62s"><span>5s…</span></div>
+        </div>
+        <p class="poll-cap">前 3 tick × 1.5s → 再 3 tick × 3s → 之后 5s；总时长 480s（8 分钟）封顶；连续失败 5 次熔断。等待期间 Supabase Realtime 的 note-changed 事件会提前唤醒。</p>
+
+        <h3 style="font-size:16.5px;margin-top:24px">错误处理 = 付费墙 UX</h3>
+        <table>
+          <tr><th>状态码</th><th>客户端行为</th></tr>
+          <tr><td>401</td><td>弹出登录面板</td></tr>
+          <tr><td>402</td><td>积分不足 → 弹升级提示（note credits 积分制，权益来自 get_my_entitlements RPC：cloud_sync / voice_transcription / ai_note_generation 三个 feature flag + free_allowance）</td></tr>
+          <tr><td>409</td><td>幂等冲突 → 复用服务端返回的 existing_picker_id，不重复生成</td></tr>
+          <tr><td>422</td><td>invalid_snapshot → Toast「对话不可读」</td></tr>
+          <tr><td>429</td><td>限流提示</td></tr>
+        </table>
+        <p style="margin-top:8px">前端全程<b>乐观 UI</b>：提交瞬间就插入 <code class="inline">status: recipe_generating / note_generating</code> 的占位记录，成功后由轮询用真数据替换。</p>
+      </div>
+    </div>
+
+    <!-- ⑤ 语音 -->
+    <div id="mech-voice">
+      <h3 class="rv">机制 ⑤ 语音批注<span class="tag">offscreen + MediaRecorder + 预热</span></h3>
+      <div class="card rv">
+        <ul>
+          <li>MV3 的 service worker 不能录音，所以录音放在 <b>offscreen document</b>（为录音而生的标准解法），<code class="inline">getUserMedia</code> + <code class="inline">MediaRecorder</code>，输出 audio/webm</li>
+          <li>音频 Blob <b>只存本地 IndexedDB</b>，7 天自动删除；转写时 base64 后瞬时发给 <code class="inline">transcribe-annotation</code>，服务端不落库</li>
+          <li><b>开始录音即预热</b>转写边缘函数（见 03 节），用户说完话正好绕过冷启动</li>
+          <li>批注模式（语音/文字）默认语音，偏好存 <code class="inline">chrome.storage.sync</code> 跨设备跟随；你截图里浮动钮上的橙色波形条，就是"当前处于语音模式"的状态指示</li>
+          <li>转写失败不静默：<code class="inline">voice_recording.setLastError</code> 记录错误状态，UI 可重试</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 06 亮点 ================= -->
+  <section id="highlights">
+    <div class="sec-head rv"><span class="sec-no">06</span><h2>值得抄的工程细节</h2></div>
+    <p class="sec-lead rv">小团队但工程质量惊人，这些细节单独拿出来都值得进自己的 checklist。</p>
+    <div class="glints">
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F09464" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>边缘函数预热</div><p>录音开始瞬间发空请求热身 transcribe-annotation，说完话绕过冷启动，等待时间近乎归零。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8CD2D7" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9h16"/></svg>克隆暂存对抗虚拟列表</div><p>框选/划词过程中持续 cloneNode(true) 暂存扫过的消息——DOM 随时会被平台回收，先克隆才不丢。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F09464" stroke-width="2"><path d="M12 3v18M5 10l7-7 7 7"/></svg>未知索引哨兵</div><p>更早消息未被虚拟列表加载时，message_index 主动置为"未知"而不是给个错值，等加载后二次解析。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8CD2D7" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14"/></svg>推开式侧栏</div><p>html { width: calc(100% - Npx) } 把宿主页面挤窄而不是覆盖——对聊天布局零遮挡，还顺手修了 Tailwind 的 w-screen。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F09464" stroke-width="2"><path d="M17 11a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 21h4"/></svg>布局健全性自检</div><p>强制展开 content-visibility 后，求和各消息高度与 scrollHeight 比对，异常偏差记 warnOnce 诊断——自己给自己写监控。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8CD2D7" stroke-width="2"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>幂等 + LWW + 软删</div><p>client_request_id 防重、双时间戳决胜、deleted_at 软删——本地优先产品同步层的标准答案，可直接照搬。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F09464" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8M12 18v3"/></svg>提示胶囊的演示动画</div><p>框选提示胶囊内嵌循环演示（光标拖出虚线框），教用户交互；prefers-reduced-motion 下退化为静态完成帧。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8CD2D7" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>平台适配器抽象</div><p>三家站点各自实现同一套接口（消息容器/角色/ID/序数/流式检测/代码块预处理），新增平台 = 新增一个适配器类。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F09464" stroke-width="2"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>坦诚的失败路径</div><p>422"对话不可读"、402 积分不足、转写失败记录 last_error——每条失败路径都有明确的 UI 出口，没有静默失败。</p></div>
+      <div class="glint rv"><div class="g-t"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8CD2D7" stroke-width="2"><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2M4 7h16M4 7v12a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7"/></svg>最低权限姿态</div><p>只申请 3 个站点 host 权限，隐私页逐条对应代码行为；商店页还主动演示"本扩展无需读取该网站信息"的权限弹窗。</p></div>
+    </div>
+  </section>
+
+  <!-- ================= 07 启发 ================= -->
+  <section id="ideas">
+    <div class="sec-head rv"><span class="sec-no">07</span><h2>对 NaYan 的五条启发</h2></div>
+    <p class="sec-lead rv">按「能直接搬 / 能改造 / 是方向信号」排序。</p>
+
+    <div class="idea rv"><span class="no">01</span><div>
+      <div class="t">锚点技术值得直接搬</div>
+      <p>「消息级相对路径 + 归一化文本 + 上下文哈希」三级降级方案，比存 XPath 靠谱一个量级。NaYan 要做"跳回来源/关联会话片段"时照这个思路实现——桌面端不用面对虚拟列表，难度还会更低。</p>
+    </div></div>
+    <div class="idea rv"><span class="no">02</span><div>
+      <div class="t">配方式笔记生成是好的产品形态</div>
+      <p>「全对话 + 用户批注 → 选配方卡片 → 服务端生成」。v3 的执行结果栏如果要加 AI 总结，用配方卡片而不是让用户写 prompt——WisPal 用 illustration_svg 把选择器做成了好看的卡片墙，这个交互值得像素级参考。</p>
+    </div></div>
+    <div class="idea rv"><span class="no">03</span><div>
+      <div class="t">本地优先 + 幂等同步是上架标准答案</div>
+      <p>client_request_id 幂等 + 双时间戳 LWW + 软删除，和 NaYan 本地优先的形态完全兼容，将来上云同步可以直接按这套实现。</p>
+    </div></div>
+    <div class="idea rv"><span class="no">04</span><div>
+      <div class="t">框选 = 映射到逻辑边界，不是抓像素</div>
+      <p>它把几何矩形映射到消息，NaYan 可以映射到命令步骤/会话条目——轻量、可编辑、可检索，比截图 OCR 高级得多。</p>
+    </div></div>
+    <div class="idea rv"><span class="no">05</span><div>
+      <div class="t">差异化空间明确，付费信号积极</div>
+      <p>WisPal 只做 3 个网页、只做片段收藏，没有桌面端、没有项目/会话两级管理、没有执行过程记录——这正是 NaYan 的腹地。它私有 Beta + 积分付费墙，说明「留住 AI 对话价值」有人愿意付费，对你是好信号。</p>
+    </div></div>
+  </section>
+
+  <div class="divider"></div>
+
+  <footer>
+    <div class="method rv">
+      <b>调研方法</b> — 从 Google 官方更新通道下载 CRX（1.15MB，2026-09-02 构建的 v1.0.6）→ 剥离 CRX3 头 → 解包 → js-beautify 美化（content.js 56,333 行 / background.js 18,037 行）→ 逐模块静态分析；
+      关键结论与 wispal.ai 官网、How-it-works、隐私政策三方交叉验证。本页所有源码参数（轮询间隔、克隆节流、滚动速度、schema 字段、边缘函数名）均为源码实值，非推测。
+    </div>
+    <p class="sig">WisPal Teardown · 2026-09-05 · 为 NaYan 调研而做</p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- reveal on scroll ---------- */
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
+  },{threshold:.08,rootMargin:"0px 0px -40px 0px"});
+  document.querySelectorAll(".rv").forEach(function(el,i){
+    el.style.transitionDelay = (i%4)*60+"ms";
+    io.observe(el);
+  });
+
+  /* ---------- scrollspy ---------- */
+  var links = document.querySelectorAll("#navpill a");
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var spy = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){a.classList.remove("on")});
+        var a = map[e.target.id]; if(a) a.classList.add("on");
+      }
+    });
+  },{rootMargin:"-30% 0px -55% 0px"});
+  document.querySelectorAll("section[id]").forEach(function(s){ spy.observe(s); });
+
+  /* ---------- 锚点三级降级自动演示 ---------- */
+  var lvs = document.querySelectorAll("#anchor-flow .lv");
+  var lvIdx = -1;
+  function stepLv(){
+    lvs.forEach(function(l){l.classList.remove("active")});
+    lvIdx = (lvIdx+1)%3;
+    lvs[lvIdx].classList.add("active");
+  }
+  var lvTimer = setInterval(stepLv, 2200);
+  var flowIO = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting && lvIdx===-1) stepLv(); });
+  },{threshold:.4});
+  var flowEl = document.getElementById("anchor-flow");
+  if(flowEl) flowIO.observe(flowEl);
+  lvs.forEach(function(l){
+    l.style.cursor="pointer";
+    l.addEventListener("click",function(){
+      clearInterval(lvTimer); stepLv2(l); lvTimer = setInterval(nextLv, 2600);
+    });
+  });
+  function stepLv2(el){ lvs.forEach(function(x){x.classList.remove("active")}); el.classList.add("active"); }
+  function nextLv(){ lvIdx=(lvIdx+1)%3; stepLv2(lvs[lvIdx]); }
+
+  /* ---------- 框选模拟器 ---------- */
+  var pg = document.getElementById("pg"),
+      stage = document.getElementById("pg-stage"),
+      rectEl = document.getElementById("pg-rect"),
+      countEl = document.getElementById("pg-count"),
+      toastEl = document.getElementById("pg-toast"),
+      armBtn = document.getElementById("pg-arm"),
+      result = document.getElementById("pg-result"),
+      resultTitle = document.getElementById("pg-result-title"),
+      resultMd = document.getElementById("pg-result-md");
+  var armed=false, dragging=false, sx=0, sy=0, msgs = stage.querySelectorAll(".pg-msg");
+  var toastTimer=null;
+
+  function stageRect(){ return stage.getBoundingClientRect(); }
+  function setMsg(el){
+    var r1=rectEl.getBoundingClientRect(), r2=el.getBoundingClientRect();
+    var hit = !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom);
+    // 要求有效面积交叠，避免擦边误选
+    if(hit){
+      var ox=Math.max(0,Math.min(r1.right,r2.right)-Math.max(r1.left,r2.left));
+      var oy=Math.max(0,Math.min(r1.bottom,r2.bottom)-Math.max(r1.top,r2.top));
+      hit = ox>8 && oy>8;
+    }
+    el.classList.toggle("covered",hit);
+  }
+  function coveredCount(){ return stage.querySelectorAll(".pg-msg.covered").length; }
+  function updateCount(){
+    var n=coveredCount();
+    countEl.textContent="已扫过 "+n+" 条 · 已克隆暂存";
+    countEl.style.display = dragging?"block":"none";
+  }
+  function toast(msg){
+    toastEl.textContent=msg; toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){toastEl.classList.remove("show")},2200);
+  }
+  function arm(on){
+    armed=on; pg.classList.toggle("armed",on); armBtn.classList.toggle("armed",on);
+    armBtn.textContent = on?"退出框选模式 (Esc)":"进入框选模式";
+    if(!on){
+      dragging=false; rectEl.style.display="none"; countEl.style.display="none";
+      msgs.forEach(function(m){m.classList.remove("covered")});
+    }
+  }
+  armBtn.addEventListener("click",function(){ arm(!armed); });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape"&&armed) arm(false);
+  });
+  stage.addEventListener("pointerdown",function(e){
+    if(!armed||e.button!==0) return;
+    if(e.target.closest(".pg-hint")) return;
+    e.preventDefault();
+    var sr=stageRect();
+    dragging=true;
+    sx=Math.min(Math.max(e.clientX-sr.left+stage.scrollLeft,0),stage.scrollWidth);
+    sy=Math.min(Math.max(e.clientY-sr.top+stage.scrollTop,0),stage.scrollHeight);
+    result.classList.remove("show");
+    rectEl.style.display="block";
+    rectEl.style.left=sx+"px"; rectEl.style.top=sy+"px";
+    rectEl.style.width="0px"; rectEl.style.height="0px";
+    stage.setPointerCapture&&stage.setPointerCapture(e.pointerId);
+    updateCount();
+  });
+  stage.addEventListener("pointermove",function(e){
+    if(!dragging) return;
+    e.preventDefault();
+    var sr=stageRect();
+    var cx=Math.min(Math.max(e.clientX-sr.left+stage.scrollLeft,0),stage.scrollWidth);
+    var cy=Math.min(Math.max(e.clientY-sr.top+stage.scrollTop,0),stage.scrollHeight);
+    rectEl.style.left=Math.min(sx,cx)+"px";
+    rectEl.style.top=Math.min(sy,cy)+"px";
+    rectEl.style.width=Math.abs(cx-sx)+"px";
+    rectEl.style.height=Math.abs(cy-sy)+"px";
+    msgs.forEach(setMsg);
+    updateCount();
+  });
+  function finish(e){
+    if(!dragging) return;
+    dragging=false;
+    var n=coveredCount();
+    countEl.style.display="none";
+    rectEl.style.display="none";
+    if(n===0){
+      toast("没有覆盖到任何消息——试试从消息上方拖过");
+      msgs.forEach(function(m){m.classList.remove("covered")});
+      return;
+    }
+    var parts=[];
+    stage.querySelectorAll(".pg-msg.covered").forEach(function(m){
+      parts.push((m.classList.contains("user")?"**用户：**":"**助手：**")+m.getAttribute("data-md"));
+    });
+    resultTitle.innerHTML="✓ 已捕获 <b>"+n+"</b> 条消息 · cloneNode 暂存 → Turndown → markdown";
+    resultMd.textContent=parts.join("\n\n---\n\n");
+    result.classList.add("show");
+    toast("wisp 已创建（模拟）· 现在会弹出语音/文字批注卡");
+    setTimeout(function(){ msgs.forEach(function(m){m.classList.remove("covered")}); },900);
+  }
+  stage.addEventListener("pointerup",finish);
+  stage.addEventListener("pointercancel",finish);
+})();
+</script>
+</body>
+</html>

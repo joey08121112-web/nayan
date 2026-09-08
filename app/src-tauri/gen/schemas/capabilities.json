@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"纳言主窗口与捕获小窗的默认权限","local":true,"windows":["main","capture"],"permissions":["core:default","core:window:allow-start-dragging"]}}

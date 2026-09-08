@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>收进收件箱</title>
+<style>
+* { box-sizing:border-box; margin:0; }
+html,body { height:100%; background:transparent; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC',sans-serif; }
+body { padding:10px; overflow:hidden; }
+.card { height:100%; background:rgba(18,20,27,.98); border:1px solid rgba(255,255,255,.10);
+  border-radius:20px; display:flex; flex-direction:column;
+  padding:15px 15px 13px; transform-origin:85% 100%;
+  animation:pop .24s cubic-bezier(.2,.9,.35,1.1); }
+@keyframes pop { from { transform:scale(.94) translateY(10px); opacity:0; } }
+.card.sucked { animation:suck .45s cubic-bezier(.55,0,.9,.4) forwards; }
+@keyframes suck { to { transform:scale(.04) translate(60px,90px); opacity:0; } }
+.head { display:flex; align-items:center; gap:10px; margin-bottom:11px; }
+.avatar { width:32px; height:32px; border-radius:11px; background:linear-gradient(135deg,#0a84ff,#5e5ce6);
+  display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;
+  box-shadow:0 3px 10px rgba(10,90,255,.4); }
+.ht { font-size:13.5px; font-weight:700; color:#f5f5f7; letter-spacing:-.01em; }
+.hs { font-size:11px; color:#939aa8; margin-top:2px; }
+.bubble { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.07); color:#e8eaf0;
+  border-radius:14px 14px 14px 4px; padding:11px 13px; font-size:12.5px; line-height:1.7;
+  white-space:pre-wrap; word-break:break-all; overflow-y:auto; flex:1; min-height:56px; }
+.note { margin-top:10px; width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  border-radius:12px; padding:10px 12px; color:#e8eaf0; font:inherit; font-size:12.5px; outline:none;
+  transition:border-color .15s ease; }
+.note:focus { border-color:#0a84ff; }
+.note::placeholder { color:#6b7280; }
+.prow { margin-top:8px; display:flex; align-items:center; gap:7px; background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:0 11px; height:35px; flex-shrink:0;
+  transition:border-color .15s ease; }
+.prow:focus-within { border-color:#0a84ff; }
+.prow .pico { font-size:12px; opacity:.75; }
+.prow input { flex:1; min-width:0; background:transparent; border:0; outline:none; color:#e8eaf0;
+  font:inherit; font-size:12.5px; }
+.prow input::placeholder { color:#6b7280; }
+.err { display:none; margin-top:8px; background:rgba(255,59,48,.14); border:1px solid rgba(255,59,48,.35);
+  color:#ff9a94; font-size:11.5px; border-radius:9px; padding:7px 10px; }
+.acts { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.hint { font-size:10.5px; color:#6b7280; flex:1; }
+button { font:inherit; font-size:12.5px; border:0; border-radius:10px; padding:8px 16px; cursor:pointer;
+  font-weight:600; transition:transform .12s ease, filter .15s ease; }
+button:active { transform:scale(.96); }
+button:disabled { opacity:.55; cursor:default; }
+.ghost { background:rgba(255,255,255,.08); color:#c8cdd8; }
+.primary { background:linear-gradient(135deg,#0a84ff,#5e5ce6); color:#fff;
+  box-shadow:0 4px 14px rgba(10,90,255,.35); }
+.done-tag { color:#30d158; font-weight:700; }
+::-webkit-scrollbar { width:8px; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:99px;
+  border:2px solid transparent; background-clip:content-box; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="head">
+    <div class="avatar">📥</div>
+    <div>
+      <div class="ht">收进建议收件箱</div>
+      <div class="hs" id="src">…</div>
+    </div>
+  </div>
+  <div class="bubble" id="bubble"></div>
+  <input id="note" class="note" placeholder="记一句想法…（可选）">
+  <div class="prow"><span class="pico">📁</span><input id="proj" list="projOptions" placeholder="项目（自动记住上次用的）"></div>
+  <datalist id="projOptions"></datalist>
+  <div class="err" id="err"></div>
+  <div class="acts">
+    <span class="hint" id="hint">⏎ 收进 · ⎋ 取消</span>
+    <button class="ghost" id="cancelBtn">取消</button>
+    <button class="primary" id="okBtn">收进收件箱</button>
+  </div>
+</div>
+<script>
+var P = new URLSearchParams(location.search);
+var text = P.get('text') || '', app = P.get('app') || '', ws = P.get('ws') || '', sr = P.get('sr') || '';
+document.getElementById('bubble').textContent = text || '(没有内容)';
+var srcParts = ['来自 ' + (app || '未知')];
+if (ws) srcParts.push('📁 ' + ws.split('/').filter(Boolean).pop());
+else if (sr) srcParts.push(sr.replace(/^窗口：/, ''));
+document.getElementById('src').textContent = srcParts.join(' · ');
+
+function hsSend(obj) {
+  try { webkit.messageHandlers.inboxcapture.postMessage(obj); } catch (e) {}
+}
+
+/* 项目：读上次用的 + 现有项目列表（⏎ 仍直接收进） */
+var projInput = document.getElementById('proj');
+try {
+  var savedProj = localStorage.getItem('nayan-last-project');
+  if (savedProj) projInput.value = savedProj;
+} catch (e) {}
+function fillProjects(rows) {
+  var dl = document.getElementById('projOptions');
+  if (!dl || !Array.isArray(rows)) return;
+  dl.innerHTML = rows.map(function (r) {
+    return '<option value="' + String(r.name || '').replace(/"/g, '&quot;') + '">';
+  }).join('');
+}
+fetch('/api/projects').then(function (r) { return r.json(); }).then(fillProjects).catch(function () {});
+
+function fail(m) {
+  var e = document.getElementById('err');
+  e.style.display = 'block'; e.textContent = '✗ 入箱失败：' + m;
+  var b = document.getElementById('okBtn');
+  b.disabled = false; b.textContent = '收进收件箱';
+  hsSend({ action: 'done', ok: false });
+}
+function confirmIt() {
+  if (document.getElementById('okBtn').disabled) return;
+  var b = document.getElementById('okBtn');
+  b.disabled = true; b.textContent = '收进中…';
+  var title = (text.match(/[^\r\n]+/) || ['未命名'])[0].replace(/^\s+|\s+$/g, '').slice(0, 100) || '未命名';
+  var proj = projInput.value.trim() || ws || '';
+  try { if (projInput.value.trim()) localStorage.setItem('nayan-last-project', projInput.value.trim()); } catch (e) {}
+  fetch('/api/suggestions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: title, quote: text,
+      my_note: document.getElementById('note').value.trim(),
+      source_tool: app || 'hotkey', workspace: proj, session_ref: sr
+    })
+  }).then(function (r) {
+    if (r.ok) {
+      document.getElementById('hint').innerHTML = '<span class="done-tag">✓ 已收进</span>';
+      document.getElementById('card').classList.add('sucked');
+      setTimeout(function () { hsSend({ action: 'done', ok: true, status: r.status }); }, 430);
+    } else { fail('HTTP ' + r.status); }
+  }).catch(function () { fail('收件箱服务没在运行（localhost:8787）'); });
+}
+document.getElementById('okBtn').onclick = confirmIt;
+document.getElementById('cancelBtn').onclick = function () { hsSend({ action: 'cancel' }); };
+document.addEventListener('keydown', function (ev) {
+  if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); confirmIt(); }
+  if (ev.key === 'Escape') { hsSend({ action: 'cancel' }); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>纳言 NaYan · 说到的，做到。</title>
+<meta name="description" content="纳言是装在 macOS 菜单栏里的建议收件箱：任何 App 里选中 AI 的建议一键收进来，自动拆成步骤，做一步勾一步。所有数据只保存在本机。">
+<!--
+  ════════════════════════════════════════════════
+  官网第三版 = 第一版（DeepSeek Harness 风深色官网，文案原样保留）
+  + 「如何工作」滚动叙事区块（DeepSeek Harness 式：左侧文字随滚动切换，右侧 sticky 视觉叠层淡切）
+  区块位于 #philosophy 与 #design 之间（#how）；样式与脚本按 SCROLLY 注释标记，
+  URL 带 #nomotion 可禁用过渡逐帧检查。
+  ════════════════════════════════════════════════
+-->
+<link rel="icon" type="image/png" href="assets/icon.png">
+<style>
+:root{
+  /* 浅色体系 · 色板借鉴 mubu.com：白底 + #f4f4f5 面板 + #1d1d1f 近黑字 + #5856d5 紫蓝 + 黑色低透明软影 */
+  --bg:#ffffff; --panel:#ffffff; --canvas:#f4f4f5;
+  --line:rgba(0,0,0,.09); --hair:rgba(0,0,0,.05);
+  --ink:#1d1d1f; --sub:#66666d; --dim:#92929c;
+  --blue:#5856d5; --blue-deep:#4644c0; --green:#1d9e6e;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{ background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Helvetica Neue',sans-serif;
+  font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a{ color:inherit; text-decoration:none; }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 32px; }
+
+/* ============ 导航 ============ */
+nav{ position:fixed; top:0; left:0; right:0; z-index:60; transition:background .3s ease; }
+nav.scrolled{ background:rgba(255,255,255,.82); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--hair); }
+nav .wrap{ display:flex; align-items:center; height:62px; gap:14px; }
+.logo{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:15.5px; }
+.logo img{ width:27px; height:27px; border-radius:7px; }
+.logo .badge{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--sub);
+  border:1px solid var(--line); border-radius:99px; padding:2px 10px; font-weight:500; }
+nav .links{ display:flex; gap:26px; margin-left:auto; font-size:13.5px; color:var(--sub); align-items:center; }
+nav .links a:hover{ color:var(--ink); }
+.nav-pill{ background:var(--blue); color:#fff; font-weight:600; font-size:13px; padding:7px 16px; border-radius:99px; }
+.nav-pill:hover{ opacity:.88; color:#fff; }
+.navlink{ position:relative; cursor:pointer; }
+.navlink::after{ content:attr(data-tip); position:absolute; top:calc(100% + 13px); left:50%;
+  transform:translateX(-50%) translateY(7px); opacity:0; pointer-events:none;
+  background:rgba(255,255,255,.92); backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5);
+  border:1px solid var(--line); color:var(--ink); font-size:12px; font-weight:500;
+  padding:7px 14px; border-radius:10px; white-space:nowrap;
+  box-shadow:0 12px 34px rgba(0,0,0,.12); transition:opacity .18s ease, transform .18s ease; }
+.navlink:hover::after{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ============ Hero：白色 + 顶部淡紫光晕 + 浅灰网格 ============ */
+.hero{ position:relative; min-height:920px; overflow:hidden; }
+.sky{ position:absolute; inset:0; }
+.sky .halo{ position:absolute; left:50%; top:-260px; transform:translateX(-50%);
+  width:1280px; height:640px; border-radius:50%; pointer-events:none; filter:blur(64px);
+  background:radial-gradient(closest-side,rgba(88,86,213,.12),rgba(88,86,213,.05) 52%,transparent 98%); }
+.sky .grid{ position:absolute; inset:0;
+  background-image:linear-gradient(rgba(29,29,31,.05) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(29,29,31,.05) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(1100px 780px at 50% 32%,#000 20%,transparent 85%);
+  -webkit-mask-image:radial-gradient(1100px 780px at 50% 32%,#000 20%,transparent 85%); }
+
+.hero .wrap{ position:relative; z-index:2; display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:56px; align-items:center;
+  padding-top:172px; padding-bottom:150px; }
+.hero .eyebrow{ color:var(--sub); font-size:16px; font-weight:500; margin-bottom:10px; }
+.hero h1{ color:var(--ink); font-size:clamp(46px,6.4vw,72px); font-weight:800; letter-spacing:-.02em;
+  line-height:1.12; margin-bottom:26px; }
+.hero p{ color:var(--sub); font-size:15.5px; max-width:520px; margin-bottom:12px; }
+.btn-row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:34px; }
+.pbtn{ display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600;
+  border-radius:99px; padding:11px 22px; transition:transform .15s ease, opacity .15s ease, border-color .15s ease; }
+.pbtn:active{ transform:scale(.97); }
+.pbtn.primary{ background:var(--blue); color:#fff; }
+.pbtn.primary:hover{ opacity:.9; }
+.pbtn.ghost{ border:1px solid rgba(0,0,0,.16); color:var(--ink); }
+.pbtn.ghost:hover{ border-color:rgba(0,0,0,.45); }
+
+/* Hero 右侧：Tab + 终端卡（浅色终端） */
+.term-wrap{ align-self:center; }
+.tabs{ display:flex; gap:4px; padding:0 4px; }
+.tab{ font-size:13.5px; font-weight:500; color:var(--dim); padding:9px 18px;
+  border-radius:11px 11px 0 0; cursor:pointer; transition:color .15s ease, background .15s ease;
+  border:1px solid transparent; border-bottom:0; }
+.tab:hover{ color:var(--ink); }
+.tab.on{ background:#fff; color:var(--ink); border-color:var(--line); }
+.term{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,.06), 0 24px 64px rgba(0,0,0,.10); }
+.term .bar{ display:flex; align-items:center; padding:13px 16px; border-bottom:1px solid var(--hair); }
+.term .bar i{ width:11px; height:11px; border-radius:50%; margin-right:7px; }
+.term .bar i:nth-child(1){ background:#ff5f57; } .term .bar i:nth-child(2){ background:#febc2e; }
+.term .bar i:nth-child(3){ background:#28c840; }
+.term .bar .copy{ margin-left:auto; display:flex; align-items:center; gap:5px; font-size:12px;
+  color:var(--sub); border:1px solid rgba(0,0,0,.14); border-radius:7px; padding:3px 10px;
+  cursor:pointer; transition:color .15s ease, border-color .15s ease; }
+.term .bar .copy:hover{ color:var(--ink); border-color:rgba(0,0,0,.35); }
+.term .body{ padding:24px 20px 28px; font-family:var(--mono); font-size:13.5px; line-height:2.2;
+  min-height:168px; color:#3a3a41; white-space:pre-wrap; word-break:break-all; }
+.term .body .d{ color:var(--dim); }
+.term .body .p{ color:var(--blue); }
+.term .body .ok{ color:var(--green); }
+.term .body .kbd{ border:1px solid rgba(0,0,0,.22); border-radius:5px; padding:1px 8px;
+  font-size:11.5px; color:var(--ink); }
+
+/* ============ 区块通用 ============ */
+section{ padding:150px 0; }
+.eyebrow-pill{ display:inline-flex; font-family:var(--mono); font-size:11px; letter-spacing:.22em;
+  color:var(--sub); border:1px solid var(--line); background:rgba(0,0,0,.025);
+  border-radius:99px; padding:6px 16px; text-transform:uppercase; }
+.center{ text-align:center; }
+.center .sec-desc{ margin-left:auto; margin-right:auto; }
+h2.sec-title{ font-size:clamp(30px,4vw,44px); font-weight:700; letter-spacing:-.02em;
+  line-height:1.3; margin:26px 0 22px; }
+.px{ font-family:var(--mono); font-weight:800; letter-spacing:.04em;
+  background:linear-gradient(120deg,#7b79ff,#5856d5); -webkit-background-clip:text;
+  background-clip:text; -webkit-text-fill-color:transparent; }
+.sec-desc{ color:var(--sub); font-size:16px; max-width:620px; }
+.sec-desc + .sec-desc{ margin-top:14px; }
+.sec-desc u{ text-decoration-color:rgba(91,124,250,.6); text-underline-offset:4px; }
+
+/* Spotlight：卡片微光跟随 */
+.spotlight{ position:relative; overflow:hidden; }
+.spotlight::before{ content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  opacity:0; transition:opacity .3s ease;
+  background:radial-gradient(400px circle at var(--mouse-x,50%) var(--mouse-y,50%),
+    rgba(88,86,213,.08), transparent); }
+.spotlight::after{ content:''; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+  opacity:0; transition:opacity .3s ease;
+  background:radial-gradient(240px circle at var(--mouse-x,50%) var(--mouse-y,50%),
+    rgba(88,86,213,.85), rgba(123,121,255,.4) 38%, transparent 70%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude; }
+.spotlight:hover::before,.spotlight:hover::after{ opacity:1; }
+/* 光斑压在内容下面：内容抬到 z-index:2，避免被光斑遮挡 */
+.spotlight > *{ position:relative; z-index:2; }
+
+/* Hero 终端卡：旋转流光边框（紫蓝系） */
+@property --border-angle{ syntax:'<angle>'; inherits:false; initial-value:0deg; }
+@keyframes rotating-border{ 0%{ --border-angle:0deg; } 100%{ --border-angle:360deg; } }
+.hero .term.spotlight::after{ padding:2px; animation:rotating-border 6s linear infinite;
+  background:conic-gradient(from var(--border-angle),
+    rgba(88,86,213,.18) 0%,rgba(123,121,255,.7) 12%,rgba(88,86,213,.18) 25%,
+    rgba(88,86,213,.15) 50%,rgba(123,121,255,.7) 62%,rgba(88,86,213,.15) 75%,rgba(88,86,213,.18) 100%); }
+.hero .term.spotlight:hover{ border-color:rgba(88,86,213,.35); }
+
+/* 三特性 */
+.trio{ display:grid; grid-template-columns:repeat(3,1fr); gap:56px; margin-top:90px; }
+.trio .cell{ position:relative; text-align:center; border-radius:18px; }
+.trio .ic{ width:44px; height:44px; margin:0 auto 20px; border:1px solid var(--line); border-radius:12px;
+  display:flex; align-items:center; justify-content:center; font-size:19px; background:rgba(255,255,255,.03); }
+.trio h3{ font-size:16.5px; font-weight:600; margin-bottom:6px; }
+.trio .en{ font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--dim);
+  text-transform:uppercase; margin-bottom:14px; }
+.trio p{ font-size:13.5px; color:var(--sub); line-height:1.85; }
+
+/* 设计思路 · App 三栏工作台 mockup（布局 v3：项目树 + 条目列 + 详情步骤） */
+.left-head{ }
+.left-head h2{ margin:22px 0 20px; }
+.long{ color:var(--sub); font-size:15.5px; max-width:680px; }
+.long + .long{ margin-top:16px; }
+.long u{ text-decoration-color:rgba(88,86,213,.6); text-underline-offset:4px; }
+.shot-frame{ margin:56px 0 70px; background:#fff; border:1px solid var(--line);
+  border-radius:18px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,.06), 0 24px 64px rgba(0,0,0,.10); }
+.shot-frame .bar{ display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--hair); }
+.shot-frame .bar i{ width:11px; height:11px; border-radius:50%; margin-right:7px; }
+.shot-frame .bar i:nth-child(1){ background:#ff5f57; } .shot-frame .bar i:nth-child(2){ background:#febc2e; }
+.shot-frame .bar i:nth-child(3){ background:#28c840; }
+.shot-frame .bar b{ margin-left:8px; font-size:12px; color:var(--sub); font-weight:500; }
+.shot-frame .win{ display:flex; min-height:460px; background:#fafafa; font-size:12px; }
+/* 侧栏：项目树 */
+.shot-frame .side{ width:188px; flex-shrink:0; border-right:1px solid var(--hair); padding:14px 10px; background:var(--canvas); }
+.shot-frame .brand{ display:flex; gap:8px; align-items:center; font-weight:700; font-size:13px; padding:2px 7px 12px; }
+.shot-frame .brand img{ width:21px; height:21px; border-radius:6px; }
+.shot-frame .slabel{ font-size:10.5px; color:var(--dim); padding:10px 8px 4px; }
+.shot-frame .it{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; color:var(--sub); }
+.shot-frame .it.on{ background:rgba(88,86,213,.09); color:var(--blue); font-weight:600; }
+.shot-frame .it .n{ margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--dim); }
+/* 中列：条目卡流 */
+.shot-frame .main{ width:270px; flex-shrink:0; border-right:1px solid var(--hair); padding:12px; }
+.shot-frame .mhead{ font-size:12.5px; font-weight:700; color:var(--ink); padding:2px 4px 8px; }
+.shot-frame .mhead span{ color:var(--dim); font-weight:400; font-size:11px; }
+.shot-frame .msearch{ font-size:11px; color:var(--dim); border:1px solid var(--hair); background:#fff;
+  border-radius:8px; padding:5px 10px; margin-bottom:10px; }
+.shot-frame .item{ background:#fff; border:1px solid var(--hair); border-radius:10px; padding:8px 10px; margin-bottom:7px; }
+.shot-frame .item.on{ border-color:rgba(88,86,213,.5); box-shadow:0 0 0 2px rgba(88,86,213,.12); }
+.shot-frame .item .t{ font-size:11.5px; color:var(--ink); line-height:1.45; margin-bottom:5px; }
+.shot-frame .item .m{ display:flex; gap:6px; align-items:center; font-size:9.5px; color:var(--dim); }
+.shot-frame .item .tag{ font-family:var(--mono); font-size:8.5px; color:var(--blue);
+  border:1px solid rgba(88,86,213,.28); background:rgba(88,86,213,.07); border-radius:99px; padding:1px 7px; }
+.shot-frame .item .prog{ margin-left:auto; color:var(--green); font-weight:600; }
+/* 右栏：详情 + 步骤清单 + 结果贴回 */
+.shot-frame .detail{ flex:1; padding:14px 16px; min-width:0; }
+.shot-frame .dtitle{ font-size:14px; font-weight:700; color:var(--ink); line-height:1.4; }
+.shot-frame .dchips{ display:flex; gap:6px; margin:8px 0 12px; flex-wrap:wrap; }
+.shot-frame .dchips .c{ font-family:var(--mono); font-size:8.5px; color:var(--sub);
+  border:1px solid var(--hair); background:rgba(0,0,0,.02); border-radius:99px; padding:1.5px 8px; }
+.shot-frame .dchips .c.b{ color:var(--blue); border-color:rgba(88,86,213,.28); background:rgba(88,86,213,.07); }
+.shot-frame .step{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--hair);
+  border-radius:9px; padding:7px 10px; margin-bottom:6px; font-size:11.5px; color:#2c3034; }
+.shot-frame .step .no{ font-family:var(--mono); font-size:9.5px; color:var(--dim); width:14px; flex-shrink:0; }
+.shot-frame .step .dot{ width:13px; height:13px; border-radius:4.5px; border:1.5px solid rgba(0,0,0,.3);
+  flex-shrink:0; position:relative; }
+.shot-frame .step.done .dot{ background:var(--blue); border-color:var(--blue); }
+.shot-frame .step.done .dot::after{ content:'✓'; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:8px; color:#fff; font-weight:800; }
+.shot-frame .step.done .tx{ text-decoration:line-through; opacity:.5; }
+.shot-frame .step .cmd{ font-family:var(--mono); font-size:10.5px; background:rgba(88,86,213,.08);
+  color:var(--blue-deep); padding:1px 7px; border-radius:5px; }
+.shot-frame .step .cp{ margin-left:auto; font-size:9px; color:var(--sub); border:1px solid rgba(0,0,0,.16);
+  padding:1px 7px; border-radius:4px; flex-shrink:0; }
+.shot-frame .result{ display:flex; align-items:center; gap:8px; margin:-2px 0 8px 22px; font-size:10.5px;
+  color:var(--dim); border:1px dashed rgba(0,0,0,.14); border-radius:8px; padding:5px 10px; background:rgba(0,0,0,.015); }
+.shot-frame .myq{ margin-top:12px; font-size:10.5px; color:var(--dim); border-left:2px solid rgba(88,86,213,.4);
+  padding:2px 0 2px 10px; }
+
+/* 四通道卡 */
+.quad{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:64px; }
+.qcell{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px 28px 26px;
+  transition:border-color .2s ease, transform .2s ease, box-shadow .2s ease; }
+.qcell:hover{ border-color:rgba(0,0,0,.2); transform:translateY(-3px); box-shadow:0 12px 32px rgba(0,0,0,.08); }
+.qcell .mono-name{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:var(--blue);
+  margin-bottom:12px; }
+.qcell h3{ font-size:17.5px; font-weight:700; letter-spacing:-.01em; margin-bottom:10px; }
+.qcell p{ font-size:13.5px; color:var(--sub); line-height:1.85; }
+
+/* 开始使用 */
+.duo{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:56px; }
+.duo .dcell{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px; }
+.duo h3{ font-size:16.5px; font-weight:700; margin-bottom:8px; }
+.duo p{ font-size:13.5px; color:var(--sub); margin-bottom:18px; }
+.duo .term{ box-shadow:0 4px 24px rgba(0,0,0,.05); }
+.duo .term .body{ min-height:0; padding:16px 18px 18px; font-size:12.5px; }
+
+/* CTA */
+.cta{ text-align:center; padding:170px 0 150px; position:relative; overflow:hidden; }
+.cta .glow{ position:absolute; inset:auto 0 0; height:400px; pointer-events:none;
+  background:radial-gradient(600px 300px at 50% 100%, rgba(88,86,213,.12), transparent 70%); }
+.cta h2{ font-size:clamp(32px,4.6vw,50px); font-weight:800; letter-spacing:-.02em; margin:20px 0 16px; }
+.cta p{ color:var(--sub); max-width:600px; margin:0 auto 36px; font-size:15.5px; }
+
+/* footer */
+footer{ border-top:1px solid var(--hair); padding:30px 0 40px; }
+footer .wrap{ display:flex; gap:22px; flex-wrap:wrap; align-items:center; font-size:12.5px; color:var(--dim); }
+footer .grow{ flex:1; }
+footer a:hover{ color:var(--ink); }
+
+/* 动效 */
+.rv{ opacity:0; transform:translateY(26px); transition:opacity .8s ease, transform .8s ease; }
+.rv.in{ opacity:1; transform:none; }
+@media (prefers-reduced-motion: reduce){
+  .rv{ opacity:1; transform:none; transition:none; } html{ scroll-behavior:auto; }
+}
+@media (max-width:900px){
+  .hero .wrap{ grid-template-columns:1fr; padding-top:140px; }
+  .trio{ grid-template-columns:1fr; gap:44px; }
+  .quad, .duo{ grid-template-columns:1fr; }
+  .shot-frame .main{ display:none; }
+  nav .links a:not(.nav-pill){ display:none; }
+}
+
+/* ══════════════ HOW 如何工作（DeepSeek Harness 式：左侧文字流滚动，右侧 sticky 视觉叠层切换） ══════════════ */
+.how{ position:relative; padding:0; }
+.how-head{ max-width:1120px; margin:0 auto; padding:150px 32px 26px; }
+.how-head .eyebrow-pill{ margin-bottom:22px; }
+.how-head h2{ font-size:clamp(30px,4vw,44px); font-weight:700; letter-spacing:-.02em; line-height:1.3; }
+.how-grid{ max-width:1120px; margin:0 auto; padding:0 32px 130px;
+  display:grid; grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr); gap:64px; align-items:start; }
+.how-steps{ display:grid; }
+.how-step{ min-height:82vh; display:flex; flex-direction:column; justify-content:center;
+  opacity:.3; transition:opacity .5s ease; }
+.how-step.on{ opacity:1; }
+.how-step .idx{ font-family:var(--mono); font-size:11px; letter-spacing:.22em; color:var(--blue); margin-bottom:16px; }
+.how-step h3{ font-size:clamp(24px,2.6vw,32px); font-weight:800; letter-spacing:-.02em;
+  line-height:1.32; margin-bottom:14px; }
+.how-step p{ color:var(--sub); font-size:15px; max-width:430px; line-height:1.9; }
+.how-visual{ position:sticky; top:clamp(90px,20vh,200px); }
+.how-frame{ position:relative; width:100%; aspect-ratio:8/5; background:var(--canvas);
+  border:1px solid var(--line); border-radius:20px; overflow:hidden;
+  box-shadow:0 4px 24px rgba(0,0,0,.06), 0 24px 64px rgba(0,0,0,.10); }
+.how-layer{ position:absolute; inset:0; opacity:0; transition:opacity .5s ease; }
+.how-layer.on{ opacity:1; }
+.how-layer .mock{ padding:18px; }
+.how-layer .mwin{ max-width:500px; }
+
+/* 仿 App 界面 mock（深色窗口浮在浅色画布上，previewImage 填真图后可整体删除） */
+.mock{ position:absolute; inset:0; padding:14px; display:flex; align-items:center; justify-content:center; }
+.mwin{ width:100%; max-width:400px; background:#131318; border:1px solid rgba(255,255,255,.09);
+  border-radius:13px; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.45); }
+.mwin .mbar{ display:flex; align-items:center; gap:6px; padding:8px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.025); }
+.mwin .mbar i{ width:9px; height:9px; border-radius:50%; }
+.mwin .mbar i:nth-child(1){ background:#ff5f57; } .mwin .mbar i:nth-child(2){ background:#febc2e; }
+.mwin .mbar i:nth-child(3){ background:#28c840; }
+.mwin .mbar b{ margin-left:6px; font-size:10.5px; color:rgba(235,238,248,.38); font-weight:500; }
+.mwin .mbar .kbd{ margin-left:auto; }
+.mbody{ padding:11px; display:grid; gap:7px; }
+.mrow{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px;
+  background:rgba(255,255,255,.04); font-size:11px; color:rgba(235,238,248,.72); }
+.mrow .ph{ height:7px; border-radius:4px; background:rgba(255,255,255,.12); }
+.msel{ background:rgba(91,124,250,.34); border-radius:4px; padding:1px 3px;
+  box-shadow:0 0 0 1px rgba(125,150,255,.45); color:#eef1fb; }
+.kbd{ font-family:var(--mono); font-size:9.5px; color:rgba(255,255,255,.8);
+  border:1px solid rgba(255,255,255,.26); border-radius:5px; padding:1px 7px; white-space:nowrap; }
+.mpop{ margin-left:auto; width:236px; background:rgba(26,28,38,.94);
+  border:1px solid rgba(255,255,255,.13); border-radius:12px; padding:10px 12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 18px 48px rgba(0,0,0,.6);
+  backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5); }
+.mpop .t{ font-size:11px; color:#e8ecf6; line-height:1.55; }
+.mpop .src{ font-family:var(--mono); font-size:9px; color:rgba(235,238,248,.38); margin-top:5px; }
+.mpop .go{ margin-top:8px; display:flex; align-items:center; gap:6px; font-size:10px;
+  color:#0e1016; background:#fff; border-radius:7px; padding:4px 10px; font-weight:600; width:fit-content; }
+.mquote{ border-left:2px solid rgba(125,150,255,.55); background:rgba(91,124,250,.09);
+  border-radius:0 8px 8px 0; padding:7px 11px; font-size:11px; color:rgba(235,238,248,.85); }
+.mquote .lb{ font-family:var(--mono); font-size:8.5px; letter-spacing:.16em; color:#9db1ff;
+  display:block; margin-bottom:3px; }
+.mstep{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:9px;
+  background:rgba(255,255,255,.045); font-size:11px; color:#e6e9f4; }
+.mstep:nth-child(even){ background:rgba(255,255,255,.07); }
+.mstep .dot{ width:13px; height:13px; border-radius:4.5px; border:1.5px solid rgba(255,255,255,.4);
+  flex-shrink:0; position:relative; }
+.mstep.done .dot{ background:#fff; border-color:#fff; }
+.mstep.done .dot::after{ content:'✓'; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:8px; color:#3b55d9; font-weight:800; }
+.mstep.done .tx{ text-decoration:line-through; opacity:.55; }
+.mstep.act{ background:rgba(91,124,250,.14); box-shadow:inset 0 0 0 1px rgba(125,150,255,.4); }
+.mstep .cmd{ font-family:var(--mono); font-size:10px; background:rgba(255,255,255,.12);
+  padding:1px 7px; border-radius:5px; }
+.mstep .cp{ margin-left:auto; font-size:9px; color:rgba(255,255,255,.75);
+  border:1px solid rgba(255,255,255,.28); padding:1px 7px; border-radius:4px; flex-shrink:0; }
+.mfoot{ font-family:var(--mono); font-size:9px; color:rgba(235,238,248,.38); text-align:right; }
+.mdate{ font-family:var(--mono); font-size:9px; letter-spacing:.12em; color:rgba(235,238,248,.38);
+  margin-top:2px; }
+.mcard2{ display:flex; align-items:center; gap:9px; background:#17171d;
+  border:1px solid rgba(255,255,255,.05); border-radius:10px; padding:9px 11px; font-size:11px; color:#dfe3ee; }
+.mcard2 .mtag{ margin-left:auto; font-family:var(--mono); font-size:8.5px; color:#9db1ff;
+  border:1px solid rgba(125,150,255,.3); background:rgba(91,124,250,.12);
+  border-radius:99px; padding:1.5px 8px; flex-shrink:0; }
+.mcard2 .mtag.g{ color:rgba(235,238,248,.55); border-color:rgba(255,255,255,.05); background:rgba(255,255,255,.05); }
+@keyframes scRise{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+.how-layer.on .preview .mstag{ animation:scRise .5s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:calc(90ms + var(--i,0)*70ms); }
+
+@media (max-width:960px){
+  .how-head{ padding:120px 24px 8px; }
+  .how-grid{ grid-template-columns:1fr; gap:26px; padding:0 24px 90px; }
+  .how-visual{ top:70px; z-index:5; }
+  .how-frame{ box-shadow:0 12px 40px rgba(0,0,0,.14); }
+  .how-step{ min-height:60vh; }
+}
+@media (prefers-reduced-motion: reduce){
+  .how-step, .how-layer{ transition:none; }
+  .how-layer.on .preview .mstag{ animation:none; }
+}
+/* 调试：#nomotion 或隐藏标签页（动画时钟冻结）时整体禁用过渡/动画 */
+.no-trans *, .no-trans *::before, .no-trans *::after{ transition:none !important; animation:none !important; }
+/* ══════════════ /HOW ══════════════ */
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="logo navlink" data-tip="回到顶部" href="#"><img src="assets/icon.png" alt="纳言">纳言<span class="badge">INBOX</span></a>
+    <div class="links">
+      <a href="#philosophy" class="navlink" data-tip="捕获 → 拆步 → 执行 → 勾选">理念</a>
+      <a href="#how" class="navlink" data-tip="左栏不动，右边自己讲">如何工作</a>
+      <a href="#design" class="navlink" data-tip="一切为了兑现，全程有迹可循">设计思路</a>
+      <a href="#channels" class="navlink" data-tip="四条路，同一个收件箱">收集通道</a>
+      <a href="#download" class="nav-pill navlink" data-tip="NaYan.dmg · Apple Silicon">下载</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="sky">
+    <div class="halo"></div>
+    <div class="grid"></div>
+  </div>
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">纳言 NaYan · 建议收件箱</div>
+      <h1>说到，做到。</h1>
+      <p>纳言是装在 macOS 菜单栏里的建议收件箱，面向所有被 AI 建议淹没的人开放使用，所有数据只保存在本机。</p>
+      <p>捕获、拆步、执行、勾选——来自 ZCode、Claude Code、浏览器的每一条建议，自动归进对应的项目，做一步勾一步，来源可追溯。</p>
+      <div class="btn-row">
+        <a class="pbtn primary navlink" data-tip="NaYan.dmg · Apple Silicon · macOS 13+" href="assets/NaYan.dmg" id="download-top">↓ 下载 NaYan for Mac</a>
+        <a class="pbtn ghost navlink" data-tip="从安装到收到第一条建议只要 3 分钟" href="#download">使用指南</a>
+        <a class="pbtn ghost" href="#channels">收集通道</a>
+        <a class="pbtn ghost" href="#privacy">本地优先</a>
+      </div>
+    </div>
+    <div class="term-wrap">
+      <div class="tabs">
+        <div class="tab on" data-t="quick">一键捕获</div>
+        <div class="tab" data-t="src">源码安装</div>
+      </div>
+      <div class="term spotlight">
+        <div class="bar"><i></i><i></i><i></i><span class="copy" id="copyBtn">⧉ 复制</span></div>
+        <div class="body" id="termBody"><span class="d"># 在任何 App 里选中一段 AI 回复</span>
+<span class="p">$</span> 按下 <span class="kbd">⌥S</span>，角落弹出确认小窗
+<span class="p">$</span> 顺手记一句想法，回车
+<span class="ok">✓ 已收进收件箱</span> <span class="d">来自 ZCode · 📁 记录软件</span></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="philosophy" class="center">
+  <div class="wrap">
+    <div class="eyebrow-pill rv">INBOX = CAPTURE + DONE</div>
+    <h2 class="sec-title rv"><span class="px">纳言</span> 让 AI 的建议落进现实</h2>
+    <p class="sec-desc rv">捕获是起点，兑现是归宿。</p>
+    <p class="sec-desc rv">从「收到一条建议」到「做完一条建议」之间的每一步，都交给纳言。</p>
+    <div class="trio">
+      <div class="cell spotlight rv">
+        <div class="ic">⚡</div>
+        <h3>捕获内核</h3>
+        <div class="en">CAPTURE KERNEL</div>
+        <p>只做一件事：把任何 App 里选中的文字，完整地、带来源地收进收件箱。终端、Electron 应用、浏览器，一个不漏。</p>
+      </div>
+      <div class="cell spotlight rv">
+        <div class="ic">🪄</div>
+        <h3>步骤即任务</h3>
+        <div class="en">STEPS AS TASKS</div>
+        <p>建议与命令被拆成有序步骤：命令保持原文、一键复制，每一步还能贴上执行结果——回贴给 AI 复核对错，再走下一步。</p>
+      </div>
+      <div class="cell spotlight rv">
+        <div class="ic">✅</div>
+        <h3>一次只做一件事</h3>
+        <div class="en">ONE AT A TIME</div>
+        <p>「今日专注」把当前卡片置顶：做完一步勾一步，进度走到头，整卡收工。其他建议安静排队，绝不催你。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 如何工作 · 滚动叙事（Harness 式：左侧文字随滚动切换，右侧视觉钉住） ══════════════ -->
+<section class="how" id="how" data-how>
+  <div class="how-head">
+    <div class="eyebrow-pill rv">建议收件箱 · 如何工作</div>
+    <h2 class="rv">从<span class="px">收到</span>，到<span class="px">做完</span>。</h2>
+  </div>
+  <div class="how-grid">
+    <div class="how-steps"></div>
+    <div class="how-visual"><div class="how-frame"></div></div>
+  </div>
+
+  <script type="application/json" class="how-data">
+  [
+    { "id": "capture", "title": "任何 App 里，⌥S 一按进箱",
+      "desc": "终端、Electron 应用、浏览器——选中 AI 的回复按下快捷键，角落弹出确认小窗，顺手记一句想法，回车即入库。",
+      "mock": "capture" },
+    { "id": "steps", "title": "建议自动拆成有序步骤",
+      "desc": "调用你自己配置的模型 API，把建议拆成可勾选的步骤：命令保持原文、一键复制，每一步还能贴上执行结果，回贴给 AI 复核。",
+      "mock": "steps" },
+    { "id": "focus", "title": "一次只做一件事，做一步勾一步",
+      "desc": "「今日专注」把当前卡片置顶，其余建议安静排队；进度走到头，整卡收工——执行感来自看见勾一个个亮起。",
+      "mock": "focus" },
+    { "id": "trace", "title": "每一条建议都有来处",
+      "desc": "按项目归拢、按天分组；来源 App、窗口标题、捕获时间自动入档。本地 SQLite 单文件，备份即带走。",
+      "mock": "trace" }
+  ]
+  </script>
+</section>
+<!-- ══════════════ /如何工作 ══════════════ -->
+
+<section id="design">
+  <div class="wrap">
+    <div class="eyebrow-pill rv">设计思路</div>
+    <div class="left-head">
+      <h2 class="sec-title rv">一切为了兑现，全程有迹可循</h2>
+    </div>
+    <p class="long rv">纳言基于<u>本地优先</u>架构构建：捕获、来源、步骤、专注状态，全部记录在同一份本地数据里。
+      无账号、无云端、无追踪，备份一个文件即可带走全部记忆。</p>
+    <div class="shot-frame spotlight rv">
+      <div class="bar"><i></i><i></i><i></i><b>纳言 · AI 回复的分组收录器</b></div>
+      <div class="win">
+        <div class="side">
+          <div class="brand"><img src="assets/icon.png" alt="">纳言</div>
+          <div class="it">📥 收件箱 <span class="n">8</span></div>
+          <div class="it">☀️ 今天 <span class="n">3</span></div>
+          <div class="it">🗂 全部 <span class="n">24</span></div>
+          <div class="slabel">项目</div>
+          <div class="it on">📁 记录软件 <span class="n">6</span></div>
+          <div class="it">🐧 装机实录 <span class="n">4</span></div>
+          <div class="it">🛠 官网 <span class="n">2</span></div>
+        </div>
+        <div class="main">
+          <div class="mhead">记录软件 <span>· 6 条</span></div>
+          <div class="msearch">⌕ 搜索建议、命令、想法…</div>
+          <div class="item on">
+            <div class="t">安装 PostgreSQL 并配置开机自启</div>
+            <div class="m"><span class="tag">Claude Code</span><span>今天</span><span class="prog">✓ 2/3</span></div>
+          </div>
+          <div class="item">
+            <div class="t">给设置页搜索框加 300ms 防抖，减少无效过滤</div>
+            <div class="m"><span class="tag">ZCode</span><span>09:41</span></div>
+          </div>
+          <div class="item">
+            <div class="t">把日志写入 data/ 目录，避免污染工作区</div>
+            <div class="m"><span class="tag">Claude Code</span><span>昨天</span></div>
+          </div>
+        </div>
+        <div class="detail">
+          <div class="dtitle">安装 PostgreSQL 并配置开机自启</div>
+          <div class="dchips"><span class="c b">建议</span><span class="c">Claude Code</span><span class="c">📁 记录软件</span><span class="c">今天 09:12</span></div>
+          <div class="step done"><span class="no">1</span><span class="dot"></span><span class="tx cmd">brew install postgresql@16</span><span class="cp">⧉ 复制</span></div>
+          <div class="step done"><span class="no">2</span><span class="dot"></span><span class="tx">初始化数据库目录</span></div>
+          <div class="step"><span class="no">3</span><span class="dot"></span><span class="tx">配置开机自启</span></div>
+          <div class="result">⏎ 贴上这一步的执行结果，回车保存 · 结果可回贴给 AI 复核</div>
+          <div class="myq">我问：「PostgreSQL 怎么装，还要开机自启」</div>
+        </div>
+      </div>
+    </div>
+    <p class="long rv"><b style="color:var(--ink)">每次捕获都有迹可循。</b>卡片自动记录来源 App、窗口标题与项目路径；
+      按项目归拢、按天分组，搜索与回放共享同一份本地数据。</p>
+    <p class="long rv"><b style="color:var(--ink)">多种收集方式。</b>任何 App 里选中文字按 ⌥S；整块内容 ⌥Z 框选，跨行段落自动重组成完整文本；
+      已接入 MCP 的工具里说一句话即可逐条入库；网页 AI 对话装浏览器插件，自动附带原对话链接。</p>
+    <div class="quad" id="channels">
+      <div class="qcell spotlight rv">
+        <div class="mono-name">GLOBAL HOTKEY · ⌥S</div>
+        <h3>划词即捕获</h3>
+        <p>任何 App 里选中 AI 的回复按 ⌥S——终端、Electron 应用、浏览器通通覆盖。系统级直读选区，不污染剪贴板；小窗确认入库，顺手记一句想法。</p>
+      </div>
+      <div class="qcell spotlight rv">
+        <div class="mono-name">BOX SELECT · ⌥Z</div>
+        <h3>框选整块收</h3>
+        <p>回复太长不想划？⌥Z 框一圈，命中的跨行段落自动重组成完整文本——聊天窗口里的长回复、演示里的代码块，一框进箱。</p>
+      </div>
+      <div class="qcell spotlight rv">
+        <div class="mono-name">MCP NATIVE</div>
+        <h3>对 AI 说一句话</h3>
+        <p>Claude Code / Codex / ZCode 等已接入 MCP 的工具里，说一句「把这几条建议记到纳言」，AI 自动拆好、逐条入库，来源工具和项目路径自动带上。</p>
+      </div>
+      <div class="qcell spotlight rv">
+        <div class="mono-name">BROWSER EXTENSION</div>
+        <h3>网页 AI 专用通道</h3>
+        <p>网页版 AI 对话里划词右键直达、快捷键框选整段，卡片自动附带原对话链接，随时跳回上下文。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap center">
+    <div class="eyebrow-pill rv">隐私 <span style="letter-spacing:.14em">LOCAL-FIRST</span></div>
+    <h2 class="sec-title rv">你的建议，只属于你的 Mac。</h2>
+    <p class="sec-desc rv">SQLite 单文件存在本机，无账号、无云端、无追踪；AI 拆步调用你自己配置的模型 API，Key 只存本地。</p>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="eyebrow-pill rv">开始使用</div>
+    <div class="left-head"><h2 class="sec-title rv">三分钟，接住第一条建议</h2></div>
+    <div class="duo">
+      <div class="dcell spotlight rv">
+        <h3>快速体验</h3>
+        <p>下载 NaYan.dmg，拖进「应用程序」，打开后菜单栏出现图标——它已经常驻了。首次按 ⌥S 时授权「辅助功能」即可。</p>
+        <div class="term spotlight">
+          <div class="body"><span class="p">1</span> 下载 NaYan.dmg，拖入「应用程序」
+<span class="p">2</span> 打开纳言 → 授权「辅助功能」
+<span class="p">3</span> 选中文字 → <span class="kbd">⌥S</span> → <span class="ok">✓</span></div>
+        </div>
+        <div class="btn-row" style="margin-top:20px">
+          <a class="pbtn primary" href="assets/NaYan.dmg">↓ 下载 NaYan for Mac</a>
+        </div>
+      </div>
+      <div class="dcell spotlight rv">
+        <h3>从源码安装</h3>
+        <p>获取完整项目源码，Tauri 2 + Rust 构建，按照仓库说明完成安装。改 UI 只需要改一个 HTML 文件。</p>
+        <div class="term spotlight">
+          <div class="body"><span class="p">$</span> git clone https://github.com/nayan-app/nayan
+<span class="p">$</span> cd nayan/app && npm install
+<span class="p">$</span> npx tauri build</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="glow"></div>
+  <div class="wrap">
+    <div class="eyebrow-pill rv">加入内测</div>
+    <h2 class="rv">别再弄丢 AI 说过的话。</h2>
+    <p class="rv">纳言仍处于公测阶段，能力会持续迭代。我们想把「AI 建议管理」这件小事做到极致——
+      在本地、可追溯、不打扰的基础之上，让每一条好建议都被兑现。</p>
+    <div class="btn-row rv" style="justify-content:center">
+      <a class="pbtn primary" href="assets/NaYan.dmg">↓ 免费下载 NaYan for Mac</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 纳言 NaYan</span>
+    <span>开源精神 · 本地优先</span>
+    <span class="grow"></span>
+    <a href="#philosophy">理念</a>
+    <a href="#how">如何工作</a>
+    <a href="#design">设计思路</a>
+    <a href="#channels">收集通道</a>
+    <a href="#privacy">隐私</a>
+  </div>
+</footer>
+
+<script>
+// 滚动显现
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
+} else {
+  document.querySelectorAll('.rv').forEach(function (el) { el.classList.add('in'); });
+}
+// 导航滚动变实
+var nav = document.getElementById('nav');
+addEventListener('scroll', function () {
+  nav.classList.toggle('scrolled', scrollY > 40);
+}, { passive: true });
+// Spotlight：微光与 1px 发光边框跟随鼠标
+document.querySelectorAll('.spotlight').forEach(function (card) {
+  card.addEventListener('pointermove', function (e) {
+    var r = card.getBoundingClientRect();
+    card.style.setProperty('--mouse-x', (e.clientX - r.left).toFixed(1) + 'px');
+    card.style.setProperty('--mouse-y', (e.clientY - r.top).toFixed(1) + 'px');
+  });
+});
+// Hero 终端 Tab 切换
+var TERM_CONTENT = {
+  quick: '<span class="d"># 在任何 App 里选中一段 AI 回复</span>\n<span class="p">$</span> 按下 <span class="kbd">⌥S</span>，角落弹出确认小窗\n<span class="p">$</span> 顺手记一句想法，回车\n<span class="ok">✓ 已收进收件箱</span> <span class="d">来自 ZCode · 📁 记录软件</span>',
+  src: '<span class="p">$</span> git clone https://github.com/nayan-app/nayan\n<span class="p">$</span> cd nayan/app && npm install\n<span class="p">$</span> npx tauri build\n<span class="ok">✓ 构建完成：NaYan.app</span>'
+};
+var plainText = {
+  quick: '# 在任何 App 里选中一段 AI 回复\n$ 按下 ⌥S，角落弹出确认小窗\n$ 顺手记一句想法，回车\n✓ 已收进收件箱',
+  src: '$ git clone https://github.com/nayan-app/nayan\n$ cd nayan/app && npm install\n$ npx tauri build\n✓ 构建完成：NaYan.app'
+};
+var currentTab = 'quick';
+document.querySelectorAll('.tab').forEach(function (t) {
+  t.onclick = function () {
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+    t.classList.add('on');
+    currentTab = t.getAttribute('data-t');
+    document.getElementById('termBody').innerHTML = TERM_CONTENT[currentTab];
+  };
+});
+document.getElementById('copyBtn').onclick = function () {
+  var btn = this;
+  navigator.clipboard.writeText(plainText[currentTab]).then(function () {
+    btn.textContent = '✓ 已复制';
+    setTimeout(function () { btn.textContent = '⧉ 复制'; }, 1200);
+  });
+};
+</script>
+
+<script>
+/* ══════════════ HOW 如何工作（组件脚本：右侧视觉钉住，左侧文字随滚动切换） ══════════════ */
+(function () {
+  'use strict';
+
+  /* 仿 App 界面 mock：mock 字段对应模板；接真截图后改为 <img> 或整体删除 */
+  var MOCKS = {
+    capture: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>AI 对话 · 任意应用</b><span class="kbd">⌥S</span></div>' +
+        '<div class="mbody">' +
+          '<div class="mrow mstag" style="--i:0"><span class="ph" style="width:44px"></span>建议把日志写入 <span class="msel">data/ 目录</span>，避免污染工作区</div>' +
+          '<div class="mrow mstag" style="--i:1"><span class="ph" style="width:64px"></span><span class="ph" style="width:28px"></span><span class="ph" style="width:90px"></span></div>' +
+          '<div class="mpop mstag" style="--i:2">' +
+            '<div class="t">收进纳言？<br>「把日志写入 data/ 目录，避免污染工作区」</div>' +
+            '<div class="src">来自 ZCode · 📁 记录软件 · 可顺手记一句想法</div>' +
+            '<div class="go">↩ 回车入库</div>' +
+          '</div>' +
+        '</div></div></div>';
+    },
+    steps: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>纳言 · AI 拆步</b></div>' +
+        '<div class="mbody">' +
+          '<div class="mquote mstag" style="--i:0"><span class="lb">原建议 · 来自 Claude Code</span>安装 PostgreSQL 并配置开机自启</div>' +
+          '<div class="mstep mstag done" style="--i:1"><span class="dot"></span><span class="tx cmd">brew install postgresql@16</span><span class="cp">⧉ 复制</span></div>' +
+          '<div class="mstep mstag done" style="--i:2"><span class="dot"></span><span class="tx">初始化数据库目录</span></div>' +
+          '<div class="mstep mstag" style="--i:3"><span class="dot"></span><span class="tx">配置开机自启</span></div>' +
+          '<div class="mstep mstag" style="--i:4"><span class="dot"></span><span class="tx">启动服务并验证</span></div>' +
+          '<div class="mfoot mstag" style="--i:5">模型：你自己配的 API · Key 只存本地</div>' +
+        '</div></div></div>';
+    },
+    focus: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>纳言 · 今日专注</b></div>' +
+        '<div class="mbody">' +
+          '<div class="mquote mstag" style="--i:0"><span class="lb">一次只做这一条</span>安装 PostgreSQL 并配置开机自启 · 2/4</div>' +
+          '<div class="mstep mstag done" style="--i:1"><span class="dot"></span><span class="tx cmd">brew install postgresql@16</span></div>' +
+          '<div class="mstep mstag done" style="--i:2"><span class="dot"></span><span class="tx">初始化数据库目录</span></div>' +
+          '<div class="mstep mstag act" style="--i:3"><span class="dot"></span><span class="tx">配置开机自启 ← 正在做</span></div>' +
+          '<div class="mcard2 mstag" style="--i:4;opacity:.55">给设置页搜索框加 300ms 防抖<span class="mtag g">排队中</span></div>' +
+        '</div></div></div>';
+    },
+    trace: function () {
+      return '<div class="mock"><div class="mwin">' +
+        '<div class="mbar"><i></i><i></i><i></i><b>纳言 · 记录软件</b></div>' +
+        '<div class="mbody">' +
+          '<div class="mdate mstag" style="--i:0">今天 · 3 条</div>' +
+          '<div class="mcard2 mstag" style="--i:1">给设置页搜索框加 300ms 防抖<span class="mtag">ZCode</span></div>' +
+          '<div class="mcard2 mstag" style="--i:2">把日志写入 data/ 目录<span class="mtag">Claude Code</span></div>' +
+          '<div class="mcard2 mstag" style="--i:3">这篇对比文章存一下<span class="mtag g">浏览器</span></div>' +
+          '<div class="mdate mstag" style="--i:4">昨天 · 2 条</div>' +
+          '<div class="mcard2 mstag" style="--i:5;opacity:.6">升级 Tauri 到 2.6<span class="mtag g">Codex</span></div>' +
+        '</div></div></div>';
+    }
+  };
+
+  function initHow(section) {
+    var dataEl = section.querySelector('script.how-data');
+    var steps;
+    try { steps = JSON.parse(dataEl.textContent); } catch (e) { return; }
+    var n = steps.length;
+    if (!n) return;
+
+    var stepsBox = section.querySelector('.how-steps');
+    var frame = section.querySelector('.how-frame');
+
+    var stepEls = steps.map(function (s, i) {
+      var d = document.createElement('div');
+      d.className = 'how-step';
+      d.innerHTML =
+        '<span class="idx">STEP ' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<h3>' + s.title + '</h3><p>' + s.desc + '</p>';
+      stepsBox.appendChild(d);
+      return d;
+    });
+
+    var layers = steps.map(function (s) {
+      var l = document.createElement('div');
+      l.className = 'how-layer';
+      l.innerHTML = (MOCKS[s.mock] || MOCKS.steps)();
+      frame.appendChild(l);
+      return l;
+    });
+
+    var active = -1;
+    function setActive(i) {
+      if (i === active) return;
+      active = i;
+      stepEls.forEach(function (el, k) { el.classList.toggle('on', k === i); });
+      layers.forEach(function (el, k) { el.classList.toggle('on', k === i); });
+    }
+
+    /* 滚动直接驱动（scroll 按帧派发；隐藏标签页 rAF 不执行，直接调用保证状态可见） */
+    function update() {
+      var rect = section.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > innerHeight) return;
+      var mid = innerHeight * 0.5;
+      var idx = 0, best = Infinity;
+      for (var k = 0; k < n; k++) {
+        var r = stepEls[k].getBoundingClientRect();
+        var d = Math.abs(r.top + r.height / 2 - mid);
+        if (d < best) { best = d; idx = k; }
+      }
+      setActive(idx);
+    }
+    addEventListener('scroll', update, { passive: true });
+    addEventListener('resize', update);
+
+    update();
+    setActive(0);
+  }
+
+  document.querySelectorAll('[data-how]').forEach(initHow);
+
+  /* 隐藏标签页中 CSS 过渡/动画时钟会被冻结，自动降级保证效果可见；可见时恢复。
+     #nomotion 可强制禁用过渡逐帧检查。 */
+  function syncMotion() {
+    document.documentElement.classList.toggle('no-trans', document.visibilityState === 'hidden');
+  }
+  syncMotion();
+  addEventListener('visibilitychange', syncMotion);
+  if (location.hash.indexOf('nomotion') !== -1) document.documentElement.classList.add('no-trans');
+})();
+/* ══════════════ /HOW ══════════════ */
+</script>
+</body>
+</html>

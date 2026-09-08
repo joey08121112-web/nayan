@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "suggestion-inbox": {
+      "command": "node",
+      "args": ["/Users/ami/Documents/deepseek harness/项目/记录软件/mcp-server.js"]
+    }
+  }
+}

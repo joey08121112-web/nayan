@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>纳言 NaYan · 说到的，做到。</title>
+<meta name="description" content="纳言是装在 macOS 菜单栏里的建议收件箱：任何 App 里选中 AI 的建议一键收进来，自动拆成步骤，做一步勾一步。所有数据只保存在本机。">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<style>
+:root{
+  --bg:#09090b; --panel:#101014; --line:rgba(255,255,255,.09); --hair:rgba(255,255,255,.055);
+  --ink:#f2f3f7; --sub:rgba(235,238,248,.55); --dim:rgba(235,238,248,.38);
+  --blue:#5b7cfa; --blue-deep:#3b55d9; --green:#3ecf8e;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+html{ scroll-behavior:smooth; }
+body{ background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Helvetica Neue',sans-serif;
+  font-size:16px; line-height:1.7; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a{ color:inherit; text-decoration:none; }
+.wrap{ max-width:1120px; margin:0 auto; padding:0 32px; }
+
+/* ============ 导航 ============ */
+nav{ position:fixed; top:0; left:0; right:0; z-index:60; transition:background .3s ease; }
+nav.scrolled{ background:rgba(8,8,10,.78); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--hair); }
+nav .wrap{ display:flex; align-items:center; height:62px; gap:14px; }
+.logo{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:15.5px; }
+.logo img{ width:27px; height:27px; border-radius:7px; }
+.logo .badge{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--sub);
+  border:1px solid var(--line); border-radius:99px; padding:2px 10px; font-weight:500; }
+nav .links{ display:flex; gap:26px; margin-left:auto; font-size:13.5px; color:var(--sub); align-items:center; }
+nav .links a:hover{ color:var(--ink); }
+.nav-pill{ background:#fff; color:#0a0a0b; font-weight:600; font-size:13px; padding:7px 16px; border-radius:99px; }
+.nav-pill:hover{ opacity:.85; color:#0a0a0b; }
+.navlink{ position:relative; cursor:pointer; }
+.navlink::after{ content:attr(data-tip); position:absolute; top:calc(100% + 13px); left:50%;
+  transform:translateX(-50%) translateY(7px); opacity:0; pointer-events:none;
+  background:rgba(36,38,46,.72); backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.13); color:#fff; font-size:12px; font-weight:500;
+  padding:7px 14px; border-radius:10px; white-space:nowrap;
+  box-shadow:0 12px 34px rgba(0,0,0,.5); transition:opacity .18s ease, transform .18s ease; }
+.navlink:hover::after{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ============ Hero：蓝色大气层 ============ */
+.hero{ position:relative; min-height:920px; overflow:hidden; }
+.sky{ position:absolute; inset:0; background:#09090b; }
+.sky .halo{ position:absolute; left:50%; top:-260px; transform:translateX(-50%);
+  width:1280px; height:640px; border-radius:50%; pointer-events:none; filter:blur(64px);
+  background:radial-gradient(closest-side,rgba(148,171,255,.42),rgba(91,124,250,.16) 52%,transparent 98%); }
+.sky .grid{ position:absolute; inset:0;
+  background-image:linear-gradient(rgba(159,176,255,.07) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(159,176,255,.07) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(1100px 780px at 50% 32%,#000 20%,transparent 85%);
+  -webkit-mask-image:radial-gradient(1100px 780px at 50% 32%,#000 20%,transparent 85%); }
+.wisp{ position:absolute; border-radius:50%; filter:blur(52px); background:#93a9ff; opacity:.34; pointer-events:none; }
+.wisp.w1{ width:640px; height:190px; left:6%; top:6%; transform:rotate(-24deg);
+  animation:drift1 22s ease-in-out infinite alternate; }
+.wisp.w2{ width:760px; height:230px; right:-8%; top:16%; transform:rotate(-18deg);
+  animation:drift2 30s ease-in-out infinite alternate; }
+.wisp.w3{ width:520px; height:150px; left:34%; top:44%; transform:rotate(-20deg); opacity:.22;
+  animation:drift1 26s ease-in-out infinite alternate-reverse; }
+@keyframes drift1{ to{ transform:rotate(-20deg) translate(70px,26px) scale(1.08); } }
+@keyframes drift2{ to{ transform:rotate(-14deg) translate(-80px,20px) scale(1.06); } }
+.particles{ position:absolute; inset:0; pointer-events:none; }
+.particles i{ position:absolute; background:rgba(255,255,255,.85); animation:tw 5s ease-in-out infinite; }
+@keyframes tw{ 0%,100%{ opacity:0; } 50%{ opacity:.75; } }
+.hero .fade{ position:absolute; inset:auto 0 0; height:280px;
+  background:linear-gradient(180deg,transparent,var(--bg)); }
+
+.hero .wrap{ position:relative; z-index:2; display:grid;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:56px; align-items:center;
+  padding-top:172px; padding-bottom:150px; }
+.hero .eyebrow{ color:rgba(255,255,255,.9); font-size:16px; font-weight:500; margin-bottom:10px; }
+.hero h1{ color:#fff; font-size:clamp(46px,6.4vw,72px); font-weight:800; letter-spacing:-.02em;
+  line-height:1.12; margin-bottom:26px; }
+.hero p{ color:rgba(240,243,252,.78); font-size:15.5px; max-width:520px; margin-bottom:12px; }
+.btn-row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:34px; }
+.pbtn{ display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600;
+  border-radius:99px; padding:11px 22px; transition:transform .15s ease, opacity .15s ease, border-color .15s ease; }
+.pbtn:active{ transform:scale(.97); }
+.pbtn.white{ background:#fff; color:#10131c; }
+.pbtn.white:hover{ opacity:.88; }
+.pbtn.ghost{ border:1px solid rgba(255,255,255,.32); color:#fff; }
+.pbtn.ghost:hover{ border-color:rgba(255,255,255,.6); }
+
+/* Hero 右侧：Tab + 终端卡 */
+.term-wrap{ align-self:center; }
+.tabs{ display:flex; gap:4px; padding:0 4px; }
+.tab{ font-size:13.5px; font-weight:500; color:rgba(255,255,255,.62); padding:9px 18px;
+  border-radius:11px 11px 0 0; cursor:pointer; transition:color .15s ease, background .15s ease;
+  border:1px solid transparent; border-bottom:0; }
+.tab:hover{ color:#fff; }
+.tab.on{ background:rgba(13,15,22,.82); color:#fff; border-color:rgba(255,255,255,.12);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+.term{ background:rgba(13,15,22,.82); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.13); border-radius:14px; overflow:hidden;
+  box-shadow:0 24px 70px rgba(4,8,20,.55); }
+.term .bar{ display:flex; align-items:center; padding:13px 16px; border-bottom:1px solid var(--hair); }
+.term .bar i{ width:11px; height:11px; border-radius:50%; margin-right:7px; }
+.term .bar i:nth-child(1){ background:#ff5f57; } .term .bar i:nth-child(2){ background:#febc2e; }
+.term .bar i:nth-child(3){ background:#28c840; }
+.term .bar .copy{ margin-left:auto; display:flex; align-items:center; gap:5px; font-size:12px;
+  color:rgba(255,255,255,.65); border:1px solid rgba(255,255,255,.14); border-radius:7px; padding:3px 10px;
+  cursor:pointer; transition:color .15s ease, border-color .15s ease; }
+.term .bar .copy:hover{ color:#fff; border-color:rgba(255,255,255,.3); }
+.term .body{ padding:24px 20px 28px; font-family:var(--mono); font-size:13.5px; line-height:2.2;
+  min-height:168px; color:#e8ecf6; white-space:pre-wrap; word-break:break-all; }
+.term .body .d{ color:rgba(235,238,248,.42); }
+.term .body .p{ color:#8fa7ff; }
+.term .body .ok{ color:var(--green); }
+.term .body .kbd{ border:1px solid rgba(255,255,255,.22); border-radius:5px; padding:1px 8px;
+  font-size:11.5px; color:#fff; }
+
+/* ============ 区块通用 ============ */
+section{ padding:150px 0; }
+.eyebrow-pill{ display:inline-flex; font-family:var(--mono); font-size:11px; letter-spacing:.22em;
+  color:var(--sub); border:1px solid var(--line); background:rgba(255,255,255,.03);
+  border-radius:99px; padding:6px 16px; text-transform:uppercase; }
+.center{ text-align:center; }
+.center .sec-desc{ margin-left:auto; margin-right:auto; }
+h2.sec-title{ font-size:clamp(30px,4vw,44px); font-weight:700; letter-spacing:-.02em;
+  line-height:1.3; margin:26px 0 22px; }
+.px{ font-family:var(--mono); font-weight:800; letter-spacing:.04em;
+  background:linear-gradient(120deg,#7d96ff,#4d63e6); -webkit-background-clip:text;
+  background-clip:text; -webkit-text-fill-color:transparent; }
+.sec-desc{ color:var(--sub); font-size:16px; max-width:620px; }
+.sec-desc + .sec-desc{ margin-top:14px; }
+.sec-desc u{ text-decoration-color:rgba(91,124,250,.6); text-underline-offset:4px; }
+
+/* Spotlight：卡片微光跟随 */
+.spotlight{ position:relative; overflow:hidden; }
+.spotlight::before{ content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  opacity:0; transition:opacity .3s ease;
+  background:radial-gradient(400px circle at var(--mouse-x,50%) var(--mouse-y,50%),
+    rgba(91,124,250,.15), transparent); }
+.spotlight::after{ content:''; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+  opacity:0; transition:opacity .3s ease;
+  background:radial-gradient(240px circle at var(--mouse-x,50%) var(--mouse-y,50%),
+    rgba(200,216,255,.95), rgba(110,145,252,.5) 38%, transparent 70%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude; }
+.spotlight:hover::before,.spotlight:hover::after{ opacity:1; }
+/* 光斑压在内容下面：内容抬到 z-index:2，避免被光斑遮挡 */
+.spotlight > *{ position:relative; z-index:2; }
+
+/* Hero 终端卡：DeepSeek Harness 同款旋转流光边框 */
+@property --border-angle{ syntax:'<angle>'; inherits:false; initial-value:0deg; }
+@keyframes rotating-border{ 0%{ --border-angle:0deg; } 100%{ --border-angle:360deg; } }
+.hero .term.spotlight::after{ padding:2px; animation:rotating-border 6s linear infinite;
+  background:conic-gradient(from var(--border-angle),
+    rgba(58,101,194,.18) 0%,rgba(120,170,255,.7) 12%,rgba(58,101,194,.18) 25%,
+    rgba(58,101,194,.15) 50%,rgba(120,170,255,.7) 62%,rgba(58,101,194,.15) 75%,rgba(58,101,194,.18) 100%); }
+.hero .term.spotlight:hover{ border-color:rgba(255,255,255,.22); }
+
+/* 三特性 */
+.trio{ display:grid; grid-template-columns:repeat(3,1fr); gap:56px; margin-top:90px; }
+.trio .cell{ position:relative; text-align:center; border-radius:18px; }
+.trio .ic{ width:44px; height:44px; margin:0 auto 20px; border:1px solid var(--line); border-radius:12px;
+  display:flex; align-items:center; justify-content:center; font-size:19px; background:rgba(255,255,255,.03); }
+.trio h3{ font-size:16.5px; font-weight:600; margin-bottom:6px; }
+.trio .en{ font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--dim);
+  text-transform:uppercase; margin-bottom:14px; }
+.trio p{ font-size:13.5px; color:var(--sub); line-height:1.85; }
+
+/* 设计思路 */
+.left-head{ }
+.left-head h2{ margin:22px 0 20px; }
+.long{ color:var(--sub); font-size:15.5px; max-width:680px; }
+.long + .long{ margin-top:16px; }
+.long u{ text-decoration-color:rgba(91,124,250,.6); text-underline-offset:4px; }
+.shot-frame{ margin:56px 0 70px; background:var(--panel); border:1px solid var(--line);
+  border-radius:18px; overflow:hidden; box-shadow:0 40px 100px rgba(0,0,0,.5); }
+.shot-frame .bar{ display:flex; align-items:center; padding:12px 16px; border-bottom:1px solid var(--hair); }
+.shot-frame .bar i{ width:11px; height:11px; border-radius:50%; margin-right:7px; }
+.shot-frame .bar i:nth-child(1){ background:#ff5f57; } .shot-frame .bar i:nth-child(2){ background:#febc2e; }
+.shot-frame .bar i:nth-child(3){ background:#28c840; }
+.shot-frame .bar b{ margin-left:8px; font-size:12px; color:var(--sub); font-weight:500; }
+.shot-frame .win{ display:flex; min-height:440px; background:#0d0d11; font-size:12px; }
+.shot-frame .side{ width:176px; flex-shrink:0; border-right:1px solid var(--hair); padding:15px 10px; }
+.shot-frame .side .brand{ display:flex; gap:8px; align-items:center; font-weight:700; font-size:13px; padding:4px 7px 16px; }
+.shot-frame .side .brand img{ width:21px; height:21px; border-radius:6px; }
+.shot-frame .side .it{ display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; color:var(--sub); }
+.shot-frame .side .it.on{ background:rgba(91,124,250,.16); color:#9db1ff; }
+.shot-frame .side .it .n{ margin-left:auto; font-family:var(--mono); font-size:10px; }
+.shot-frame .main{ flex:1; padding:15px; }
+.shot-frame .focus2{ background:linear-gradient(135deg,#3b55d9,#7d96ff); border-radius:13px;
+  padding:13px 15px; color:#fff; margin-bottom:14px; }
+.shot-frame .focus2 .lb{ font-size:9px; letter-spacing:.18em; opacity:.8; font-weight:700; }
+.shot-frame .focus2 .tt{ font-size:14px; font-weight:700; margin:4px 0 9px; }
+.shot-frame .srow{ display:flex; gap:9px; align-items:center; padding:6px 9px; border-radius:8px; color:#e6e9f4; }
+.shot-frame .srow:nth-child(odd){ background:rgba(255,255,255,.07); }
+.shot-frame .srow .bx{ width:14px; height:14px; border-radius:4.5px; border:1.5px solid rgba(255,255,255,.5); flex-shrink:0; }
+.shot-frame .srow.done .bx{ background:#fff; border-color:#fff; position:relative; }
+.shot-frame .srow.done .bx::after{ content:'✓'; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:9px; color:#3b55d9; font-weight:800; }
+.shot-frame .srow.done .tx{ text-decoration:line-through; opacity:.55; }
+.shot-frame .srow .cp{ margin-left:auto; font-size:9.5px; color:rgba(255,255,255,.75);
+  border:1px solid rgba(255,255,255,.3); padding:1px 7px; border-radius:4px; }
+.shot-frame .srow .cmdt{ font-family:var(--mono); font-size:11.5px; background:rgba(255,255,255,.14);
+  padding:1px 7px; border-radius:5px; }
+.shot-frame .cards{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+.shot-frame .cd{ background:#14141a; border:1px solid var(--hair); border-radius:12px; padding:11px 13px; }
+.shot-frame .cd .tags{ display:flex; gap:6px; margin-bottom:8px; }
+.shot-frame .cd .t1{ font-size:8.5px; padding:1.5px 8px; border-radius:99px;
+  background:rgba(91,124,250,.18); color:#9db1ff; font-weight:600; }
+.shot-frame .cd .t2{ font-size:8.5px; padding:1.5px 8px; border-radius:99px;
+  background:rgba(255,255,255,.07); color:var(--sub); font-weight:600; }
+.shot-frame .cd .tx{ color:#dfe3ee; font-size:11.5px; line-height:1.55; }
+.shot-frame .cd .mt{ margin-top:8px; font-size:9.5px; color:var(--dim); }
+
+/* 四通道卡 */
+.quad{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:64px; }
+.qcell{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:28px 28px 26px;
+  transition:border-color .2s ease, transform .2s ease; }
+.qcell:hover{ border-color:rgba(255,255,255,.2); transform:translateY(-3px); }
+.qcell .mono-name{ font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:var(--blue);
+  margin-bottom:12px; }
+.qcell h3{ font-size:17.5px; font-weight:700; letter-spacing:-.01em; margin-bottom:10px; }
+.qcell p{ font-size:13.5px; color:var(--sub); line-height:1.85; }
+
+/* 开始使用 */
+.duo{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:56px; }
+.duo .dcell{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px; }
+.duo h3{ font-size:16.5px; font-weight:700; margin-bottom:8px; }
+.duo p{ font-size:13.5px; color:var(--sub); margin-bottom:18px; }
+.duo .term{ box-shadow:none; background:rgba(255,255,255,.03); }
+.duo .term .body{ min-height:0; padding:16px 18px 18px; font-size:12.5px; }
+
+/* CTA */
+.cta{ text-align:center; padding:170px 0 150px; position:relative; overflow:hidden; }
+.cta .glow{ position:absolute; inset:auto 0 0; height:400px; pointer-events:none;
+  background:radial-gradient(600px 300px at 50% 100%, rgba(60,79,128,.35), transparent 70%); }
+.cta h2{ font-size:clamp(32px,4.6vw,50px); font-weight:800; letter-spacing:-.02em; margin:20px 0 16px; }
+.cta p{ color:var(--sub); max-width:600px; margin:0 auto 36px; font-size:15.5px; }
+
+/* footer */
+footer{ border-top:1px solid var(--hair); padding:30px 0 40px; }
+footer .wrap{ display:flex; gap:22px; flex-wrap:wrap; align-items:center; font-size:12.5px; color:var(--dim); }
+footer .grow{ flex:1; }
+footer a:hover{ color:var(--ink); }
+
+/* 动效 */
+.rv{ opacity:0; transform:translateY(26px); transition:opacity .8s ease, transform .8s ease; }
+.rv.in{ opacity:1; transform:none; }
+@media (prefers-reduced-motion: reduce){
+  .rv{ opacity:1; transform:none; transition:none; } html{ scroll-behavior:auto; }
+  .wisp, .particles i{ animation:none !important; }
+}
+@media (max-width:900px){
+  .hero .wrap{ grid-template-columns:1fr; padding-top:140px; }
+  .trio{ grid-template-columns:1fr; gap:44px; }
+  .quad, .duo{ grid-template-columns:1fr; }
+  .shot-frame .side{ display:none; }
+  nav .links a:not(.nav-pill){ display:none; }
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="logo navlink" data-tip="回到顶部" href="#"><img src="assets/icon.png" alt="纳言">纳言<span class="badge">INBOX</span></a>
+    <div class="links">
+      <a href="#philosophy" class="navlink" data-tip="捕获 → 拆步 → 执行 → 勾选">理念</a>
+      <a href="#design" class="navlink" data-tip="一切为了兑现，全程有迹可循">设计思路</a>
+      <a href="#channels" class="navlink" data-tip="四条路，同一个收件箱">收集通道</a>
+      <a href="#download" class="nav-pill navlink" data-tip="NaYan.dmg · Apple Silicon">下载</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="sky">
+    <div class="halo"></div>
+    <div class="grid"></div>
+    <div class="wisp w1"></div><div class="wisp w2"></div><div class="wisp w3"></div>
+    <div class="particles" id="particles"></div>
+    <div class="fade"></div>
+  </div>
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">纳言 NaYan · 建议收件箱</div>
+      <h1>说到，做到。</h1>
+      <p>纳言是装在 macOS 菜单栏里的建议收件箱，面向所有被 AI 建议淹没的人开放使用，所有数据只保存在本机。</p>
+      <p>捕获、拆步、执行、勾选——来自 ZCode、Claude Code、浏览器的每一条建议都进同一个池子，做一步勾一步，来源可追溯。</p>
+      <div class="btn-row">
+        <a class="pbtn white navlink" data-tip="NaYan.dmg · Apple Silicon · macOS 13+" href="assets/NaYan.dmg" id="download-top">↓ 下载 NaYan for Mac</a>
+        <a class="pbtn ghost navlink" data-tip="从安装到收到第一条建议只要 3 分钟" href="#download">使用指南</a>
+        <a class="pbtn ghost" href="#channels">收集通道</a>
+        <a class="pbtn ghost" href="#privacy">本地优先</a>
+      </div>
+    </div>
+    <div class="term-wrap">
+      <div class="tabs">
+        <div class="tab on" data-t="quick">一键捕获</div>
+        <div class="tab" data-t="src">源码安装</div>
+      </div>
+      <div class="term spotlight">
+        <div class="bar"><i></i><i></i><i></i><span class="copy" id="copyBtn">⧉ 复制</span></div>
+        <div class="body" id="termBody"><span class="d"># 在任何 App 里选中一段 AI 回复</span>
+<span class="p">$</span> 按下 <span class="kbd">⌥⇧S</span>，角落弹出确认小窗
+<span class="p">$</span> 顺手记一句想法，回车
+<span class="ok">✓ 已收进收件箱</span> <span class="d">来自 ZCode · 📁 记录软件</span></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="philosophy" class="center">
+  <div class="wrap">
+    <div class="eyebrow-pill rv">INBOX = CAPTURE + DONE</div>
+    <h2 class="sec-title rv"><span class="px">纳言</span> 让 AI 的建议落进现实</h2>
+    <p class="sec-desc rv">捕获是起点，兑现是归宿。</p>
+    <p class="sec-desc rv">从「收到一条建议」到「做完一条建议」之间的每一步，都交给纳言。</p>
+    <div class="trio">
+      <div class="cell spotlight rv">
+        <div class="ic">⚡</div>
+        <h3>捕获内核</h3>
+        <div class="en">CAPTURE KERNEL</div>
+        <p>只做一件事：把任何 App 里选中的文字，完整地、带来源地收进收件箱。终端、Electron 应用、浏览器，一个不漏。</p>
+      </div>
+      <div class="cell spotlight rv">
+        <div class="ic">🪄</div>
+        <h3>步骤即任务</h3>
+        <div class="en">STEPS AS TASKS</div>
+        <p>建议与命令被拆成有序步骤，命令保持原文原样、随时一键复制——不用再回聊天记录里翻那条被顶上去的长命令。</p>
+      </div>
+      <div class="cell spotlight rv">
+        <div class="ic">✅</div>
+        <h3>一次只做一件事</h3>
+        <div class="en">ONE AT A TIME</div>
+        <p>「今日专注」把当前卡片置顶：做完一步勾一步，进度走到头，整卡收工。其他建议安静排队，绝不催你。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="design">
+  <div class="wrap">
+    <div class="eyebrow-pill rv">设计思路</div>
+    <div class="left-head">
+      <h2 class="sec-title rv">一切为了兑现，全程有迹可循</h2>
+    </div>
+    <p class="long rv">纳言基于<u>本地优先</u>架构构建：捕获、来源、步骤、专注状态，全部记录在同一份本地数据里。
+      无账号、无云端、无追踪，备份一个文件即可带走全部记忆。</p>
+    <div class="shot-frame spotlight rv">
+      <div class="bar"><i></i><i></i><i></i><b>纳言 · 建议收件箱</b></div>
+      <div class="win">
+        <div class="side">
+          <div class="brand"><img src="assets/icon.png" alt="">纳言</div>
+          <div class="it on">🗂️ 全部记录 <span class="n">9</span></div>
+          <div class="it">💡 AI 建议 <span class="n">8</span></div>
+          <div class="it">⚡ 闲时任务 <span class="n">1</span></div>
+          <div class="it" style="margin-top:14px">🌙 深色模式</div>
+          <div class="it">⚙️ AI 拆步设置</div>
+        </div>
+        <div class="main">
+          <div class="focus2">
+            <div class="lb">今日专注 · 一次只做这一条</div>
+            <div class="tt">安装 PostgreSQL 并配置开机自启</div>
+            <div class="srow done"><span class="bx"></span><span class="tx cmdt">brew install postgresql@16</span><span class="cp">⧉ 复制</span></div>
+            <div class="srow done"><span class="bx"></span><span class="tx">初始化数据库目录</span></div>
+            <div class="srow"><span class="bx"></span><span>配置开机自启</span></div>
+          </div>
+          <div class="cards">
+            <div class="cd spotlight">
+              <div class="tags"><span class="t1">建议</span><span class="t2">ZCode</span></div>
+              <div class="tx">给设置页搜索框加 300ms 防抖，减少无效过滤</div>
+              <div class="mt">📁 记录软件 · 09:41</div>
+            </div>
+            <div class="cd spotlight">
+              <div class="tags"><span class="t1">建议</span><span class="t2">Claude Code</span></div>
+              <div class="tx">把日志写入 data/ 目录，避免污染工作区</div>
+              <div class="mt">📁 记录软件 · 昨天</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="long rv"><b style="color:var(--ink)">每一次捕获都有迹可循。</b>卡片自动记录来源 App、窗口标题与项目路径；
+      按天分组、按项目归档；搜索、检索与回放共享同一份数据。</p>
+    <p class="long rv"><b style="color:var(--ink)">多种收集方式。</b>已接入 MCP 的工具里说一句话即可逐条入库；任何 App 里选中文字按
+      ⌥⇧S；原生 App 右键走系统服务；网页 AI 对话装浏览器插件，自动附带原对话链接。</p>
+    <div class="quad" id="channels">
+      <div class="qcell spotlight rv">
+        <div class="mono-name">MCP NATIVE</div>
+        <h3>对 AI 说一句话</h3>
+        <p>Claude Code / Codex / ZCode / Antigravity 等已接入 MCP 的工具里，说一句「把这几条建议记到收件箱」，
+          AI 自动拆好、逐条入库，来源工具和项目路径自动带上。</p>
+      </div>
+      <div class="qcell spotlight rv">
+        <div class="mono-name">GLOBAL HOTKEY</div>
+        <h3>全局快捷键</h3>
+        <p>任何 App 里选中文字按 ⌥⇧S——终端、Electron 应用、浏览器通通覆盖。对话式小窗弹出确认，还能顺手记一句想法。</p>
+      </div>
+      <div class="qcell spotlight rv">
+        <div class="mono-name">SERVICES MENU</div>
+        <h3>系统右键服务</h3>
+        <p>Safari、文本编辑、访达等原生 App 里，选中文字右键 → 服务，一样进箱，零学习成本。</p>
+      </div>
+      <div class="qcell spotlight rv">
+        <div class="mono-name">BROWSER EXTENSION</div>
+        <h3>浏览器插件</h3>
+        <p>网页版 AI 对话里选中文字右键直达，卡片自动附带原对话链接，随时跳回上下文。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap center">
+    <div class="eyebrow-pill rv">隐私 <span style="letter-spacing:.14em">LOCAL-FIRST</span></div>
+    <h2 class="sec-title rv">你的建议，只属于你的 Mac。</h2>
+    <p class="sec-desc rv">SQLite 单文件存在本机，无账号、无云端、无追踪；AI 拆步调用你自己配置的模型 API，Key 只存本地。</p>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="eyebrow-pill rv">开始使用</div>
+    <div class="left-head"><h2 class="sec-title rv">三分钟，接住第一条建议</h2></div>
+    <div class="duo">
+      <div class="dcell spotlight rv">
+        <h3>快速体验</h3>
+        <p>下载 NaYan.dmg，拖进「应用程序」，打开后菜单栏出现图标——它已经常驻了。首次按 ⌥⇧S 时授权「辅助功能」即可。</p>
+        <div class="term spotlight">
+          <div class="body"><span class="p">1</span> 下载 NaYan.dmg，拖入「应用程序」
+<span class="p">2</span> 打开纳言 → 授权「辅助功能」
+<span class="p">3</span> 选中文字 → <span class="kbd">⌥⇧S</span> → <span class="ok">✓</span></div>
+        </div>
+        <div class="btn-row" style="margin-top:20px">
+          <a class="pbtn white" href="assets/NaYan.dmg">↓ 下载 NaYan for Mac</a>
+        </div>
+      </div>
+      <div class="dcell spotlight rv">
+        <h3>从源码安装</h3>
+        <p>获取完整项目源码，Tauri 2 + Rust 构建，按照仓库说明完成安装。改 UI 只需要改一个 HTML 文件。</p>
+        <div class="term spotlight">
+          <div class="body"><span class="p">$</span> git clone https://github.com/nayan-app/nayan
+<span class="p">$</span> cd nayan/app && npm install
+<span class="p">$</span> npx tauri build</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="glow"></div>
+  <div class="wrap">
+    <div class="eyebrow-pill rv">加入内测</div>
+    <h2 class="rv">别再弄丢 AI 说过的话。</h2>
+    <p class="rv">纳言仍处于公测阶段，能力会持续迭代。我们想把「AI 建议管理」这件小事做到极致——
+      在本地、可追溯、不打扰的基础之上，让每一条好建议都被兑现。</p>
+    <div class="btn-row rv" style="justify-content:center">
+      <a class="pbtn white" href="assets/NaYan.dmg">↓ 免费下载 NaYan for Mac</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 纳言 NaYan</span>
+    <span>开源精神 · 本地优先</span>
+    <span class="grow"></span>
+    <a href="#philosophy">理念</a>
+    <a href="#design">设计思路</a>
+    <a href="#channels">收集通道</a>
+    <a href="#privacy">隐私</a>
+  </div>
+</footer>
+
+<script>
+// 滚动显现
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
+} else {
+  document.querySelectorAll('.rv').forEach(function (el) { el.classList.add('in'); });
+}
+// 导航滚动变实
+var nav = document.getElementById('nav');
+addEventListener('scroll', function () {
+  nav.classList.toggle('scrolled', scrollY > 40);
+}, { passive: true });
+// Spotlight：微光与 1px 发光边框跟随鼠标
+document.querySelectorAll('.spotlight').forEach(function (card) {
+  card.addEventListener('pointermove', function (e) {
+    var r = card.getBoundingClientRect();
+    card.style.setProperty('--mouse-x', (e.clientX - r.left).toFixed(1) + 'px');
+    card.style.setProperty('--mouse-y', (e.clientY - r.top).toFixed(1) + 'px');
+  });
+});
+// Hero 粒子：方形微粒，向标题附近聚拢
+(function () {
+  var wrap = document.getElementById('particles');
+  if (!wrap || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (var i = 0; i < 90; i++) {
+    var d = document.createElement('i');
+    var s = (1.5 + Math.random() * 3).toFixed(1);
+    d.style.width = s + 'px'; d.style.height = s + 'px';
+    d.style.left = (18 + Math.random() * 55).toFixed(2) + '%';
+    d.style.top = (8 + Math.random() * 70).toFixed(2) + '%';
+    d.style.animationDelay = (Math.random() * 5).toFixed(2) + 's';
+    d.style.animationDuration = (3.5 + Math.random() * 4.5).toFixed(2) + 's';
+    wrap.appendChild(d);
+  }
+})();
+// Hero 终端 Tab 切换
+var TERM_CONTENT = {
+  quick: '<span class="d"># 在任何 App 里选中一段 AI 回复</span>\n<span class="p">$</span> 按下 <span class="kbd">⌥⇧S</span>，角落弹出确认小窗\n<span class="p">$</span> 顺手记一句想法，回车\n<span class="ok">✓ 已收进收件箱</span> <span class="d">来自 ZCode · 📁 记录软件</span>',
+  src: '<span class="p">$</span> git clone https://github.com/nayan-app/nayan\n<span class="p">$</span> cd nayan/app && npm install\n<span class="p">$</span> npx tauri build\n<span class="ok">✓ 构建完成：NaYan.app</span>'
+};
+var plainText = {
+  quick: '# 在任何 App 里选中一段 AI 回复\n$ 按下 ⌥⇧S，角落弹出确认小窗\n$ 顺手记一句想法，回车\n✓ 已收进收件箱',
+  src: '$ git clone https://github.com/nayan-app/nayan\n$ cd nayan/app && npm install\n$ npx tauri build\n✓ 构建完成：NaYan.app'
+};
+var currentTab = 'quick';
+document.querySelectorAll('.tab').forEach(function (t) {
+  t.onclick = function () {
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+    t.classList.add('on');
+    currentTab = t.getAttribute('data-t');
+    document.getElementById('termBody').innerHTML = TERM_CONTENT[currentTab];
+  };
+});
+document.getElementById('copyBtn').onclick = function () {
+  var btn = this;
+  navigator.clipboard.writeText(plainText[currentTab]).then(function () {
+    btn.textContent = '✓ 已复制';
+    setTimeout(function () { btn.textContent = '⧉ 复制'; }, 1200);
+  });
+};
+</script>
+</body>
+</html>
