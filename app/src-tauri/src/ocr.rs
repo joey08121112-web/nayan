@@ -7,6 +7,15 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+/// 屏幕录制权限预检（不弹窗，只查询）：像素识别兜底依赖它
+pub fn screen_recording_ok() -> bool {
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGPreflightScreenCaptureAccess() -> bool;
+    }
+    unsafe { CGPreflightScreenCaptureAccess() }
+}
+
 /// 对屏幕区域（全局坐标，点）做文字识别
 pub fn ocr_region(x: f64, y: f64, w: f64, h: f64, exclude_window_number: u32) -> Result<String, String> {
     let bin = match option_env!("NAYAN_OCR_BIN") {

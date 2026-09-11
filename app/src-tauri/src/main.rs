@@ -17,7 +17,7 @@ use std::process::Command;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{
-    menu::{CheckMenuItem, Menu, MenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder},
     AppHandle, Emitter, LogicalPosition, Manager, State,
 };
@@ -768,6 +768,36 @@ fn clip_dismiss(app: AppHandle) {
 }
 
 #[tauri::command]
+fn perm_status() -> Value {
+    json!({ "ax": ax_capture::ax_trusted(), "screen": ocr::screen_recording_ok() })
+}
+
+#[tauri::command]
+fn open_screen_settings() {
+    let _ = Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+        .spawn();
+}
+
+#[tauri::command]
+fn autostart_status(app: AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+fn autostart_toggle(app: AppHandle) -> bool {
+    use tauri_plugin_autostart::ManagerExt;
+    let al = app.autolaunch();
+    if al.is_enabled().unwrap_or(false) {
+        let _ = al.disable();
+    } else {
+        let _ = al.enable();
+    }
+    al.is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
 fn open_ax_settings() {
     ax_capture::open_ax_settings();
 }
@@ -1372,6 +1402,46 @@ fn main() {
                 })
                 .build(app)?;
 
+            // 应用菜单（macOS 规范：设置放屏幕顶部菜单栏，⌘, 唤起）
+            let settings_item = MenuItem::with_id(app, "open-settings", "设置…", true, Some("CmdOrCtrl+,"))?;
+            let hide_item = MenuItem::with_id(app, "hide-app", "隐藏纳言", true, Some("CmdOrCtrl+h"))?;
+            let quit_item = MenuItem::with_id(app, "quit-app", "退出纳言", true, Some("CmdOrCtrl+q"))?;
+            let app_submenu = Submenu::with_items(app, "纳言", true, &[
+                &settings_item,
+                &PredefinedMenuItem::separator(app)?,
+                &hide_item,
+                &quit_item,
+            ])?;
+            let edit_submenu = Submenu::with_items(app, "编辑", true, &[
+                &PredefinedMenuItem::undo(app, None)?,
+                &PredefinedMenuItem::redo(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::cut(app, None)?,
+                &PredefinedMenuItem::copy(app, None)?,
+                &PredefinedMenuItem::paste(app, None)?,
+                &PredefinedMenuItem::select_all(app, None)?,
+            ])?;
+            let window_submenu = Submenu::with_items(app, "窗口", true, &[
+                &PredefinedMenuItem::minimize(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::close_window(app, None)?,
+            ])?;
+            let app_menu = Menu::with_items(app, &[&app_submenu, &edit_submenu, &window_submenu])?;
+            app.set_menu(app_menu)?;
+            app.on_menu_event(|app, event| match event.id().as_ref() {
+                "open-settings" => {
+                    show_main(app);
+                    let _ = app.emit_to("main", "open-settings", ());
+                }
+                "hide-app" => {
+                    if let Some(w) = app.get_webview_window("main") {
+                        let _ = w.hide();
+                    }
+                }
+                "quit-app" => app.exit(0),
+                _ => {}
+            });
+
             // 双保险：确保主窗口显示
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
@@ -1420,7 +1490,11 @@ fn main() {
             box_select_cancel,
             clip_save,
             clip_edit,
-            clip_dismiss
+            clip_dismiss,
+            perm_status,
+            open_screen_settings,
+            autostart_status,
+            autostart_toggle
         ])
         .run(tauri::generate_context!())
         .expect("纳言启动失败");
