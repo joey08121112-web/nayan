@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>纳言 NaYan · 说到的，做到。</title>
-<meta name="description" content="纳言是装在 macOS 菜单栏里的建议收件箱：任何 App 里选中 AI 的建议一键收进来，自动拆成步骤，做一步勾一步。所有数据只保存在本机。">
+<meta name="description" content="纳言是装在 macOS 菜单栏里的 AI 回复收录器：任何 App 里选中 AI 的建议一键收进来，自动按项目归拢、拆成步骤，做一步勾一步。所有数据只保存在本机。">
 <!--
   ════════════════════════════════════════════════
   官网第三版 = 第一版（DeepSeek Harness 风深色官网，文案原样保留）
   + 「如何工作」滚动叙事区块（DeepSeek Harness 式：左侧文字随滚动切换，右侧 sticky 视觉叠层淡切）
-  区块位于 #philosophy 与 #design 之间（#how）；样式与脚本按 SCROLLY 注释标记，
+  区块位于 #philosophy 与 #design 之间（#how）；样式与脚本按 HOW 注释标记，
   URL 带 #nomotion 可禁用过渡逐帧检查。
   ════════════════════════════════════════════════
 -->
@@ -239,6 +239,9 @@ h2.sec-title{ font-size:clamp(30px,4vw,44px); font-weight:700; letter-spacing:-.
 .duo .term{ box-shadow:0 4px 24px rgba(0,0,0,.05); }
 .duo .term .body{ min-height:0; padding:16px 18px 18px; font-size:12.5px; }
 
+/* 版本徽标 */
+.ver-line{ font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--dim); margin-top:12px; }
+
 /* CTA */
 .cta{ text-align:center; padding:170px 0 150px; position:relative; overflow:hidden; }
 .cta .glow{ position:absolute; inset:auto 0 0; height:400px; pointer-events:none;
@@ -374,7 +377,7 @@ footer a:hover{ color:var(--ink); }
       <a href="#how" class="navlink" data-tip="左栏不动，右边自己讲">如何工作</a>
       <a href="#design" class="navlink" data-tip="一切为了兑现，全程有迹可循">设计思路</a>
       <a href="#channels" class="navlink" data-tip="四条路，同一个收件箱">收集通道</a>
-      <a href="#download" class="nav-pill navlink" data-tip="NaYan.dmg · Apple Silicon">下载</a>
+      <a href="#download" class="nav-pill navlink" data-tip="v0.1.1 · Apple Silicon · macOS 13+">下载</a>
     </div>
   </div>
 </nav>
@@ -391,7 +394,7 @@ footer a:hover{ color:var(--ink); }
       <p>纳言是装在 macOS 菜单栏里的建议收件箱，面向所有被 AI 建议淹没的人开放使用，所有数据只保存在本机。</p>
       <p>捕获、拆步、执行、勾选——来自 ZCode、Claude Code、浏览器的每一条建议，自动归进对应的项目，做一步勾一步，来源可追溯。</p>
       <div class="btn-row">
-        <a class="pbtn primary navlink" data-tip="NaYan.dmg · Apple Silicon · macOS 13+" href="assets/NaYan.dmg" id="download-top">↓ 下载 NaYan for Mac</a>
+        <a class="pbtn primary navlink" data-tip="v0.1.1 · Apple Silicon · macOS 13+" href="assets/NaYan-0.1.1.dmg" id="download-top">↓ 下载 NaYan for Mac</a>
         <a class="pbtn ghost navlink" data-tip="从安装到收到第一条建议只要 3 分钟" href="#download">使用指南</a>
         <a class="pbtn ghost" href="#channels">收集通道</a>
         <a class="pbtn ghost" href="#privacy">本地优先</a>
@@ -528,7 +531,7 @@ footer a:hover{ color:var(--ink); }
       <div class="qcell spotlight rv">
         <div class="mono-name">GLOBAL HOTKEY · ⌥S</div>
         <h3>划词即捕获</h3>
-        <p>任何 App 里选中 AI 的回复按 ⌥S——终端、Electron 应用、浏览器通通覆盖。系统级直读选区，不污染剪贴板；小窗确认入库，顺手记一句想法。</p>
+        <p>任何 App 里选中 AI 的回复按 ⌥S——终端、Electron 应用、浏览器通通覆盖。系统级直读选区，不污染剪贴板；读不到的界面自动走 OCR 兜底；小窗确认入库，顺手记一句想法。</p>
       </div>
       <div class="qcell spotlight rv">
         <div class="mono-name">BOX SELECT · ⌥Z</div>
@@ -571,14 +574,15 @@ footer a:hover{ color:var(--ink); }
 <span class="p">3</span> 选中文字 → <span class="kbd">⌥S</span> → <span class="ok">✓</span></div>
         </div>
         <div class="btn-row" style="margin-top:20px">
-          <a class="pbtn primary" href="assets/NaYan.dmg">↓ 下载 NaYan for Mac</a>
+          <a class="pbtn primary" href="assets/NaYan-0.1.1.dmg">↓ 下载 NaYan for Mac</a>
         </div>
+        <div class="ver-line">v0.1.1 · macOS 13+ · Apple Silicon · 2026-09-08 构建</div>
       </div>
       <div class="dcell spotlight rv">
         <h3>从源码安装</h3>
         <p>获取完整项目源码，Tauri 2 + Rust 构建，按照仓库说明完成安装。改 UI 只需要改一个 HTML 文件。</p>
         <div class="term spotlight">
-          <div class="body"><span class="p">$</span> git clone https://github.com/nayan-app/nayan
+          <div class="body"><span class="p">$</span> git clone https://github.com/joey08121112-web/nayan
 <span class="p">$</span> cd nayan/app && npm install
 <span class="p">$</span> npx tauri build</div>
         </div>
@@ -595,7 +599,7 @@ footer a:hover{ color:var(--ink); }
     <p class="rv">纳言仍处于公测阶段，能力会持续迭代。我们想把「AI 建议管理」这件小事做到极致——
       在本地、可追溯、不打扰的基础之上，让每一条好建议都被兑现。</p>
     <div class="btn-row rv" style="justify-content:center">
-      <a class="pbtn primary" href="assets/NaYan.dmg">↓ 免费下载 NaYan for Mac</a>
+      <a class="pbtn primary" href="assets/NaYan-0.1.1.dmg">↓ 免费下载 NaYan for Mac</a>
     </div>
   </div>
 </section>
@@ -639,11 +643,11 @@ document.querySelectorAll('.spotlight').forEach(function (card) {
 // Hero 终端 Tab 切换
 var TERM_CONTENT = {
   quick: '<span class="d"># 在任何 App 里选中一段 AI 回复</span>\n<span class="p">$</span> 按下 <span class="kbd">⌥S</span>，角落弹出确认小窗\n<span class="p">$</span> 顺手记一句想法，回车\n<span class="ok">✓ 已收进收件箱</span> <span class="d">来自 ZCode · 📁 记录软件</span>',
-  src: '<span class="p">$</span> git clone https://github.com/nayan-app/nayan\n<span class="p">$</span> cd nayan/app && npm install\n<span class="p">$</span> npx tauri build\n<span class="ok">✓ 构建完成：NaYan.app</span>'
+  src: '<span class="p">$</span> git clone https://github.com/joey08121112-web/nayan\n<span class="p">$</span> cd nayan/app && npm install\n<span class="p">$</span> npx tauri build\n<span class="ok">✓ 构建完成：NaYan.app</span>'
 };
 var plainText = {
   quick: '# 在任何 App 里选中一段 AI 回复\n$ 按下 ⌥S，角落弹出确认小窗\n$ 顺手记一句想法，回车\n✓ 已收进收件箱',
-  src: '$ git clone https://github.com/nayan-app/nayan\n$ cd nayan/app && npm install\n$ npx tauri build\n✓ 构建完成：NaYan.app'
+  src: '$ git clone https://github.com/joey08121112-web/nayan\n$ cd nayan/app && npm install\n$ npx tauri build\n✓ 构建完成：NaYan.app'
 };
 var currentTab = 'quick';
 document.querySelectorAll('.tab').forEach(function (t) {

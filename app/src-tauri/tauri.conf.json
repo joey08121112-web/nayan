@@ -38,6 +38,23 @@
         "windowEffects": {
           "effects": ["hudWindow"]
         }
+      },
+      {
+        "label": "cliphud",
+        "title": "剪贴板收录",
+        "url": "cliphud.html",
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "width": 400,
+        "height": 208,
+        "windowEffects": {
+          "effects": ["hudWindow"]
+        }
       }
     ],
     "security": {

@@ -13,6 +13,16 @@ use std::time::Duration;
 
 type CFRef = *const c_void;
 
+/// 剪贴板监听抑制标记：⌘C 兜底会改剪贴板，监听器在此时间戳（ms epoch）前忽略变化
+pub static CLIP_SUPPRESS_UNTIL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 extern "C" {
     fn AXIsProcessTrustedWithOptions(options: CFRef) -> u8;
     fn AXUIElementCreateApplication(pid: i32) -> CFRef;
@@ -240,6 +250,7 @@ fn post_cmd_c() {
 /// 模拟 ⌘C 读剪贴板，读完恢复原内容（HS 版没做的改进）。
 /// 限制：只恢复文本内容；图片等富内容恢复不了。
 pub fn simulate_copy_text() -> Result<String, String> {
+    CLIP_SUPPRESS_UNTIL.store(now_ms() + 4000, std::sync::atomic::Ordering::Relaxed);
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     let before = cb.get_text().ok();
     let before_count = pasteboard_change_count();

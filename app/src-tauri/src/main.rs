@@ -5,6 +5,7 @@
 
 mod ax_capture;
 mod carbon_hotkeys;
+mod clipboard_watch;
 mod ocr;
 
 use rusqlite::Connection;
@@ -43,6 +44,8 @@ struct Config {
     hotkey: String,
     #[serde(default = "d_hotkey_box")]
     hotkey_box: String,
+    #[serde(default = "d_clip_watch")]
+    clipboard_watch: bool,
     #[serde(default)]
     db_path: Option<String>,
 }
@@ -54,6 +57,9 @@ fn d_hotkey() -> String {
 }
 fn d_hotkey_box() -> String {
     "alt+shift+x".into()
+}
+fn d_clip_watch() -> bool {
+    true
 }
 
 fn preset_for(provider: &str) -> Option<(&'static str, &'static str)> {
@@ -76,6 +82,7 @@ fn load_config(path: &PathBuf) -> Config {
             api_key: String::new(),
             hotkey: d_hotkey(),
             hotkey_box: d_hotkey_box(),
+            clipboard_watch: d_clip_watch(),
             db_path: None,
         });
     if cfg.base_url.is_empty() || cfg.model.is_empty() {
@@ -525,7 +532,9 @@ fn handle_api(state: &AppState, method: &str, path: &str, body: &Value) -> Resul
                 "base_url": g.0.base_url,
                 "model": g.0.model,
                 "has_key": !g.0.api_key.is_empty(),
-                "hotkey": g.0.hotkey
+                "hotkey": g.0.hotkey,
+                "hotkey_box": g.0.hotkey_box,
+                "clipboard_watch": g.0.clipboard_watch
             }))
         }
         ("POST", ["api", "settings"]) => {
@@ -556,13 +565,20 @@ fn handle_api(state: &AppState, method: &str, path: &str, body: &Value) -> Resul
                 Some(Value::String(s)) if !s.trim().is_empty() => cfg.api_key = s.trim().to_string(),
                 _ => {}
             }
+            if let Some(v) = body.get("clipboard_watch") {
+                let on = v.as_bool().unwrap_or(true);
+                cfg.clipboard_watch = on;
+                clipboard_watch::CLIP_WATCH_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+                log_line(&format!("[设置] 剪贴板监听 = {}", on));
+            }
             let _ = fs::write(cfg_path, serde_json::to_string_pretty(cfg).unwrap_or_default());
             Ok(json!({
                 "ok": true,
                 "provider": cfg.provider,
                 "base_url": cfg.base_url,
                 "model": cfg.model,
-                "has_key": !cfg.api_key.is_empty()
+                "has_key": !cfg.api_key.is_empty(),
+                "clipboard_watch": cfg.clipboard_watch
             }))
         }
         _ => Err("not found".into()),
@@ -709,9 +725,46 @@ async fn api(
 
 #[tauri::command]
 fn close_capture(app: AppHandle) {
+    // 隐藏而非销毁：销毁后第二次 ⌥S 会"capture 窗口未初始化"
     if let Some(w) = app.get_webview_window("capture") {
-        let _ = w.close();
+        let _ = w.hide();
     }
+}
+
+#[tauri::command]
+fn clip_save(app: AppHandle, state: State<'_, AppState>, text: String) {
+    let clean = text.trim().to_string();
+    if clean.is_empty() {
+        return;
+    }
+    let title: String = clean.lines().next().unwrap_or("").trim().chars().take(60).collect();
+    let title = if title.is_empty() { "剪贴板内容".to_string() } else { title };
+    let conn = state.db.lock().unwrap();
+    let ins = conn.execute(
+        "INSERT INTO suggestions (title, quote, my_note, source_tool, workspace, session_ref, tags, kind, user_msg) VALUES (?1,?2,'','clipboard','','剪贴板','','suggestion','')",
+        rusqlite::params![title, clean],
+    );
+    let id = conn.last_insert_rowid();
+    drop(conn);
+    match ins {
+        Ok(_) => {
+            log_line(&format!("[剪贴板] 直接入箱 #{}：{}", id, title));
+            clipboard_watch::hide_hud(&app);
+            notify(&app, "✓ 已收进收件箱", &format!("#{} {}", id, title));
+        }
+        Err(e) => notify(&app, "入箱失败", &e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn clip_edit(app: AppHandle, text: String) {
+    clipboard_watch::hide_hud(&app);
+    let _ = open_capture_window(&app, &text, "剪贴板", "", "剪贴板", "clip");
+}
+
+#[tauri::command]
+fn clip_dismiss(app: AppHandle) {
+    clipboard_watch::hide_hud(&app);
 }
 
 #[tauri::command]
@@ -1356,7 +1409,10 @@ fn main() {
             open_ax_settings,
             box_select_start,
             box_select_finish,
-            box_select_cancel
+            box_select_cancel,
+            clip_save,
+            clip_edit,
+            clip_dismiss
         ])
         .run(tauri::generate_context!())
         .expect("纳言启动失败");

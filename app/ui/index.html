@@ -970,6 +970,10 @@ function setPaneHTML(){
     '<input id="s-key" type="password" placeholder="OpenAI 兼容接口的 Key">'+
     '<div class="addrow"><button type="button" class="primary" id="saveSet">保存设置</button>'+
     '<button type="button" class="sec" id="testSet">测试连接</button></div>'+
+    '<div style="height:1px;background:var(--line,rgba(0,0,0,.08));margin:14px 0"></div>'+
+    '<label class="flabel">捕获通道</label>'+
+    '<div class="hint">⌥S 划词捕获 · ⌥Z 框选捕获（ZCode 等 Electron 自动切像素识别）· MCP 对 AI 说一句话 · 网页 AI 用浏览器扩展。</div>'+
+    '<div class="addrow" style="align-items:center"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="s-clip"> 剪贴板监听<span class="hint" style="margin:0">在任何 App 复制后，右下角弹快速收录</span></label></div>'+
     '</div></div>';
 }
 function syncSeg(){
@@ -996,6 +1000,7 @@ function loadSettings(){
     gid('s-model').value=s.model||'';
     gid('s-key').value='';
     gid('s-key').placeholder=s.has_key?'已保存 ✓（留空 = 不修改）':'OpenAI 兼容接口的 Key';
+    gid('s-clip').checked=(s.clipboard_watch!==false);
     syncSeg();
   }).catch(function(e){ toast(e.message); });
 }
@@ -1012,8 +1017,9 @@ function saveSettings(){
     provider:gid('s-provider').value,
     base_url:gid('s-base').value.trim(),
     model:gid('s-model').value.trim(),
-    api_key:gid('s-key').value.trim()
-  }).then(function(r){ toast('已保存（'+(r.has_key?'Key 已配置':'还没配 Key')+'）'); loadSettings(); })
+    api_key:gid('s-key').value.trim(),
+    clipboard_watch:gid('s-clip').checked
+  }).then(function(r){ toast('已保存（'+(r.has_key?'Key 已配置':'还没配 Key')+' · 剪贴板监听 '+(r.clipboard_watch?'开':'关')+'）'); loadSettings(); })
     .catch(function(e){ toast(e.message); });
 }
 function testSettings(){
