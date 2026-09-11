@@ -1385,6 +1385,14 @@ fn main() {
                     "系统设置 → 隐私与安全性 → 辅助功能 → 勾选纳言，然后重试 ⌥⇧S",
                 );
             }
+
+            // 第 3 步：剪贴板被动通道（2s 轮询 changeCount，检测到新复制弹快速收录 HUD）
+            clipboard_watch::CLIP_WATCH_ON.store(cfg.clipboard_watch, std::sync::atomic::Ordering::Relaxed);
+            clipboard_watch::start(app.handle().clone());
+            log_line(&format!(
+                "[剪贴板] 监听已启动（{}）",
+                if cfg.clipboard_watch { "开" } else { "关" }
+            ));
             Ok(())
         })
         .on_window_event(|window, event| {

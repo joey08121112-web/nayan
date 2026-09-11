@@ -9,7 +9,7 @@
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::ax_capture::CLIP_SUPPRESS_UNTIL;
 
@@ -83,7 +83,7 @@ fn show_hud(app: &AppHandle, text: &str) {
     let payload = serde_json::json!({ "text": text }).to_string();
     let _ = w.eval(&format!("window.__clip({});", payload));
     // 右下角，位于捕获小窗上方
-    if let Ok(mon) = app.primary_monitor() {
+    if let Ok(Some(mon)) = app.primary_monitor() {
         let scale = mon.scale_factor();
         let logical = mon.size().to_logical::<f64>(scale);
         let _ = w.set_position(tauri::LogicalPosition::new(
