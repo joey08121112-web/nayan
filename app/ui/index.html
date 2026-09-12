@@ -413,7 +413,7 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
       全部记录 <span class="cnt" id="cnt-all">0</span>
     </div>
 
-    <div class="side-label">项目 <span class="grow"></span><span class="plus" id="projPlus" title="新建一条并归到新项目">＋</span></div>
+    <div class="side-label">来源</div>
     <div id="projList"></div>
 
     <div class="side-label">分类</div>
@@ -551,8 +551,7 @@ function viewTitle(v){
   if(v.t==='inbox') return '收件箱';
   if(v.t==='today') return '今天';
   if(v.t==='kind') return KIND_NAME[v.kind]||'';
-  if(v.t==='proj') return v.proj||'未归类';
-  if(v.t==='projtool') return (TOOL_LABEL[v.tool]||v.tool)+' · '+(v.proj||'未归类');
+  if(v.t==='tool') return (TOOL_LABEL[v.tool]||v.tool);
   if(v.t==='session') return sessLabel(v.session||'');
   return '';
 }
@@ -562,9 +561,8 @@ function visibleItems(){
     if(v.t==='inbox' && it.status!=='inbox') return false;
     if(v.t==='today' && dayKey(it.created_at)!==todayKey()) return false;
     if(v.t==='kind' && kindOf(it)!==v.kind) return false;
-    if(v.t==='proj' && projOf(it)!==v.proj) return false;
-    if(v.t==='projtool' && (projOf(it)!==v.proj || (it.source_tool||'other')!==v.tool)) return false;
-    if(v.t==='session' && (projOf(it)!==v.proj || (it.source_tool||'other')!==v.tool || (it.session_ref||'')!==v.session)) return false;
+    if(v.t==='tool' && (it.source_tool||'other')!==v.tool) return false;
+    if(v.t==='session' && ((it.source_tool||'other')!==v.tool || (it.session_ref||'')!==v.session)) return false;
     if(q){
       var hay=((it.title||'')+' '+(it.quote||'')+' '+(it.my_note||'')+' '+(it.user_msg||'')).toLowerCase();
       if(hay.indexOf(q)<0) return false;
@@ -625,57 +623,43 @@ function renderNav(){
     el.classList.toggle('on', v.t==='kind' && el.getAttribute('data-kind')===v.kind);
   });
 
-  // 项目树：项目 → 来源软件 → 会话窗口
-  var order=[], groups={};
+  // 来源树：来源软件 → 会话窗口（目录不再是导航维度，只在卡片右侧显示）
+  var tools={}, torder=[];
   state.items.forEach(function(it){
-    var p=projOf(it);
-    if(!groups[p]){ groups[p]={ count:0, tools:{}, torder:[] }; order.push(p); }
-    var g=groups[p]; g.count++;
     var t=it.source_tool||'other';
-    if(g.tools[t]==null){ g.tools[t]={ count:0, sess:{}, sorder:[] }; g.torder.push(t); }
-    g.tools[t].count++;
+    if(tools[t]==null){ tools[t]={ count:0, sess:{}, sorder:[] }; torder.push(t); }
+    tools[t].count++;
     var sr=it.session_ref||'';
     if(sr.indexOf('窗口：')===0 && sr.length>3){
-      if(g.tools[t].sess[sr]==null){ g.tools[t].sess[sr]=0; g.tools[t].sorder.push(sr); }
-      g.tools[t].sess[sr]++;
+      if(tools[t].sess[sr]==null){ tools[t].sess[sr]=0; tools[t].sorder.push(sr); }
+      tools[t].sess[sr]++;
     }
   });
+  torder.sort(function(a,b){ return tools[b].count - tools[a].count; });
   var h='';
-  order.forEach(function(p){
-    var g=groups[p];
-    var open=state.projOpen[p]!==false;      // 默认展开
-    var isSel=(v.t==='proj'&&v.proj===p);
-    var label=p?lastSeg(p):'未归类';
-    h+='<div class="nav-item proj'+(isSel?' on':'')+'" data-proj="'+escQ(p)+'" title="'+escQ(p||'未归类')+'">'+
-      '<span class="pchev'+(open?' open':'')+'" data-tgl="'+escQ(p)+'">'+chevRSvg()+'</span>'+
-      '<span class="icw">'+folderSvg()+'</span>'+
-      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(label)+'</span>'+
-      '<span class="cnt">'+g.count+'</span></div>';
-    if(open){
-      g.torder.forEach(function(t){
-        var tg=g.tools[t];
-        var tSel=(v.t==='projtool'&&v.proj===p&&v.tool===t);
-        var tOpen=state.projOpen2[p+'|'+t]!==false;
-        var hasS=tg.sorder.length>=2; // 单会话时来源行即代表它，不再展开（避免与来源行重名）
-        h+='<div class="nav-item sub'+(tSel?' on':'')+'" data-proj="'+escQ(p)+'" data-tool="'+escQ(t)+'">'+
-          (hasS?'<span class="pchev'+(tOpen?' open':'')+'" data-tgl2="'+escQ(p+'|'+t)+'">'+chevRSvg()+'</span>':'<span class="pchev"></span>')+
-          '<span class="icw" data-ic-tool="'+escQ(t)+'">'+bubbleSvg()+'</span>'+
-          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(TOOL_LABEL[t]||t)+'</span>'+
-          '<span class="cnt">'+tg.count+'</span></div>';
-        if(open && tOpen && hasS){
-          tg.sorder.forEach(function(sr){
-            var sSel=(v.t==='session'&&v.proj===p&&v.tool===t&&v.session===sr);
-            h+='<div class="nav-item sub2'+(sSel?' on':'')+'" data-proj="'+escQ(p)+'" data-tool="'+escQ(t)+'" data-session="'+escQ(sr)+'">'+
-              '<span class="pchev"></span>'+
-              '<span class="icw">'+docSvg()+'</span>'+
-              '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sessLabel(sr))+'</span>'+
-              '<span class="cnt">'+tg.sess[sr]+'</span></div>';
-          });
-        }
+  torder.forEach(function(t){
+    var tg=tools[t];
+    var tOpen=state.projOpen2['T|'+t]!==false;
+    var tSel=(v.t==='tool'&&v.tool===t)||(v.t==='session'&&v.tool===t);
+    var hasS=tg.sorder.length>=2; // 单会话时来源行即代表，不再展开重名的第三行
+    h+='<div class="nav-item tool'+(tSel?' on':'')+'" data-tool="'+escQ(t)+'">'+
+      (hasS?'<span class="pchev'+(tOpen?' open':'')+'" data-tgl2="T|'+escQ(t)+'">'+chevRSvg()+'</span>':'<span class="pchev"></span>')+
+      '<span class="icw" data-ic-tool="'+escQ(t)+'">'+bubbleSvg()+'</span>'+
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(TOOL_LABEL[t]||t)+'</span>'+
+      '<span class="cnt">'+tg.count+'</span></div>';
+    if(tOpen){
+      tg.sorder.sort(function(a,b){ return tools[t].sess[b] - tools[t].sess[a]; });
+      tg.sorder.forEach(function(sr){
+        var sSel=(v.t==='session'&&v.tool===t&&v.session===sr);
+        h+='<div class="nav-item sub2'+(sSel?' on':'')+'" data-tool="'+escQ(t)+'" data-session="'+escQ(sr)+'">'+
+          '<span class="pchev"></span>'+
+          '<span class="icw">'+docSvg()+'</span>'+
+          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sessLabel(sr))+'</span>'+
+          '<span class="cnt">'+tg.sess[sr]+'</span></div>';
       });
     }
   });
-  if(!order.length) h='<div class="side-empty">还没有项目</div>';
+    if(!order.length) h='<div class="side-empty">还没有项目</div>';
   gid('projList').innerHTML=h;
   fillToolIcons();
   Array.prototype.forEach.call(gid('projList').querySelectorAll('.nav-item'),function(el){
@@ -686,11 +670,8 @@ function renderNav(){
       var tgl2=ev.target.closest?ev.target.closest('[data-tgl2]'):null;
       if(tgl2){ var k2=tgl2.getAttribute('data-tgl2'); state.projOpen2[k2]=state.projOpen2[k2]===false; renderNav(); return; }
       var sr=el.getAttribute('data-session');
-      if(sr!=null){ state.view={ t:'session', proj:p, tool:el.getAttribute('data-tool'), session:sr }; renderAll(); return; }
-      state.view = el.getAttribute('data-tool')!=null
-        ? { t:'projtool', proj:p, tool:el.getAttribute('data-tool') }
-        : { t:'proj', proj:p };
-      state.projOpen[p]=state.projOpen[p]!==false;
+      if(sr!=null){ state.view={ t:'session', tool:el.getAttribute('data-tool'), session:sr }; renderAll(); return; }
+      state.view = { t:'tool', tool:el.getAttribute('data-tool') };
       renderAll();
     };
   });
@@ -871,7 +852,7 @@ function entryHTML(it){
     '<div class="dmeta">'+
       '<span class="mchip">'+bubbleSvg()+esc(toolName(it))+'</span>'+
       '<span class="sep"></span><span>'+esc(fmtDateTime(it.created_at))+'</span>'+
-      (ws?'<span class="sep"></span><button class="mchip" data-act="goproj" title="跳到这个项目">📁 '+esc(ws)+'</button>':'')+
+      (ws?'<span class="sep"></span><span class="mchip" title="项目目录">📁 '+esc(lastSeg(ws))+'</span>':'')+
       sessionLink(it)+
     '</div>'+
     '<div class="dtoprow"><div class="seg" id="segStatus">'+
@@ -926,7 +907,6 @@ function bindEntry(it){
   Array.prototype.forEach.call(box.querySelectorAll('[data-act]'),function(btn){
     btn.onclick=function(ev){
       var act=btn.getAttribute('data-act');
-      if(act==='goproj'){ state.view={ t:'proj', proj:projOf(it) }; renderAll(); return; }
       if(act==='copyquote'){
         navigator.clipboard.writeText(it.quote||'').then(function(){
           btn.textContent='✓ 已复制'; setTimeout(function(){ btn.textContent='⧉ 复制'; },900);
@@ -1318,8 +1298,6 @@ Array.prototype.forEach.call(document.querySelectorAll('.nav-item[data-kind]'),f
     renderAll();
   };
 });
-gid('projPlus').onclick=function(){ state.pane={mode:'add'}; renderDetail();
-  gid('detail').scrollTo({top:0,behavior:'smooth'}); };
 gid('moreBtn').onclick=function(){ state.pane={mode:'add'}; renderDetail();
   gid('detail').scrollTo({top:0,behavior:'smooth'}); };
 gid('setBtn').onclick=function(){ toggleSettings(); };
@@ -1339,7 +1317,7 @@ gid('quickInput').addEventListener('keydown',function(ev){
   var t=gid('quickInput').value.trim();
   if(!t) return;
   gid('quickInput').value='';
-  var ws=(state.view.t==='proj'||state.view.t==='projtool')?state.view.proj:'';
+  var ws='';
   var kind=(state.view.t==='kind'&&state.view.kind==='idle')?'idle':'suggestion';
   api('POST','/api/suggestions',{ title:t, kind:kind, workspace:ws })
     .then(function(created){
