@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>纳言 · 侧栏与操作栏改版对比</title>
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --page:#e9e9ee;
+  --bg:#f5f5f7; --panel:#ffffff;
+  --line:rgba(0,0,0,.10); --hair:rgba(0,0,0,.06);
+  --ink:#1d1d1f; --sub:#86868b; --faint:#aeaeb2;
+  --accent:#0071e3; --doing:#7d5aff; --ok:#1d9a52; --warn:#b25e09; --fire:#f56300;
+  --hover:rgba(0,0,0,.045); --sel:rgba(0,0,0,.06);
+  --field:rgba(120,120,128,.09);
+  --shadow:0 0 0 .5px rgba(0,0,0,.06), 0 18px 50px rgba(0,0,0,.16);
+  --win-bg:#f5f5f7; --sb-bg:transparent; --det-bg:#ffffff;
+  --glasswin:rgba(248,248,250,.66); --glasssb:rgba(255,255,255,.42);
+  --r-lg:14px; --r-md:10px; --r-sm:7px;
+}
+body[data-theme=dark]{
+  --page:#08080a;
+  --bg:#0c0c0e; --panel:#17171a;
+  --line:rgba(255,255,255,.12); --hair:rgba(255,255,255,.07);
+  --ink:#f5f5f7; --sub:#98989f; --faint:#6c6c70;
+  --accent:#0a84ff; --doing:#9d7bff; --ok:#30d158; --fire:#ff9f0a;
+  --hover:rgba(255,255,255,.06); --sel:rgba(255,255,255,.10);
+  --field:rgba(255,255,255,.08);
+  --shadow:0 0 0 .5px rgba(255,255,255,.10), 0 18px 50px rgba(0,0,0,.6);
+  --win-bg:#131316; --det-bg:#17171a;
+  --glasswin:rgba(20,20,24,.62); --glasssb:rgba(255,255,255,.045);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif;
+  font-size:13px;color:var(--ink);background:var(--page);overflow:hidden;
+  -webkit-font-smoothing:antialiased;transition:background .4s;
+}
+svg.ic{width:16px;height:16px;flex:none;display:block}
+::-webkit-scrollbar{width:0;height:0}
+
+/* ---------- page bg blobs ---------- */
+.blob{position:fixed;border-radius:50%;filter:blur(90px);opacity:.55;pointer-events:none;z-index:0;transition:opacity .4s}
+.b1{width:520px;height:520px;left:-120px;top:-140px;background:radial-gradient(circle,#8fb0ff,transparent 65%)}
+.b2{width:620px;height:620px;right:-160px;top:12%;background:radial-gradient(circle,#c9a8ff,transparent 65%)}
+.b3{width:520px;height:520px;left:32%;bottom:-220px;background:radial-gradient(circle,#ffc9a3,transparent 65%)}
+body[data-theme=dark] .blob{opacity:.28}
+
+/* ---------- top control ---------- */
+.ctrl{
+  position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;
+  display:flex;align-items:center;gap:10px;padding:6px;
+  background:rgba(250,250,252,.72);backdrop-filter:blur(24px) saturate(1.5);
+  border:0.5px solid var(--line);border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.14);
+}
+body[data-theme=dark] .ctrl{background:rgba(28,28,32,.72)}
+.seg{display:flex;background:rgba(120,120,128,.12);border-radius:999px;padding:3px}
+.seg button{
+  border:0;background:transparent;font:inherit;font-size:12.5px;color:var(--ink);
+  padding:5px 13px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:6px;
+  transition:background .2s, box-shadow .2s;white-space:nowrap;
+}
+.seg button i{font-style:normal;font-size:9.5px;color:var(--faint);border:0.5px solid var(--hair);border-radius:4px;padding:0 3px;line-height:13px}
+.seg button.on{background:var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.14);font-weight:600}
+.vline{width:.5px;height:18px;background:var(--line)}
+.tg{
+  border:0;background:transparent;font:inherit;font-size:12px;color:var(--sub);cursor:pointer;
+  padding:5px 10px;border-radius:999px;display:flex;align-items:center;gap:5px;transition:all .2s;
+}
+.tg::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--faint);transition:background .2s}
+.tg.on{color:var(--ink)}
+.tg.on::before{background:var(--ok)}
+.hint{font-size:11px;color:var(--faint);padding-right:8px;white-space:nowrap}
+
+/* ---------- window frame ---------- */
+.stage{position:relative;z-index:1;height:100vh;padding:66px 18px 18px;overflow:auto}
+.win{
+  height:calc(100vh - 88px);min-height:540px;min-width:1120px;margin:0 auto;max-width:1560px;
+  display:flex;border-radius:16px;overflow:hidden;position:relative;
+  background:var(--win-bg);box-shadow:var(--shadow);border:0.5px solid var(--line);
+}
+body[data-glass="1"] .win{background:var(--glasswin);backdrop-filter:blur(30px) saturate(1.6)}
+.lights{position:absolute;top:12px;left:14px;display:flex;gap:7px;z-index:5}
+.lights i{width:11px;height:11px;border-radius:50%}
+.lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+
+/* ---------- sidebar shared ---------- */
+.sb{
+  width:var(--sbw,250px);flex:none;display:flex;flex-direction:column;position:relative;
+  border-right:0.5px solid var(--hair);overflow:hidden;
+  transition:width .45s cubic-bezier(.22,1,.36,1);
+  animation:fadein .35s ease;
+}
+body[data-glass="1"] .sb{background:var(--glasssb)}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.side-scroll{flex:1;overflow-y:auto;padding:44px 10px 8px;display:flex;flex-direction:column}
+.sb-grow{flex:1}
+.brand{display:flex;align-items:center;gap:9px;padding:4px 8px 12px}
+.logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3f7bfa,#6a5bff);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 2px 6px rgba(70,100,255,.35)}
+.logo svg{width:15px;height:15px;stroke:#fff}
+.bname{font-size:15px;font-weight:700;letter-spacing:.2px}
+.side-label{
+  font-size:11px;font-weight:600;color:var(--faint);padding:14px 8px 5px;letter-spacing:.4px;
+  display:flex;align-items:center;gap:4px;
+}
+.side-label .plus{margin-left:auto;opacity:0;cursor:pointer;color:var(--sub);font-weight:500;transition:opacity .15s}
+.side-label:hover .plus{opacity:1}
+.it{
+  display:flex;align-items:center;gap:8px;padding:0 8px;height:36px;border-radius:8px;
+  cursor:pointer;color:var(--ink);position:relative;user-select:none;transition:background .12s;
+  white-space:nowrap;
+}
+.it:hover{background:var(--hover)}
+.it.on{background:var(--sel);font-weight:600}
+.it .nm{overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.it .cnt{margin-left:auto;font-size:11.5px;color:var(--sub);font-weight:400}
+.icw{width:20px;display:flex;justify-content:center;color:var(--sub);flex:none}
+.appicon{
+  width:17px;height:17px;border-radius:4.5px;flex:none;display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:800;color:#fff;background:#1c1c1e;font-family:-apple-system;
+}
+body[data-theme=dark] .appicon.z{background:#3a3a3e;border:.5px solid rgba(255,255,255,.25)}
+.chip{
+  display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--sub);
+  background:var(--field);border-radius:5px;padding:1.5px 5px;margin-left:auto;
+}
+.chip svg{width:10px;height:10px}
+.chip + .cnt{margin-left:6px}
+.hr{height:.5px;background:var(--hair);margin:10px 6px}
+.sb-foot{display:flex;align-items:center;gap:6px;padding:8px 10px;border-top:0.5px solid var(--hair)}
+.ib{
+  border:0;background:transparent;color:var(--sub);cursor:pointer;border-radius:7px;
+  height:26px;min-width:26px;display:flex;align-items:center;justify-content:center;gap:5px;
+  font:inherit;font-size:12px;padding:0 6px;transition:background .12s;
+}
+.ib:hover{background:var(--hover);color:var(--ink)}
+.ib svg.ic{width:14px;height:14px}
+.sb-meta{margin-left:auto;font-size:10.5px;color:var(--faint)}
+
+/* ---------- A: 苹果原生 ---------- */
+body[data-variant="a"]{--sbw:238px}
+.it.smart{height:33px}
+.sq{width:19px;height:19px;border-radius:5.5px;flex:none;display:flex;align-items:center;justify-content:center}
+.sq svg{width:11.5px;height:11.5px;stroke:#fff;stroke-width:2}
+.sq.blue{background:linear-gradient(180deg,#4da2ff,#1f7bff);box-shadow:0 1px 3px rgba(31,123,255,.4)}
+.sq.red{background:linear-gradient(180deg,#ff6961,#f43f3f);box-shadow:0 1px 3px rgba(244,63,63,.35)}
+.sq.gray{background:linear-gradient(180deg,#a1a1a8,#8e8e95)}
+.it.smart.on .cnt{color:var(--accent);font-weight:700}
+.secwrap .sec{overflow:hidden;transition:max-height .3s ease;max-height:400px}
+.secwrap.fold .sec{max-height:0}
+.sec-h{cursor:pointer}
+.sec-h .chev{transition:transform .25s;color:var(--faint)}
+.sec-h .chev svg{width:11px;height:11px}
+.secwrap.fold .sec-h .chev{transform:rotate(-90deg)}
+.it.sub{padding-left:20px;height:31px}
+.ficw,.gicw{width:18px;display:flex;justify-content:center;color:var(--faint);flex:none}
+.ficw svg{width:13px;height:13px}
+.gicw svg{width:14px;height:14px}
+.tagdot{width:9px;height:9px;border-radius:50%;flex:none;margin:0 4.5px;background:var(--c,var(--sub))}
+.it .hov{margin-left:auto;display:none;align-items:center;gap:2px;color:var(--sub)}
+.it .hov svg{width:13px;height:13px}
+.it.has-cnt:hover .cnt{display:none}
+.it.has-cnt:hover .hov{display:flex}
+
+/* ---------- B: 生产力 ---------- */
+body[data-variant="b"]{--sbw:252px}
+.ws{
+  display:flex;align-items:center;gap:8px;margin:0 2px 8px;padding:7px 8px;border-radius:9px;
+  cursor:pointer;transition:background .12s;font-weight:600;font-size:14px;
+}
+.ws:hover{background:var(--hover)}
+.ws .chev{margin-left:auto;color:var(--faint)}
+.ws .chev svg{width:12px;height:12px}
+.cmdk{
+  display:flex;align-items:center;gap:7px;height:30px;padding:0 9px;border-radius:8px;
+  background:var(--field);color:var(--faint);font-size:12.5px;cursor:text;margin:0 2px 4px;
+}
+.cmdk kbd{
+  margin-left:auto;font-family:inherit;font-size:10px;color:var(--sub);
+  border:0.5px solid var(--hair);background:var(--panel);border-radius:4px;padding:1px 4px;
+}
+body[data-variant="b"] .side-label{padding:12px 8px 4px;font-size:10.5px;letter-spacing:.6px}
+body[data-variant="b"] .it{height:29px;font-size:12.5px}
+body[data-variant="b"] .it .cnt{font-size:11px;color:var(--faint)}
+.it .drag{position:absolute;left:-2px;display:none;color:var(--faint)}
+.it .drag svg{width:11px;height:11px}
+.it:hover{z-index:1}
+.it:hover .drag{display:block}
+.it .dots-btn{margin-left:auto;display:none;color:var(--sub)}
+.it .dots-btn svg{width:14px;height:14px}
+.it.has-cnt:hover .dots-btn{display:flex}
+.it.app .chev{margin-left:auto;color:var(--faint);transition:transform .25s}
+.it.app .chev svg{width:11px;height:11px}
+.it.app.open .chev{transform:rotate(90deg)}
+.it.app.open .cnt{display:none}
+.kid{display:none;align-items:center;gap:8px;padding:0 8px 0 26px;height:28px;border-radius:8px;cursor:pointer;color:var(--sub);font-size:12.5px;white-space:nowrap;transition:background .12s}
+.kid:hover{background:var(--hover);color:var(--ink)}
+.kid.show{display:flex}
+.kid .cnt{margin-left:auto;font-size:11px;color:var(--faint)}
+.avatar{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#f56300,#faad14);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+
+/* ---------- C: 图标栏 ---------- */
+body[data-variant="c"]{--sbw:62px}
+.rail{flex:1;display:flex;flex-direction:column;align-items:center;padding:44px 0 10px;gap:3px}
+.r-item{
+  width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--sub);position:relative;transition:background .15s,color .15s;flex:none;
+}
+.r-item:hover{background:var(--hover);color:var(--ink)}
+.r-item.on{background:var(--sel);color:var(--accent)}
+.r-item svg.ic{width:19px;height:19px}
+.r-item .appicon{width:21px;height:21px;border-radius:6px;font-size:12px}
+.r-badge{
+  position:absolute;top:2px;right:2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;
+  background:var(--accent);color:#fff;font-size:9.5px;font-weight:700;font-style:normal;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--win-bg);
+}
+body[data-glass="1"] .r-badge{box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+body[data-theme=dark][data-glass="1"] .r-badge{box-shadow:0 0 0 2px rgba(30,30,34,.9)}
+.r-badge.mini{min-width:13px;height:13px;font-size:8.5px;top:0;right:0;background:var(--sub)}
+.r-sep{width:22px;height:.5px;background:var(--hair);margin:5px 0;flex:none}
+.r-logo{
+  width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#3f7bfa,#6a5bff);
+  display:flex;align-items:center;justify-content:center;flex:none;margin-bottom:6px;
+  box-shadow:0 2px 8px rgba(70,100,255,.4);cursor:default;
+}
+.r-logo svg{width:18px;height:18px;stroke:#fff}
+.r-item::after{
+  content:attr(data-tt);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) scale(.94);
+  background:rgba(30,30,34,.92);color:#fff;font-size:11.5px;padding:4px 9px;border-radius:7px;
+  white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:20;
+}
+.r-item:hover::after{opacity:1;transform:translateY(-50%) scale(1)}
+.flyout{
+  position:absolute;left:54px;width:216px;background:var(--panel);border:0.5px solid var(--line);
+  border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.22);padding:6px;z-index:30;
+  animation:fly .22s cubic-bezier(.22,1,.36,1);display:none;
+}
+.flyout.show{display:block}
+@keyframes fly{from{opacity:0;transform:translateX(-8px) scale(.97)}to{opacity:1;transform:none}}
+.fly-h{font-size:12px;font-weight:700;padding:6px 8px;display:flex;align-items:center;gap:7px}
+.fly-h .cnt{margin-left:auto;font-size:11px;color:var(--sub);font-weight:400}
+.fly-it{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--ink)}
+.fly-it:hover{background:var(--hover)}
+.fly-it .ficw svg{width:12px;height:12px}
+.fly-it .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.fly-it .cnt{font-size:10.5px;color:var(--faint)}
+
+/* ---------- middle column ---------- */
+.mid{width:312px;min-width:312px;flex:none;display:flex;flex-direction:column;border-right:0.5px solid var(--hair);min-height:0}
+.ops{padding:44px 12px 8px;animation:fadein .35s ease}
+#list{flex:1;overflow-y:auto;padding:2px 12px 10px;min-height:0}
+.mfoot{
+  text-align:center;font-size:10.5px;color:var(--faint);padding:7px 10px;border-top:0.5px solid var(--hair);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* 现状操作栏 */
+.o-title{display:flex;align-items:baseline;gap:7px}
+.o-title h1{font-size:19px;font-weight:800;letter-spacing:.2px}
+.o-title .cnt{font-size:12px;color:var(--sub)}
+.o-title .date{margin-left:auto;font-size:11.5px;color:var(--faint)}
+.o-sub{font-size:11.5px;color:var(--faint);margin:2px 0 10px}
+.o-search{
+  display:flex;align-items:center;gap:7px;height:34px;padding:0 10px;border-radius:9px;
+  background:var(--field);color:var(--faint);border:0.5px solid transparent;
+}
+.o-search input{border:0;background:transparent;outline:0;font:inherit;font-size:12.5px;color:var(--ink);flex:1;min-width:0}
+.o-search svg{width:14px;height:14px;flex:none}
+.o-focus{
+  display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border-radius:10px;
+  background:var(--panel);border:0.5px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.05);
+}
+.o-focus .fw{flex:1;min-width:0;font-size:12px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.o-focus .fw b{color:var(--ink);font-weight:600}
+.o-focus svg{width:15px;height:15px;color:var(--doing);flex:none}
+.o-focus .play{
+  border:0;background:var(--field);color:var(--accent);font:inherit;font-size:11.5px;font-weight:600;
+  padding:4px 9px;border-radius:7px;cursor:pointer;white-space:nowrap;
+}
+.o-reset{
+  display:flex;align-items:center;gap:6px;margin-top:8px;padding:7px 10px;border-radius:10px;
+  background:rgba(245,99,0,.08);border:0.5px solid rgba(245,99,0,.25);font-size:11.5px;color:var(--fire);
+  white-space:nowrap;
+}
+.o-reset .odate{background:var(--panel);border:0.5px solid var(--line);border-radius:5px;padding:1px 5px;font-size:11px}
+.o-reset .grow{flex:1}
+.o-reset .tip{font-size:10.5px;opacity:.75;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.o-quick{
+  display:flex;align-items:center;gap:8px;margin-top:8px;padding:9px 10px;border-radius:10px;
+  background:var(--panel);border:0.5px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.05);
+}
+.o-quick .plus{color:var(--accent);font-weight:700;font-size:15px}
+.o-quick input{border:0;background:transparent;outline:0;font:inherit;font-size:12.5px;flex:1;min-width:0;color:var(--ink)}
+.o-quick input::placeholder{color:var(--faint)}
+.o-quick svg{width:13px;height:13px;color:var(--faint)}
+/* 新操作栏 */
+.n-head{display:flex;align-items:center;gap:8px;min-height:28px}
+.n-head h1{font-size:16.5px;font-weight:700}
+.n-head .meta{font-size:11.5px;color:var(--faint)}
+.n-head .grow{flex:1}
+.n-bar{display:flex;align-items:center;gap:7px;margin-top:9px}
+.n-search{
+  flex:1;display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;border-radius:8px;
+  background:var(--field);border:0.5px solid transparent;transition:all .2s;min-width:0;
+}
+.n-search:focus-within{background:var(--panel);border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,113,227,.15)}
+.n-search svg{width:13px;height:13px;color:var(--faint);flex:none}
+.n-search input{border:0;background:transparent;outline:0;font:inherit;font-size:12.5px;flex:1;min-width:0;color:var(--ink)}
+.n-search input::placeholder{color:var(--faint)}
+.n-search kbd{font-family:inherit;font-size:9.5px;color:var(--sub);border:0.5px solid var(--hair);background:var(--panel);border-radius:4px;padding:1px 4px;flex:none}
+.pill{
+  border:0.5px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:12px;
+  height:30px;padding:0 11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:5px;
+  white-space:nowrap;transition:all .15s;flex:none;box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.pill:hover{background:var(--hover)}
+.pill.primary{background:var(--accent);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(0,113,227,.35)}
+.pill.primary:hover{filter:brightness(1.08)}
+.pill svg{width:13px;height:13px}
+.pill.fire{color:var(--fire);border-color:rgba(245,99,0,.3);background:rgba(245,99,0,.07)}
+.n-focus{
+  display:flex;align-items:center;gap:8px;margin-top:9px;padding:6px 10px;border-radius:9px;
+  background:linear-gradient(90deg,rgba(125,90,255,.12),rgba(0,113,227,.08));
+  border:0.5px solid rgba(125,90,255,.28);font-size:12px;color:var(--ink);
+}
+.n-focus .pulse{width:7px;height:7px;border-radius:50%;background:var(--doing);flex:none;animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(125,90,255,.45)}55%{box-shadow:0 0 0 5px rgba(125,90,255,0)}}
+.n-focus .ft{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sub)}
+.n-focus .ft b{color:var(--ink)}
+.n-focus .time{font-variant-numeric:tabular-nums;font-weight:700;font-size:12.5px}
+.n-focus .fbtn{
+  border:0;background:var(--panel);color:var(--sub);cursor:pointer;border-radius:6px;width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0.5px 2px rgba(0,0,0,.12);
+}
+.n-focus .fbtn:hover{color:var(--ink)}
+.n-focus .fbtn svg{width:11px;height:11px}
+
+/* ---------- middle list ---------- */
+.dgroup{font-size:11.5px;font-weight:600;color:var(--sub);margin:12px 2px 7px;display:flex;gap:6px;align-items:baseline}
+.dgroup .n{color:var(--faint);font-weight:400;font-size:10.5px}
+.card{
+  background:var(--panel);border:0.5px solid var(--hair);border-radius:var(--r-md);
+  padding:9px 11px 8px;margin-bottom:7px;cursor:pointer;transition:transform .15s, box-shadow .15s, border-color .15s;
+  box-shadow:0 0.5px 2px rgba(0,0,0,.04);
+}
+.card:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.09)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 2.5px rgba(0,113,227,.18), 0 4px 12px rgba(0,0,0,.08)}
+.ctitle{display:flex;gap:6px;font-size:12.5px;line-height:1.45;color:var(--ink);font-weight:500}
+.cdot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex:none}
+.cdot.s-inbox{background:#8e8e93}.cdot.s-doing{background:var(--doing)}.cdot.s-done{background:var(--ok)}
+.ct{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cfoot{display:flex;align-items:center;margin-top:6px;gap:6px}
+.ctag{font-size:10px;color:var(--sub);background:var(--field);border-radius:4.5px;padding:1.5px 5.5px}
+.ctime{margin-left:auto;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+/* ---------- detail ---------- */
+.det{flex:1;min-width:390px;overflow-y:auto;background:var(--det-bg);padding:46px 26px 30px;min-height:0}
+body[data-glass="1"] .det{background:transparent}
+.d-title{font-size:19px;font-weight:800;line-height:1.4;letter-spacing:.1px;max-width:720px}
+.d-meta{display:flex;align-items:center;gap:7px;margin:12px 0 14px;color:var(--sub);font-size:12px;flex-wrap:wrap}
+.d-meta svg{width:13px;height:13px}
+.d-meta .mchip{display:inline-flex;align-items:center;gap:4px;background:var(--field);border-radius:6px;padding:2.5px 7px}
+.d-tabs{display:inline-flex;gap:2px;background:var(--field);border-radius:9px;padding:3px}
+.d-tabs span{font-size:12px;color:var(--sub);padding:4px 12px;border-radius:7px;cursor:pointer;transition:all .15s}
+.d-tabs span.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.d-lab{font-size:11.5px;color:var(--faint);margin:18px 0 7px;display:flex;align-items:baseline;gap:8px}
+.d-lab .rt{margin-left:auto;font-size:10.5px}
+.d-input{
+  border:0.5px solid var(--line);border-radius:10px;padding:10px 12px;min-height:52px;
+  color:var(--faint);font-size:12.5px;background:var(--field);
+}
+.d-card{border:0.5px solid var(--line);border-radius:11px;overflow:hidden;max-width:720px}
+.d-ch{display:flex;align-items:center;gap:7px;padding:8px 12px;background:var(--field);font-size:12px;font-weight:600;color:var(--sub)}
+.d-ch svg{width:13px;height:13px}
+.d-ch .cp{margin-left:auto;font-weight:400;font-size:11px;color:var(--sub);cursor:pointer;display:flex;gap:3px;align-items:center}
+.d-ch .cp svg{width:11px;height:11px}
+.d-card p{padding:10px 13px;font-size:12.8px;line-height:1.65;color:var(--ink)}
+.d-card p + p{padding-top:0}
+.d-prog{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--sub)}
+.d-prog .bar{flex:1;max-width:340px;height:5px;border-radius:3px;background:var(--field);overflow:hidden}
+.d-prog .bar i{display:block;height:100%;width:4%;background:linear-gradient(90deg,var(--doing),var(--accent));border-radius:3px}
+.d-step{display:flex;gap:8px;font-size:12.5px;line-height:1.55;color:var(--ink);margin-top:10px;max-width:700px}
+.d-step .cb{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--faint);flex:none;margin-top:1px}
+
+/* ---------- legend ---------- */
+.legend{
+  position:fixed;right:16px;bottom:16px;z-index:60;width:302px;
+  background:rgba(250,250,252,.8);backdrop-filter:blur(26px) saturate(1.5);
+  border:0.5px solid var(--line);border-radius:14px;padding:14px 15px 12px;
+  box-shadow:0 14px 44px rgba(0,0,0,.2);animation:fadein .3s ease;transition:opacity .25s,transform .25s;
+}
+body[data-theme=dark] .legend{background:rgba(30,30,35,.8)}
+.legend.hide{opacity:0;transform:translateY(10px);pointer-events:none}
+.legend h3{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.legend h3 .k{font-size:10px;font-weight:600;color:#fff;background:var(--accent);border-radius:5px;padding:1.5px 6px}
+.lg-sec{margin-top:9px}
+.lg-sec b{font-size:10.5px;color:var(--faint);letter-spacing:.5px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.chips span{font-size:10.5px;background:var(--field);color:var(--sub);border-radius:5px;padding:2px 7px}
+.legend ul{list-style:none;margin-top:5px}
+.legend li{
+  font-size:11.8px;line-height:1.5;color:var(--ink);padding-left:14px;position:relative;margin-top:3px;
+}
+.legend li::before{content:'';position:absolute;left:2px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.legend li.neg::before{background:var(--fire)}
+</style>
+</head>
+<body data-variant="a" data-glass="1" data-theme="light">
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+
+<header class="ctrl">
+  <div class="seg">
+    <button data-seg="cur"><i>1</i>现状</button>
+    <button data-seg="a" class="on"><i>2</i>A · 苹果原生</button>
+    <button data-seg="b"><i>3</i>B · 生产力</button>
+    <button data-seg="c"><i>4</i>C · 图标栏</button>
+  </div>
+  <span class="vline"></span>
+  <button class="tg on" data-tg="glass">液态玻璃</button>
+  <button class="tg" data-tg="dark">深色</button>
+  <button class="tg on" data-tg="notes">说明</button>
+  <span class="hint">快捷键 1-4 切换</span>
+</header>
+
+<div class="stage">
+<div class="win">
+  <div class="lights"><i></i><i></i><i></i></div>
+  <aside class="sb" id="sb"></aside>
+  <main class="mid">
+    <div class="ops" id="ops"></div>
+    <div id="list"></div>
+    <div id="foot"></div>
+  </main>
+  <section class="det" id="det"></section>
+</div>
+</div>
+
+<aside class="legend" id="legend">
+  <h3 id="lg-t"></h3>
+  <div class="lg-sec"><b>参考</b><div class="chips" id="lg-refs"></div></div>
+  <div class="lg-sec"><b>要点</b><ul id="lg-good"></ul></div>
+  <div class="lg-sec"><b>代价</b><ul id="lg-bad"></ul></div>
+</aside>
+
+<script>
+/* ============ icons ============ */
+const A='viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+const I={
+  tray:`<svg class="ic" ${A}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`,
+  cal:`<svg class="ic" ${A}><rect x="3" y="4" width="18" height="17" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>`,
+  layers:`<svg class="ic" ${A}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+  spark:`<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8L14.2 9.8L21.2 12L14.2 14.2L12 21.2L9.8 14.2L2.8 12L9.8 9.8L12 2.8z"/></svg>`,
+  zap:`<svg class="ic" ${A}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  search:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>`,
+  plus:`<svg class="ic" ${A}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  chevD:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+  chevR:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>`,
+  folder:`<svg class="ic" ${A}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+  bubble:`<svg class="ic" ${A}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+  clip:`<svg class="ic" ${A}><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`,
+  gear:`<svg class="ic" ${A}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`,
+  moon:`<svg class="ic" ${A}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`,
+  sun:`<svg class="ic" ${A}><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/></svg>`,
+  dots:`<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>`,
+  drag:`<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>`,
+  panel:`<svg class="ic" ${A}><rect x="3" y="4" width="18" height="16" rx="3"/><line x1="9" y1="4" x2="9" y2="20"/></svg>`,
+  play:`<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19"/></svg>`,
+  pause:`<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>`,
+  check:`<svg class="ic" ${A}><polyline points="20 6 9 17 4 12"/></svg>`,
+  target:`<svg class="ic" ${A}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6"/></svg>`,
+  sliders:`<svg class="ic" ${A}><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`,
+  copy:`<svg class="ic" ${A}><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+};
+const zicon='<span class="appicon z">Z</span>';
+
+/* ============ data ============ */
+const META={
+  cur:{t:'现状 · 问题出在哪',k:'基线',refs:['Apple 2018 风格','自定义堆叠'],
+    good:['功能都在：智能列表 / 来源树 / 分类 / 烧额度','信息完整，所有入口平铺可见'],
+    bad:['中栏顶部 5 层堆叠（标题→搜索→专注→烧额度→快记），真正的内容被挤到一屏外','侧栏图标三套体系混用：彩色 App 图标 / 通用气泡 / 彩色线框，层级感靠猜','行高 36px + 侧栏偏宽，一屏只见 ~9 行；计数常驻喧宾夺主','底部提示条常驻，信息价值低还占一行']},
+  a:{t:'方案 A · 苹果原生（推荐）',k:'推荐',refs:['Apple 提醒事项','Apple 备忘录','Apple Mail','macOS 26 液态玻璃'],
+    good:['智能列表改「彩色图标块」（提醒事项式），三秒认出收件箱/今天','来源统一为 16px 图标 + 文件夹降为缩进子行，三级树变清晰两级','行高收到 30~33px，悬停才出现 ⋯ 操作；计数淡化为灰字','底部合并一行：主题 + 设置 + 「本机存储」，去掉常驻提示条','操作栏 5 层并 2 层：标题行 + 万能输入行；专注条只在有任务时出现'],
+    bad:['彩色图标块存在感强，有人爱有人嫌','密度不及方案 B']},
+  b:{t:'方案 B · 生产力密度',k:'备选',refs:['Linear','Notion','Things 3'],
+    good:['顶部 ⌘K 命令入口，键盘流最顺（和你 hotkey 习惯契合）','28px 行高 + 悬停才显示操作/隐藏计数，同屏信息量最大','来源 App 行可折叠，展开才是「文件夹 → 会话」，三级树天然收进两级','底部放头像 + 本机数据 + 设置，像 Linear 的工作区','操作栏同 A：两行解决'],
+    bad:['点击目标小、依赖悬停发现功能，上手成本略高','与 macOS 原生气质有距离']},
+  c:{t:'方案 C · 图标栏',k:'激进',refs:['Slack','Arc','Obsidian 助手栏'],
+    good:['侧栏压到 62px 图标栏，中栏+详情多出约 190px 宽度','智能列表带角标计数，来源 App 一列排开，悬停有名称提示','点来源图标弹出会话面板（flyout），常用项一击直达','窗口可以做得更窄，适合贴边停靠'],
+    bad:['文字名称不可见，依赖记忆和悬停','来源一多（>10 个 App）图标栏会挤','改动最大，三级树需要重新设计交互']},
+};
+
+/* ============ sidebar templates ============ */
+const sbCur=()=>`
+  <div class="side-scroll">
+    <div class="brand"><div class="logo">${I.tray}</div><div class="bname">纳言</div></div>
+    <div class="side-label">列表</div>
+    <div class="it"><span class="icw">${I.tray}</span><span class="nm">收件箱</span><span class="cnt">13</span></div>
+    <div class="it"><span class="icw">${I.cal}</span><span class="nm">今天</span><span class="cnt">4</span></div>
+    <div class="it"><span class="icw">${I.layers}</span><span class="nm">全部记录</span><span class="cnt">15</span></div>
+    <div class="side-label">来源</div>
+    <div class="it on">${zicon}<span class="nm">ZCode</span><span class="cnt">8</span></div>
+    <div class="it">${zicon}<span class="nm">ZCode</span><span class="chip">${I.folder}ZCode</span><span class="cnt">6</span></div>
+    <div class="it"><span class="icw">${I.bubble}</span><span class="nm">剪贴板</span><span class="cnt">3</span></div>
+    <div class="it"><span class="icw">${I.bubble}</span><span class="nm">DeepSeek Harness</span><span class="cnt">2</span></div>
+    <div class="it"><span class="icw">${I.bubble}</span><span class="nm">hotkey</span><span class="cnt">1</span></div>
+    <div class="it"><span class="icw">${I.bubble}</span><span class="nm">Claude Code</span><span class="cnt">1</span></div>
+    <div class="side-label">分类</div>
+    <div class="it"><span class="icw" style="color:var(--doing)">${I.spark}</span><span class="nm">AI 建议</span><span class="cnt">14</span></div>
+    <div class="it"><span class="icw" style="color:var(--fire)">${I.zap}</span><span class="nm">闲时任务</span><span class="cnt">1</span></div>
+    <div class="sb-grow"></div>
+  </div>
+  <div class="sb-foot">
+    <button class="ib" data-act="theme">${I.moon}<span>深色</span></button>
+    <button class="ib">${I.gear}<span>设置</span></button>
+  </div>`;
+
+const sbA=()=>`
+  <div class="side-scroll">
+    <div class="brand"><div class="logo">${I.tray}</div><div class="bname">纳言</div></div>
+    <div class="it smart on"><span class="sq blue">${I.tray}</span><span class="nm">收件箱</span><span class="cnt">13</span><span class="hov">${I.dots}</span></div>
+    <div class="it smart"><span class="sq red">${I.cal}</span><span class="nm">今天</span><span class="cnt">4</span><span class="hov">${I.dots}</span></div>
+    <div class="it smart"><span class="sq gray">${I.layers}</span><span class="nm">全部记录</span><span class="cnt">15</span><span class="hov">${I.dots}</span></div>
+    <div class="hr"></div>
+    <div class="secwrap">
+      <div class="side-label sec-h"><span class="chev">${I.chevD}</span>来源<span class="plus">＋</span></div>
+      <div class="sec">
+        <div class="it has-cnt">${zicon}<span class="nm">ZCode</span><span class="cnt">8</span><span class="hov">${I.dots}</span></div>
+        <div class="it sub has-cnt"><span class="ficw">${I.folder}</span><span class="nm">ZCode 文件夹</span><span class="cnt">6</span></div>
+        <div class="it has-cnt"><span class="gicw">${I.clip}</span><span class="nm">剪贴板</span><span class="cnt">3</span><span class="hov">${I.dots}</span></div>
+        <div class="it has-cnt"><span class="gicw">${I.bubble}</span><span class="nm">DeepSeek Harness</span><span class="cnt">2</span><span class="hov">${I.dots}</span></div>
+        <div class="it has-cnt"><span class="gicw">${I.bubble}</span><span class="nm">hotkey</span><span class="cnt">1</span><span class="hov">${I.dots}</span></div>
+        <div class="it has-cnt"><span class="gicw">${I.bubble}</span><span class="nm">Claude Code</span><span class="cnt">1</span><span class="hov">${I.dots}</span></div>
+      </div>
+    </div>
+    <div class="secwrap">
+      <div class="side-label sec-h"><span class="chev">${I.chevD}</span>分类</div>
+      <div class="sec">
+        <div class="it has-cnt"><span class="tagdot" style="--c:var(--doing)"></span><span class="nm">AI 建议</span><span class="cnt">14</span><span class="hov">${I.dots}</span></div>
+        <div class="it has-cnt"><span class="tagdot" style="--c:var(--fire)"></span><span class="nm">闲时任务</span><span class="cnt">1</span><span class="hov">${I.dots}</span></div>
+      </div>
+    </div>
+    <div class="sb-grow"></div>
+  </div>
+  <div class="sb-foot">
+    <button class="ib" data-act="theme" title="深色模式">${I.moon}</button>
+    <button class="ib" title="设置 ⌘,">${I.gear}</button>
+    <span class="sb-meta">本机存储 · v0.9</span>
+  </div>`;
+
+const sbB=()=>`
+  <div class="side-scroll">
+    <div class="ws"><div class="logo">${I.tray}</div>纳言<span class="chev">${I.chevD}</span></div>
+    <div class="cmdk">${I.search}搜索或跳转<kbd>⌘K</kbd></div>
+    <div class="side-label">智能列表</div>
+    <div class="it has-cnt"><span class="icw" style="color:var(--accent)">${I.tray}</span><span class="nm">收件箱</span><span class="cnt">13</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="it has-cnt"><span class="icw" style="color:var(--fire)">${I.cal}</span><span class="nm">今天</span><span class="cnt">4</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="it has-cnt"><span class="icw">${I.layers}</span><span class="nm">全部记录</span><span class="cnt">15</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="side-label">来源<span class="plus">＋</span></div>
+    <div class="it app open has-cnt">${zicon}<span class="nm">ZCode</span><span class="cnt">14</span><span class="chev">${I.chevR}</span></div>
+    <div class="kid show"><span class="ficw">${I.folder}</span><span class="nm">ZCode 文件夹</span><span class="cnt">6</span></div>
+    <div class="kid show"><span class="gicw">${I.bubble}</span><span class="nm">全部会话</span><span class="cnt">8</span></div>
+    <div class="it has-cnt"><span class="gicw">${I.clip}</span><span class="nm">剪贴板</span><span class="cnt">3</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="it has-cnt"><span class="gicw">${I.bubble}</span><span class="nm">DeepSeek Harness</span><span class="cnt">2</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="it has-cnt"><span class="gicw">${I.bubble}</span><span class="nm">hotkey</span><span class="cnt">1</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="it has-cnt"><span class="gicw">${I.bubble}</span><span class="nm">Claude Code</span><span class="cnt">1</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="side-label">分类<span class="plus">＋</span></div>
+    <div class="it has-cnt"><span class="tagdot" style="--c:var(--doing)"></span><span class="nm">AI 建议</span><span class="cnt">14</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="it has-cnt"><span class="tagdot" style="--c:var(--fire)"></span><span class="nm">闲时任务</span><span class="cnt">1</span><span class="dots-btn">${I.dots}</span><span class="drag">${I.drag}</span></div>
+    <div class="sb-grow"></div>
+  </div>
+  <div class="sb-foot">
+    <span class="avatar">米</span>
+    <span style="font-size:12px;color:var(--sub)">本机数据</span>
+    <span class="sb-grow"></span>
+    <button class="ib" data-act="theme">${I.moon}</button>
+    <button class="ib">${I.gear}</button>
+  </div>`;
+
+const sbC=()=>`
+  <div class="rail">
+    <div class="r-logo">${I.tray}</div>
+    <div class="r-sep"></div>
+    <div class="r-item on" data-tt="收件箱 · 13">${I.tray}<span class="r-badge">13</span></div>
+    <div class="r-item" data-tt="今天 · 4">${I.cal}<span class="r-badge">4</span></div>
+    <div class="r-item" data-tt="全部记录 · 15">${I.layers}<span class="r-badge">15</span></div>
+    <div class="r-sep"></div>
+    <div class="r-item src" data-src="ZCode" data-tt="ZCode · 8"><span class="appicon z">Z</span></div>
+    <div class="r-item src" data-src="剪贴板" data-tt="剪贴板 · 3">${I.clip}</div>
+    <div class="r-item src" data-src="DeepSeek Harness" data-tt="DeepSeek Harness · 2">${I.bubble}</div>
+    <div class="r-item src" data-src="hotkey" data-tt="hotkey · 1">${I.bubble}</div>
+    <div class="r-item src" data-src="Claude Code" data-tt="Claude Code · 1">${I.bubble}</div>
+    <div class="sb-grow" style="flex:1"></div>
+    <div class="r-item" data-tt="AI 建议 · 14" style="color:var(--doing)">${I.spark}<span class="r-badge mini">14</span></div>
+    <div class="r-item" data-tt="闲时任务 · 1" style="color:var(--fire)">${I.zap}</div>
+    <div class="r-sep"></div>
+    <div class="r-item" data-act="theme" data-tt="深色模式">${I.moon}</div>
+    <div class="r-item" data-tt="设置 ⌘,">${I.gear}</div>
+  </div>
+  <div class="flyout" id="flyout"></div>`;
+
+/* ============ ops templates ============ */
+const opsCur=()=>`
+  <div class="o-title"><h1>ZCode</h1><span class="cnt">6 条</span><span class="date">9月12日 周六</span></div>
+  <p class="o-sub">来自 ZCode 的记录 · 按时间分组</p>
+  <div class="o-search">${I.search}<input placeholder="搜索标题 / 原文 / 想法…"></div>
+  <div class="o-focus">${I.target}<div class="fw"><b>下一件事：</b>整理一本电子书…</div><button class="play">▶ 开始专注</button></div>
+  <div class="o-reset">🔥 烧额度<span>重置日</span><span class="odate">9月15日</span><span>还剩 3 天</span><span class="grow"></span><span class="tip">把 ⚡ 任务狠狠用完剩余额度！</span></div>
+  <div class="o-quick"><span class="plus">＋</span><input placeholder="记一条… 回车收进当前视图">${I.chevD}</div>`;
+
+const opsNew=()=>`
+  <div class="n-head">
+    <h1>ZCode</h1><span class="meta">6 条 · 9月12日 周六</span>
+    <span class="grow"></span>
+    <button class="pill" style="height:26px;font-size:11.5px">${I.sliders}筛选</button>
+  </div>
+  <div class="n-bar">
+    <div class="n-search">${I.search}<input placeholder="记一条，或搜索…"><kbd>⏎ 记录</kbd></div>
+    <button class="pill primary">${I.plus}详细</button>
+  </div>
+  <div class="n-focus" id="nfocus">
+    <span class="pulse"></span>
+    <span class="ft">专注中 · <b>整理一本电子书</b></span>
+    <span class="time">24:59</span>
+    <button class="fbtn" data-f="pause">${I.pause}</button>
+    <button class="fbtn" data-f="done">${I.check}</button>
+  </div>`;
+
+/* ============ middle list ============ */
+const GROUPS=[
+  {d:'今天',n:'1 条',items:[
+    {t:'问题 3：Collie/CollieBoard——查实了，不是纳言建的。我把纳言数据库翻了个遍：全库没有 Collie 字样，你所有的 ZCode 收录都正确走进了「ZCode」项目',tag:'ZCode',time:'14:50',st:'doing'},
+  ]},
+  {d:'9月6日',n:'2 条',items:[
+    {t:'应该显示你选中的 抓到 32 字符，现已改为直接注入',tag:'ZCode',time:'14:54',st:'doing'},
+    {t:'⌥S：在 ZCode 里选中我的一段回复 → 按 ⌥S → 这次小窗里应该显示你选中的文字（后端已证明能抓到 32 字符）',tag:'ZCode',time:'14:39',st:'done'},
+  ]},
+  {d:'9月5日',n:'1 条',items:[
+    {t:'如果弹出“纳言需要辅助功能权限”通知（换了签名，系统大概率当它是新 App）：去 系统设置 → 隐私与安全性 → 辅助功能 → 勾选纳言。没弹通知的话直接跳过',tag:'ZCode',time:'16:48',st:'inbox',on:1},
+  ]},
+];
+function renderList(){
+  document.getElementById('list').innerHTML=GROUPS.map(g=>`
+    <div class="dgroup">${g.d}<span class="n">${g.n}</span></div>
+    ${g.items.map(it=>`
+      <div class="card${it.on?' sel':''}">
+        <div class="ctitle"><span class="cdot s-${it.st}"></span><span class="ct">${it.t}</span></div>
+        <div class="cfoot"><span class="ctag">${it.tag}</span><span class="ctime">${it.time}</span></div>
+      </div>`).join('')}`).join('');
+}
+
+/* ============ detail ============ */
+function renderDet(){
+  document.getElementById('det').innerHTML=`
+    <div class="d-title">如果弹出“纳言需要辅助功能权限”通知（换了签名，系统大概率当它是新 App）：去 系统设置 → 隐私与安全性 → 辅助功能 → 勾选纳言。没弹通知的话直接跳过</div>
+    <div class="d-meta"><span class="mchip">${I.bubble} ZCode</span>·<span>9月5日 16:48</span>·<span class="mchip">${I.folder} ZCode</span></div>
+    <div class="d-tabs"><span class="on">收件箱</span><span>待办</span><span>专注中</span><span>完成</span><span>放弃</span></div>
+    <div class="d-lab">我的话 · 当时问 AI 的上下文</div>
+    <div class="d-input">你发给 AI 的话 / 背景（可选）…</div>
+    <div class="d-lab">AI 原文</div>
+    <div class="d-card">
+      <div class="d-ch">${I.bubble} ZCode<span class="cp">${I.copy} 复制</span></div>
+      <p>如果弹出“纳言需要辅助功能权限”通知（换了签名，系统大概率当它是新 App）：去 系统设置 → 隐私与安全性 → 辅助功能 → 勾选纳言。没弹通知的话直接跳过</p>
+      <p>实测五靶：分别在 备忘录、Safari、Chrome、Obsidian、终端 里选中一段文字按 ⌥⇧S，看捕获小窗左下角的通道微标——前四个应该显示「AX 直读」，终端显示「⌘C」。顺手验证：AX 捕获后你的剪贴板内容应该原样还在。</p>
+    </div>
+    <div class="d-lab">执行步骤 · 0/4<span class="rt">结果贴回给 AI 判断对错</span></div>
+    <div class="d-prog"><span>0/4 步</span><div class="bar"><i></i></div></div>
+    <div class="d-step"><span class="cb"></span><span>1. 如果弹出“纳言需要辅助功能权限”通知（换了签名，系统大概率当它是新 App）：去 系统设置 → 隐私与安全性 → 辅助功能 → 勾选纳言…</span></div>`;
+}
+
+/* ============ footer ============ */
+function renderFoot(v){
+  document.getElementById('foot').innerHTML = v==='cur'
+    ? '<div class="mfoot">收：⌥⇧S 捕获 · 对 AI 说「记到收件箱」 · 数据只存本机</div>' : '';
+}
+
+/* ============ legend ============ */
+function renderLegend(v){
+  const m=META[v];
+  document.getElementById('lg-t').innerHTML=m.t+'<span class="k">'+m.k+'</span>';
+  document.getElementById('lg-refs').innerHTML=m.refs.map(r=>'<span>'+r+'</span>').join('');
+  document.getElementById('lg-good').innerHTML=m.good.map(x=>'<li>'+x+'</li>').join('');
+  document.getElementById('lg-bad').innerHTML=m.bad.map(x=>'<li class="neg">'+x+'</li>').join('');
+}
+
+/* ============ state & render ============ */
+const SB={cur:sbCur,a:sbA,b:sbB,c:sbC};
+const OPS={cur:opsCur,a:opsNew,b:opsNew,c:opsNew};
+const state={v:'a'};
+
+function setV(v){
+  state.v=v;
+  document.body.dataset.variant=v;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.seg===v));
+  document.getElementById('sb').innerHTML=SB[v]();
+  document.getElementById('ops').innerHTML=OPS[v]();
+  renderFoot(v);
+  renderLegend(v);
+  const sc=document.querySelector('.side-scroll'); if(sc) sc.scrollTop=0;
+}
+
+/* ============ events ============ */
+document.addEventListener('click',e=>{
+  const seg=e.target.closest('[data-seg]'); if(seg) return setV(seg.dataset.seg);
+  const tg=e.target.closest('[data-tg]');
+  if(tg){
+    const k=tg.dataset.tg;
+    if(k==='glass'){const on=document.body.dataset.glass!=='1';document.body.dataset.glass=on?'1':'0';tg.classList.toggle('on',on);}
+    if(k==='notes'){const on=!document.getElementById('legend').classList.contains('hide');document.getElementById('legend').classList.toggle('hide',!on);tg.classList.toggle('on',on);}
+    if(k==='dark'){toggleTheme();}
+    return;
+  }
+  const act=e.target.closest('[data-act="theme"]'); if(act) return toggleTheme();
+  // sidebar row select
+  const it=e.target.closest('.sb .it, .sb .kid');
+  if(it && !it.classList.contains('app')){
+    document.querySelectorAll('#sb .it, #sb .kid').forEach(x=>x.classList.remove('on'));
+    it.classList.add('on');
+  }
+  // collapsible section headers (A)
+  const sh=e.target.closest('.sec-h');
+  if(sh){ sh.closest('.secwrap').classList.toggle('fold'); return; }
+  // B: app tree toggle
+  const app=e.target.closest('.it.app');
+  if(app){
+    app.classList.toggle('open');
+    const open=app.classList.contains('open');
+    let n=app.nextElementSibling;
+    while(n && n.classList.contains('kid')){ n.classList.toggle('show',open); n=n.nextElementSibling; }
+    return;
+  }
+  // C: rail
+  const ri=e.target.closest('.r-item');
+  if(ri){
+    if(ri.classList.contains('src')){ showFly(ri); }
+    else{
+      document.querySelectorAll('.r-item').forEach(x=>x.classList.remove('on'));
+      ri.classList.add('on'); hideFly();
+    }
+    return;
+  }
+  if(!e.target.closest('.flyout')) hideFly();
+  // focus strip buttons
+  const fb=e.target.closest('.fbtn');
+  if(fb){
+    const strip=document.getElementById('nfocus');
+    if(fb.dataset.f==='pause'){
+      const paused=strip.classList.toggle('paused');
+      fb.innerHTML=paused?I.play:I.pause;
+      strip.style.opacity=paused?'.65':'1';
+      strip.querySelector('.ft').innerHTML=paused?'已暂停 · <b>整理一本电子书</b>':'专注中 · <b>整理一本电子书</b>';
+    } else { strip.style.display='none'; }
+  }
+});
+function toggleTheme(){
+  const dark=document.body.dataset.theme!=='dark';
+  document.body.dataset.theme=dark?'dark':'light';
+  document.querySelectorAll('[data-tg="dark"]').forEach(b=>b.classList.toggle('on',dark));
+  document.querySelectorAll('[data-act="theme"]').forEach(b=>{b.innerHTML=dark?I.sun:I.moon;});
+}
+/* flyout for C */
+const FLYDATA={
+  'ZCode':{sub:[['folder','ZCode 文件夹',6],['bubble','全部会话',8]],cards:['问题 3：Collie/CollieBoard……','如果弹出“纳言需要辅助功能权限”通知……']},
+  '剪贴板':{sub:[['bubble','全部会话',3]],cards:['⌥S：在 ZCode 里选中一段回复……','应该显示你选中的 抓到 32 字符……','⌘C 通道在终端验证通过……']},
+  'DeepSeek Harness':{sub:[['bubble','全部会话',2]],cards:['调研与开发路线讨论……','侧栏来源树重构……']},
+  'hotkey':{sub:[['bubble','全部会话',1]],cards:['Carbon 物理键在 macOS 26 失效……']},
+  'Claude Code':{sub:[['bubble','全部会话',1]],cards:['CLAUDE.md 配置讨论……']},
+};
+function showFly(ri){
+  const f=document.getElementById('flyout');
+  const name=ri.dataset.src, d=FLYDATA[name]||{sub:[],cards:[]};
+  f.innerHTML=`<div class="fly-h">${name}<span class="cnt">${ri.dataset.tt.split('·')[1].trim()} 条</span></div>
+    ${d.sub.map(s=>`<div class="fly-it"><span class="ficw">${I[s[0]]}</span><span class="t">${s[1]}</span><span class="cnt">${s[2]}</span></div>`).join('')}
+    <div class="r-sep" style="margin:4px 6px"></div>
+    ${d.cards.map(c=>`<div class="fly-it"><span class="cdot s-inbox" style="margin:0"></span><span class="t">${c}</span></div>`).join('')}`;
+  const sb=document.getElementById('sb');
+  f.style.top=Math.min(ri.offsetTop+6, sb.clientHeight-f.offsetHeight-12)+'px';
+  f.classList.add('show');
+}
+function hideFly(){const f=document.getElementById('flyout'); if(f) f.classList.remove('show');}
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  const map={'1':'cur','2':'a','3':'b','4':'c'};
+  if(map[e.key]) setV(map[e.key]);
+  if(e.key==='g'){document.querySelector('[data-tg="glass"]').click();}
+  if(e.key==='d'){toggleTheme();}
+  if(e.key==='n'){document.querySelector('[data-tg="notes"]').click();}
+});
+
+/* ============ boot ============ */
+renderList();
+renderDet();
+const QV=new URLSearchParams(location.search).get('v');
+setV(SB[QV]?QV:'a');
+if(new URLSearchParams(location.search).get('dark')==='1') toggleTheme();
+</script>
+</body>
+</html>

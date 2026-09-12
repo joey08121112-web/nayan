@@ -868,7 +868,7 @@ function sessionLink(it){
   var i=sr.indexOf(' | ');
   var st=i>0?sr.slice(0,i):sr, su=i>0?sr.slice(i+3):'';
   if(su.indexOf('http')===0) return '<a href="'+escQ(su)+'" target="_blank">在来源中查看 ↗</a>';
-  if(sr.indexOf('窗口：')===0) return '<span class="mchip">🪟 '+esc(sr.slice(3))+'</span>';
+  if(sr.indexOf('窗口：')===0) return '<span class="mchip">🪟 '+esc(sr.slice(3))+'</span><button class="mchip" data-act="jumps" title="回到来源窗口">↩ 回到来源</button>';
   return '<span class="mchip">🔗 '+esc(sr)+'</span>';
 }
 function entryHTML(it){
@@ -941,6 +941,14 @@ function bindEntry(it){
       }
       var stepEl=btn.closest?btn.closest('.step'):null;
       var step=stepEl?findStep(Number(stepEl.getAttribute('data-step'))):null;
+      if(act==='jumps'){
+        if(!TAPI){ toast('仅桌面 App 支持'); return; }
+        toast('正在切到来源窗口…');
+        TAPI.invoke('jump_to_source',{sessionRef:it.session_ref||'',sourceTool:it.source_tool||''})
+          .then(function(r){ toast('✓ 已切到来源窗口'); })
+          .catch(function(e){ toast('✗ '+(e.message||'来源没找到')); });
+        return;
+      }
       if(act==='toggle'&&step){ refresh(api('PATCH','/api/steps/'+step.id,{done:!step.done})); }
       else if(act==='copystep'&&step){
         navigator.clipboard.writeText(step.content).then(function(){

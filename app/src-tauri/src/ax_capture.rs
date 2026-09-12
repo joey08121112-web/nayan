@@ -29,12 +29,14 @@ extern "C" {
     fn AXUIElementCopyAttributeValue(el: CFRef, attr: CFRef, out: *mut CFRef) -> i32;
     fn AXUIElementSetAttributeValue(el: CFRef, attr: CFRef, val: CFRef) -> i32;
     fn CFRelease(cf: CFRef);
+    fn CFRetain(cf: CFRef) -> CFRef;
     fn CFGetTypeID(cf: CFRef) -> usize;
     fn CFStringGetTypeID() -> usize;
     fn CFArrayGetCount(arr: CFRef) -> i64;
     fn CFArrayGetValueAtIndex(arr: CFRef, idx: i64) -> CFRef;
     fn AXValueGetType(value: CFRef) -> u32;
     fn AXValueGetValue(value: CFRef, t: u32, out: *mut c_void) -> u8;
+    fn AXUIElementPerformAction(el: CFRef, action: CFRef) -> i32;
 }
 
 // ---------- 小工具 ----------
@@ -328,6 +330,88 @@ pub fn resolve_workspace(win_title: &str) -> String {
     String::new()
 }
 
+// ---------- 回到来源窗口（AX Raise） ----------
+
+/// 激活来源 App 并提升其窗口（标题模糊匹配；找不到精确窗口时提升主窗口）
+pub fn raise_source_window(app_name: &str, title: &str) -> bool {
+    unsafe {
+        let pool = NSAutoreleasePool::new(nil);
+        let out = raise_impl(app_name, title);
+        NSAutoreleasePool::drain(pool);
+        out
+    }
+}
+
+unsafe fn raise_impl(app_name: &str, title: &str) -> bool {
+    use cocoa::base::id;
+    // ① 找到目标 App（名字互含模糊匹配）
+    let ws: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+    let apps: id = msg_send![ws, runningApplications];
+    let n: usize = msg_send![apps, count];
+    let mut target: id = nil;
+    for i in 0..n {
+        let a: id = msg_send![apps, objectAtIndexedSubscript: i as u64];
+        let policy: i64 = msg_send![a, activationPolicy];
+        if policy != 0 { continue; } // 只要常规 App
+        let nm = ns_to_string(msg_send![a, localizedName]);
+        if nm == app_name || nm.contains(app_name) || (!nm.is_empty() && app_name.contains(&nm)) {
+            target = a;
+            break;
+        }
+    }
+    if target == nil {
+        return false;
+    }
+    let pid: i32 = msg_send![target, processIdentifier];
+    // ② 激活 App（NSRunningApplication 的方法；注意 activateIgnoringOtherApps 是 NSApplication 的，发错对象会抛异常）
+    let _: () = msg_send![target, activateWithOptions: 0u64];
+    // ③ AX 提升窗口：优先精确标题，否则主窗口兜底
+    let app_el = AXUIElementCreateApplication(pid);
+    if app_el.is_null() {
+        return false;
+    }
+    let mut target_win: CFRef = std::ptr::null();
+    let mut windows: CFRef = std::ptr::null();
+    let werr = AXUIElementCopyAttributeValue(app_el, ns_str("AXWindows") as CFRef, &mut windows);
+    if werr == 0 && !windows.is_null() {
+        let cnt = CFArrayGetCount(windows);
+        // 第一轮：标题匹配的窗口
+        for i in 0..cnt {
+            let w = CFArrayGetValueAtIndex(windows, i);
+            if w.is_null() { continue; }
+            let wt = copy_string(w, "AXTitle").unwrap_or_default();
+            if !title.is_empty()
+                && (wt == title || wt.contains(title) || (!wt.is_empty() && title.contains(&wt)))
+            {
+                target_win = CFRetain(w);
+                break;
+            }
+        }
+        // 兜底：非桌面的第一个窗口（桌面的 AXRaise 会返回失败）
+        if target_win.is_null() {
+            for i in 0..cnt {
+                let w = CFArrayGetValueAtIndex(windows, i);
+                if w.is_null() { continue; }
+                let role = copy_string(w, "AXRole").unwrap_or_default();
+                if role != "AXDesktop" {
+                    target_win = CFRetain(w);
+                    break;
+                }
+            }
+        }
+        CFRelease(windows);
+    }
+    if !target_win.is_null() {
+        let st = AXUIElementPerformAction(target_win, ns_str("AXRaise") as CFRef);
+        if st != 0 {
+            eprintln!("[回源] AXRaise code={}", st);
+        }
+        CFRelease(target_win);
+    }
+    // App 激活本身已把窗口带到前台
+    true
+}
+
 // ---------- 框选：AX 文本块走查（对应 HS boxHarvest / Wispal 候选采集） ----------
 
 /// 文本块（屏幕坐标，单位=点；走查后由调用方换算成 overlay 局部坐标）
@@ -616,6 +700,20 @@ mod tests {
         log("S5: resolve_workspace");
         let ws = resolve_workspace(&f.title);
         log(&format!("S5 ok: {:?}", ws));
+    }
+
+    #[test]
+    fn raise_probe() {
+        use std::env;
+        let name = env::var("PROBE_APP").unwrap_or_else(|_| "Finder".into());
+        let title = env::var("PROBE_TITLE").unwrap_or_default();
+        println!("尝试抬升: {} / title={:?}" , name, title);
+        let ok = raise_source_window(&name, &title);
+        println!("结果: {}", ok);
+        // 验证前台变成目标
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        let f = front_app_name();
+        println!("当前前台: {}", f);
     }
 
     #[test]

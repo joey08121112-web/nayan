@@ -915,6 +915,23 @@ fn match_project(state: State<'_, AppState>, session_ref: String) -> String {
 }
 
 #[tauri::command]
+fn jump_to_source(session_ref: String, source_tool: String) -> Result<Value, String> {
+    let title = session_ref
+        .strip_prefix("窗口：")
+        .unwrap_or(&session_ref)
+        .trim()
+        .to_string();
+    let ok = ax_capture::raise_source_window(&source_tool, &title);
+    if ok {
+        log_line(&format!("[回源] 已切到 {}（{}）", source_tool, title));
+        Ok(json!({ "ok": true }))
+    } else {
+        log_line(&format!("[回源] 未找到来源 App：{}", source_tool));
+        Err("来源窗口没找到（App 可能已退出或改名）".into())
+    }
+}
+
+#[tauri::command]
 fn js_log(msg: String) {
     log_line(&format!("[JS] {}", msg));
 }
@@ -1702,7 +1719,8 @@ fn main() {
             match_project,
             hotkey_capture_start,
             hotkey_take,
-            js_log
+            js_log,
+            jump_to_source
         ])
         .build(tauri::generate_context!())
         .expect("纳言启动失败")
