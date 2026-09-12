@@ -471,6 +471,18 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 <datalist id="projOptions"></datalist>
 <div id="err" class="err"></div>
 
+<div id="settingsScreen">
+  <button class="ss-back" id="ssBack">‹ 返回</button>
+  <div class="ss-side">
+    <div class="ss-title">设置</div>
+    <div class="ss-item on" data-ss="general">通用</div>
+    <div class="ss-item" data-ss="capture">捕获</div>
+    <div class="ss-item" data-ss="ai">AI 拆步</div>
+    <div class="ss-item" data-ss="about">关于</div>
+  </div>
+  <div class="ss-main"><div class="ss-wrap" id="ssContent"></div></div>
+</div>
+
 <script>
 var TOOL_LABEL = { 'dsh':'DeepSeek Harness', 'claude-code':'Claude Code', 'codex':'Codex',
   'antigravity':'Antigravity', 'opencode':'OpenCode', 'zcode':'Z Code', 'web':'网页对话', 'webbox':'网页框选', 'clipboard':'剪贴板', 'other':'其他' };
@@ -1374,16 +1386,3 @@ setInterval(function(){
 load();
 </script>
 
-<div id="settingsScreen">
-  <button class="ss-back" id="ssBack">‹ 返回</button>
-  <div class="ss-side">
-    <div class="ss-title">设置</div>
-    <div class="ss-item on" data-ss="general">通用</div>
-    <div class="ss-item" data-ss="capture">捕获</div>
-    <div class="ss-item" data-ss="ai">AI 拆步</div>
-    <div class="ss-item" data-ss="about">关于</div>
-  </div>
-  <div class="ss-main"><div class="ss-wrap" id="ssContent"></div></div>
-</div>
-</body>
-</html>
