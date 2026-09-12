@@ -75,6 +75,13 @@ fn poll_once(app: &AppHandle) {
     }
     let Ok(text) = clip_text() else { return };
     let text = text.trim().to_string();
+    // 截图/照片路径不是可收录文本（macOS 粘贴板历史会把截图路径以文本形式塞进剪贴板）
+    let looks_like_image_path = text.starts_with('/')
+        && (text.ends_with(".png") || text.ends_with(".jpg") || text.ends_with(".jpeg")
+            || text.ends_with(".heic") || text.ends_with(".tiff") || text.contains("PasteboardHistory"));
+    if looks_like_image_path {
+        return;
+    }
     if text.chars().count() < MIN_LEN {
         return;
     }

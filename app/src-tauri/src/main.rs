@@ -915,6 +915,11 @@ fn match_project(state: State<'_, AppState>, session_ref: String) -> String {
 }
 
 #[tauri::command]
+fn js_log(msg: String) {
+    log_line(&format!("[JS] {}", msg));
+}
+
+#[tauri::command]
 fn perm_status() -> Value {
     json!({ "ax": ax_capture::ax_trusted(), "screen": ocr::screen_recording_ok() })
 }
@@ -1696,7 +1701,8 @@ fn main() {
             app_icon,
             match_project,
             hotkey_capture_start,
-            hotkey_take
+            hotkey_take,
+            js_log
         ])
         .run(tauri::generate_context!())
         .expect("纳言启动失败");
