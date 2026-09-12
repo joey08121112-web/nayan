@@ -352,6 +352,40 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 @media (prefers-reduced-motion: reduce){ .ambient::before, .ambient::after{ animation:none; } }
 .sidebar, .mcol, .detail{ position:fixed; }
 .sidebar{ z-index:5; } .mcol{ z-index:4; } .detail{ z-index:3; }
+
+/* ---- 设置全屏（System Settings 式） ---- */
+#settingsScreen{ position:fixed; inset:0; z-index:300; display:none; background:var(--bg);
+  grid-template-columns:236px 1fr; color:var(--ink) }
+#settingsScreen.open{ display:grid }
+.ss-side{ padding:74px 14px 20px 22px; border-right:1px solid var(--line);
+  display:flex; flex-direction:column; gap:2px; overflow-y:auto }
+.ss-title{ font-size:17px; font-weight:700; letter-spacing:-.01em; padding:0 10px 14px }
+.ss-item{ padding:7px 12px; border-radius:8px; font-size:13px; cursor:pointer; color:var(--ink) }
+.ss-item:hover{ background:var(--hover) }
+.ss-item.on{ background:var(--sel); font-weight:600 }
+.ss-main{ overflow-y:auto; padding:74px 56px 80px }
+.ss-wrap{ max-width:640px; margin:0 auto }
+.ss-back{ position:fixed; top:18px; left:22px; z-index:310; border:1px solid var(--line);
+  background:var(--panel); color:var(--ink); border-radius:999px; padding:5px 14px 5px 10px;
+  font-size:12.5px; cursor:pointer; font-family:inherit }
+.ss-back:hover{ background:var(--hover) }
+.ss-group{ background:var(--panel); border:1px solid var(--hair); border-radius:14px;
+  padding:4px 16px; margin:0 0 18px }
+.ss-row{ display:flex; align-items:center; gap:14px; padding:11px 0;
+  border-bottom:1px solid var(--hair) }
+.ss-row:last-child{ border-bottom:none }
+.ss-row .grow{ flex:1; min-width:0 }
+.ss-row b{ font-size:13.5px; font-weight:600; display:block }
+.ss-row .hint{ margin:1px 0 0 }
+.sw{ position:relative; width:42px; height:26px; flex-shrink:0; display:inline-block }
+.sw input{ opacity:0; width:0; height:0; position:absolute }
+.sw .sl{ position:absolute; inset:0; border-radius:999px; background:var(--field); transition:.25s; cursor:pointer }
+.sw .sl::after{ content:""; position:absolute; width:22px; height:22px; border-radius:50%;
+  background:#fff; top:2px; left:2px; transition:.25s; box-shadow:0 1px 3px rgba(0,0,0,.3) }
+.sw input:checked + .sl{ background:var(--accent) }
+.sw input:checked + .sl::after{ transform:translateX(16px) }
+.ss-h2{ font-size:21px; font-weight:800; letter-spacing:-.01em; margin:0 0 18px }
+.ss-cat-title{ font-size:15px; font-weight:700; margin:0 0 12px }
 </style>
 </head>
 <body>
@@ -1001,25 +1035,39 @@ function bindAdd(){
 }
 
 /* ---------- 右栏 · AI 拆步设置 ---------- */
-function setPaneHTML(){
-  return '<div class="fpanel"><div class="inner">'+
-    '<h2>设置</h2>'+
-    '<label class="flabel">通用</label>'+
-    '<div class="addrow" style="align-items:center"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="s-autostart"> 开机自启<span class="hint" style="margin:0">登录后菜单栏常驻</span></label></div>'+
-    '<label class="flabel">权限状态</label>'+
-    '<div id="permRows" class="hint" style="display:flex;flex-direction:column;gap:6px">检查中…</div>'+
-    '<label class="flabel">快捷键</label>'+
-    '<div class="addrow" style="align-items:center"><label style="font-size:13px;min-width:70px">划词捕获</label><span class="hint" id="hk-1" style="margin:0;font-family:ui-monospace,Menlo,monospace;font-size:12.5px">⌥S</span><span style="flex:1"></span><button type="button" class="sec" id="hk-set-1" style="padding:3px 10px;font-size:12px">更改</button></div>'+
-    '<div class="addrow" style="align-items:center"><label style="font-size:13px;min-width:70px">框选捕获</label><span class="hint" id="hk-2" style="margin:0;font-family:ui-monospace,Menlo,monospace;font-size:12.5px">⌥Z</span><span style="flex:1"></span><button type="button" class="sec" id="hk-set-2" style="padding:3px 10px;font-size:12px">更改</button></div>'+
-    '<label class="flabel">捕获通道</label>'+
-    '<div class="hint">⌥Z 框选在 ZCode 等 Electron 应用里自动切像素识别 · MCP 对 AI 说一句话即可入库 · 网页 AI 用浏览器扩展。</div>'+
-    '<div class="addrow" style="align-items:center"><label style="font-size:13px;min-width:70px">剪贴板监听</label><select id="s-clip-scope" style="flex:1"><option value="watchlist">仅关注的 App（推荐）</option><option value="all">全部 App</option></select></div>'+
-    '<div id="clipApps" style="display:flex;flex-wrap:wrap;gap:6px"></div>'+
-    '<div class="addrow"><input id="s-clip-add" placeholder="添加关注的 App 名，如 TRAE" style="flex:1"><button type="button" class="sec" id="s-clip-addbtn">添加</button></div>'+
-    '<div class="hint">在关注的 App 里复制 → 右下角弹快速收录；微信等日常复制不会打扰。用 ⌥S/⌥Z 捕获过的 App 会自动加入关注。首次使用会弹一次「允许粘贴」授权。</div>'+
-    '<div style="height:1px;background:var(--line,rgba(0,0,0,.08));margin:14px 0"></div>'+
-    '<label class="flabel">AI 拆步</label>'+
-    '<div class="hint">调用你自己配置的大模型（OpenAI 兼容格式）把原文整理成步骤清单。Key 只保存在本机。不配置也可以用 MCP（对 AI 说「拆成步骤」）或「按行拆步」。</div>'+
+function escH(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+function generalHTML(){
+  return '<h2 class="ss-cat-title">通用</h2>'+
+    '<div class="ss-group">'+
+      '<div class="ss-row"><div class="grow"><b>开机自启</b><div class="hint">登录后菜单栏常驻</div></div><label class="sw"><input type="checkbox" id="s-autostart"><span class="sl"></span></label></div>'+
+    '</div>'+
+    '<h3 class="ss-cat-title" style="font-size:13px;color:var(--sub)">权限状态</h3>'+
+    '<div class="ss-group"><div id="permRows" style="padding:6px 0"><span class="hint">检查中…</span></div></div>';
+}
+function captureHTML(){
+  return '<h2 class="ss-cat-title">捕获</h2>'+
+    '<label class="flabel" style="margin-top:0">快捷键</label>'+
+    '<div class="ss-group">'+
+      '<div class="ss-row"><div class="grow"><b>划词捕获</b><div class="hint">选中文字直接收进确认小窗</div></div><span id="hk-1" style="font-family:ui-monospace,Menlo,monospace;font-size:13px">⌥S</span><button type="button" class="sec" id="hk-set-1">更改</button></div>'+
+      '<div class="ss-row"><div class="grow"><b>框选捕获</b><div class="hint">框住整块，ZCode 等 Electron 自动切像素识别</div></div><span id="hk-2" style="font-family:ui-monospace,Menlo,monospace;font-size:13px">⌥Z</span><button type="button" class="sec" id="hk-set-2">更改</button></div>'+
+    '</div>'+
+    '<label class="flabel">剪贴板监听</label>'+
+    '<div class="ss-group">'+
+      '<div class="ss-row"><div class="grow"><b>复制后快速收录</b><div class="hint">在关注的 App 里 ⌘C，右下角弹快速收录</div></div><label class="sw"><input type="checkbox" id="s-clip"><span class="sl"></span></label></div>'+
+      '<div class="ss-row"><div class="grow"><b>监听范围</b></div><select id="s-clip-scope" style="width:200px"><option value="watchlist">仅关注的 App（推荐）</option><option value="all">全部 App</option></select></div>'+
+      '<div style="padding:10px 0 4px">'+
+        '<div id="clipApps" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>'+
+        '<div style="display:flex;gap:8px"><input id="s-clip-add" placeholder="添加关注的 App 名，如 TRAE" style="flex:1"><button type="button" class="sec" id="s-clip-addbtn">添加</button></div>'+
+        '<div class="hint" style="margin-top:8px">用 ⌥S/⌥Z 捕获过的 App 会自动加入。微信等日常复制不受影响。首次使用弹一次「允许粘贴」授权。</div>'+
+      '</div>'+
+    '</div>'+
+    '<label class="flabel">其他通道</label>'+
+    '<div class="hint">MCP：已接入的工具里对 AI 说一句话即可入库 · 网页 AI：装浏览器扩展，自动附带原对话链接。</div>';
+}
+function aiHTML(){
+  return '<h2 class="ss-cat-title">AI 拆步</h2>'+
+    '<div class="hint" style="margin-bottom:12px">调用你自己配置的大模型（OpenAI 兼容格式）把原文整理成步骤清单。Key 只保存在本机。不配置也可以用 MCP（对 AI 说「拆成步骤」）或「按行拆步」。</div>'+
+    '<div class="ss-group" style="padding:12px 16px 16px">'+
     '<label class="flabel">服务商</label>'+
     '<select id="s-provider" style="display:none"><option value="glm">智谱 GLM</option><option value="deepseek">DeepSeek</option><option value="openai">OpenAI</option><option value="custom">自定义</option></select>'+
     '<div class="seg" id="segProvider">'+
@@ -1036,28 +1084,103 @@ function setPaneHTML(){
     '<input id="s-key" type="password" placeholder="OpenAI 兼容接口的 Key">'+
     '<div class="addrow"><button type="button" class="primary" id="saveSet">保存设置</button>'+
     '<button type="button" class="sec" id="testSet">测试连接</button></div>'+
-    '</div></div>';
+    '</div>';
 }
+function aboutHTML(){
+  return '<h2 class="ss-cat-title">关于</h2>'+
+    '<div class="ss-group">'+
+      '<div class="ss-row"><div class="grow"><b>纳言 NaYan</b><div class="hint">AI 回复的分组收录器 · 本地优先 · 数据只存本机</div></div><span id="ss-ver" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--sub)"></span></div>'+
+      '<div class="ss-row"><div class="grow"><b>源码与反馈</b><div class="hint">GitHub 开源仓库</div></div><a href="https://github.com/joey08121112-web/nayan" target="_blank">github.com/joey08121112-web/nayan ↗</a></div>'+
+    '</div>'+
+    '<div class="ss-group">'+
+      '<div class="ss-row"><div class="grow"><b>快捷键备忘</b><div class="hint">⌥S 划词捕获 · ⌥Z 框选捕获 · ⌘, 打开本设置</div></div></div>'+
+    '</div>';
+}
+
+/* ---------- 设置全屏（System Settings 式） ---------- */
+var ssCat='general';
+function openSettings(){
+  gid('settingsScreen').classList.add('open');
+  ssRender();
+}
+function closeSettings(){ gid('settingsScreen').classList.remove('open'); }
+function toggleSettings(){
+  gid('settingsScreen').classList.contains('open') ? closeSettings() : openSettings();
+}
+function ssRender(){
+  Array.prototype.forEach.call(document.querySelectorAll('#settingsScreen .ss-item'),function(el){
+    el.classList.toggle('on', el.getAttribute('data-ss')===ssCat);
+  });
+  var c=gid('ssContent');
+  if(ssCat==='general'){ c.innerHTML=generalHTML(); bindGeneral(); }
+  else if(ssCat==='capture'){ c.innerHTML=captureHTML(); bindCapture(); }
+  else if(ssCat==='ai'){ c.innerHTML=aiHTML(); bindAI(); }
+  else if(ssCat==='about'){ c.innerHTML=aboutHTML(); fillVersion(); }
+}
+function fillVersion(){
+  try {
+    if (window.__TAURI__ && window.__TAURI__.app) {
+      window.__TAURI__.app.getVersion().then(function(v){ var e=gid('ss-ver'); if(e) e.textContent='v'+v; });
+    }
+  } catch(e){}
+}
+
 function syncSeg(){
   var v=gid('s-provider').value;
   Array.prototype.forEach.call(document.querySelectorAll('#segProvider button'),function(b){
     b.classList.toggle('on', b.getAttribute('data-v')===v);
   });
 }
+/* ---------- 设置分类绑定（按当前分类只绑自己的元素） ---------- */
 function bindSettings(){
-  loadSettings();
-  Array.prototype.forEach.call(document.querySelectorAll('#segProvider button'),function(b){
+  bindGeneral(); bindCapture(); bindAI();
+}
+function bindGeneral(){
+  if(!TAPI || !gid('s-autostart')) return;
+  TAPI.invoke('autostart_status').then(function(v){ gid('s-autostart').checked=v; }).catch(function(){});
+  gid('s-autostart').onchange=function(){
+    TAPI.invoke('autostart_toggle').then(function(v){ gid('s-autostart').checked=v; toast(v?'已开启开机自启':'已关闭开机自启'); })
+      .catch(function(e){ gid('s-autostart').checked=false; toast(e.message||String(e)); });
+  };
+  TAPI.invoke('perm_status').then(function(p){
+    function row(ok,label,why,type){
+      return '<div class="ss-row" style="border-bottom:none;padding:8px 0">'+
+        '<div class="grow"><b>'+(ok?'✓ ':'⚠︎ ')+label+'</b><div class="hint">'+why+'</div></div>'+
+        (ok?'<span style="color:#34c759;font-size:12.5px">已授权</span>'
+           :'<button type="button" class="sec" data-perm="'+type+'">去授权</button>')+
+        '</div>';
+    }
+    gid('permRows').innerHTML=row(p.ax,'辅助功能','划词直读 / 框选需要','ax')+
+      row(p.screen,'屏幕录制','像素识别需要','screen');
+    Array.prototype.forEach.call(gid('permRows').querySelectorAll('[data-perm]'),function(b){
+      b.onclick=function(){
+        TAPI.invoke(b.getAttribute('data-perm')==='ax'?'open_ax_settings':'open_screen_settings')
+          .catch(function(e){ toast(e.message||String(e)); });
+      };
+    });
+  }).catch(function(){});
+}
+function renderClipApps(list){
+  window.__clipApps=(list||[]);
+  var el=gid('clipApps'); if(!el) return;
+  el.innerHTML=(list||[]).map(function(n){
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--hair);border-radius:999px;padding:3px 10px;font-size:12.5px">'+esc(n)+
+      '<button type="button" data-app="'+escQ(n)+'" style="border:none;background:none;cursor:pointer;color:var(--sub);font-size:13px;padding:0;line-height:1">✕</button></span>';
+  }).join('')||'<span class="hint">暂无——用 ⌥S 捕获过的 App 会自动加入</span>';
+  Array.prototype.forEach.call(el.querySelectorAll('[data-app]'),function(b){
     b.onclick=function(){
-      gid('s-provider').value=b.getAttribute('data-v');
-      onProviderChange(); syncSeg();
+      var name=b.getAttribute('data-app');
+      var cur=(window.__clipApps||[]).filter(function(x){return x!==name;});
+      api('POST','/api/settings',{clip_apps:cur}).then(function(){ renderClipApps(cur); }).catch(function(e){ toast(e.message); });
     };
   });
-  gid('saveSet').onclick=saveSettings;
-  gid('testSet').onclick=testSettings;
+}
+function bindCapture(){
+  loadSettings();
   Array.prototype.forEach.call([1,2],function(slot){
-    gid('hk-set-'+slot).onclick=function(){
-      var btn=gid('hk-set-'+slot), span=gid('hk-'+slot);
-      var old=span.textContent;
+    var btn=gid('hk-set-'+slot); if(!btn) return;
+    var span=gid('hk-'+slot);
+    btn.onclick=function(){
       btn.disabled=true; span.textContent='按下新快捷键…';
       TAPI.invoke('hotkey_capture_start',{slot:slot}).catch(function(){});
       var tries=0;
@@ -1077,31 +1200,29 @@ function bindSettings(){
   gid('s-clip-scope').onchange=function(){
     api('POST','/api/settings',{clip_scope:gid('s-clip-scope').value}).then(function(){ toast('监听范围已更新'); }).catch(function(e){ toast(e.message); });
   };
-  function renderClipApps(list){
-    window.__clipApps=(list||[]);
-    gid('clipApps').innerHTML=(list||[]).map(function(n){
-      return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--chip,rgba(0,0,0,.05));border:1px solid var(--line,rgba(0,0,0,.08));border-radius:999px;padding:3px 10px;font-size:12.5px">'+esc(n)+
-        '<button type="button" data-app="'+escQ(n)+'" style="border:none;background:none;cursor:pointer;color:var(--faint,rgba(0,0,0,.4));font-size:13px;padding:0;line-height:1">✕</button></span>';
-    }).join('')||'<span class="hint">暂无——用 ⌥S 捕获过的 App 会自动加入</span>';
-    Array.prototype.forEach.call(gid('clipApps').querySelectorAll('[data-app]'),function(b){
-      b.onclick=function(){
-        var name=b.getAttribute('data-app');
-        var cur=(list||[]).filter(function(x){return x!==name;});
-        api('POST','/api/settings',{clip_apps:cur}).then(function(){ renderClipApps(cur); }).catch(function(e){ toast(e.message); });
-      };
-    });
-  }
   gid('s-clip-addbtn').onclick=function(){
     var v=gid('s-clip-add').value.trim(); if(!v) return;
     var cur=window.__clipApps||[];
     if(cur.some(function(x){return x===v;})){ gid('s-clip-add').value=''; return; }
     api('POST','/api/settings',{clip_apps:cur.concat([v])}).then(function(){ gid('s-clip-add').value=''; loadSettings(); }).catch(function(e){ toast(e.message); });
   };
-  gid('s-autostart').onchange=function(){
-    if(!TAPI) { gid('s-autostart').checked=false; return; }
-    TAPI.invoke('autostart_toggle').then(function(v){ gid('s-autostart').checked=v; toast(v?'已开启开机自启':'已关闭开机自启'); })
-      .catch(function(e){ gid('s-autostart').checked=false; toast(e.message||String(e)); });
+  gid('s-clip').onchange=function(){
+    api('POST','/api/settings',{clipboard_watch:gid('s-clip').checked})
+      .then(function(){ toast(gid('s-clip').checked?'剪贴板监听已开启':'剪贴板监听已关闭'); })
+      .catch(function(e){ toast(e.message); });
   };
+}
+function bindAI(){
+  if(!gid('s-provider')) return;
+  loadSettings();
+  Array.prototype.forEach.call(document.querySelectorAll('#segProvider button'),function(b){
+    b.onclick=function(){
+      gid('s-provider').value=b.getAttribute('data-v');
+      onProviderChange(); syncSeg();
+    };
+  });
+  gid('saveSet').onclick=saveSettings;
+  gid('testSet').onclick=testSettings;
 }
 function loadSettings(){
   api('GET','/api/settings').then(function(s){
@@ -1173,7 +1294,6 @@ function renderDetail(){
   var box=gid('detail');
   var p=state.pane;
   if(p.mode==='add'){ box.innerHTML=addPaneHTML(); bindAdd(); return; }
-  if(p.mode==='settings'){ box.innerHTML=setPaneHTML(); bindSettings(); return; }
   var it=findItem(state.sel);
   if(!it){
     box.innerHTML='<div class="empty">'+
@@ -1202,14 +1322,15 @@ gid('projPlus').onclick=function(){ state.pane={mode:'add'}; renderDetail();
   gid('detail').scrollTo({top:0,behavior:'smooth'}); };
 gid('moreBtn').onclick=function(){ state.pane={mode:'add'}; renderDetail();
   gid('detail').scrollTo({top:0,behavior:'smooth'}); };
-gid('setBtn').onclick=function(){ state.pane={mode:'settings'}; renderDetail();
-/* 应用菜单 / ⌘, → 打开设置（Rust 侧 emit open-settings） */
+gid('setBtn').onclick=function(){ toggleSettings(); };
 if (window.__TAURI__ && window.__TAURI__.event) {
-  window.__TAURI__.event.listen('open-settings', function () {
-    state.pane={mode:'settings'}; renderDetail();
-  });
+  window.__TAURI__.event.listen('open-settings', function () { openSettings(); });
 }
-  gid('detail').scrollTo({top:0,behavior:'smooth'}); };
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  var ss = document.getElementById('settingsScreen');
+  if (ss && ss.classList.contains('open')) { e.preventDefault(); closeSettings(); }
+});
 
 /* 快输：回车收进当前视图（项目视图自动带上项目） */
 gid('quickInput').addEventListener('keydown',function(ev){
@@ -1255,5 +1376,17 @@ setInterval(function(){
 }, 4000);
 load();
 </script>
+
+<div id="settingsScreen">
+  <button class="ss-back" id="ssBack">‹ 返回</button>
+  <div class="ss-side">
+    <div class="ss-title">设置</div>
+    <div class="ss-item on" data-ss="general">通用</div>
+    <div class="ss-item" data-ss="capture">捕获</div>
+    <div class="ss-item" data-ss="ai">AI 拆步</div>
+    <div class="ss-item" data-ss="about">关于</div>
+  </div>
+  <div class="ss-main"><div class="ss-wrap" id="ssContent"></div></div>
+</div>
 </body>
 </html>
