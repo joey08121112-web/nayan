@@ -439,7 +439,7 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 
 <script>
 var TOOL_LABEL = { 'dsh':'DeepSeek Harness', 'claude-code':'Claude Code', 'codex':'Codex',
-  'antigravity':'Antigravity', 'opencode':'OpenCode', 'zcode':'Z Code', 'web':'网页对话', 'webbox':'网页框选', 'other':'其他' };
+  'antigravity':'Antigravity', 'opencode':'OpenCode', 'zcode':'Z Code', 'web':'网页对话', 'webbox':'网页框选', 'clipboard':'剪贴板', 'other':'其他' };
 var STATUS_LABEL = { 'inbox':'收件箱', 'todo':'待办', 'doing':'专注中', 'done':'完成', 'dropped':'放弃' };
 var KIND_NAME = { 'suggestion':'AI 建议', 'idle':'闲时任务' };
 var KIND_TAG = { 'idle':'⚡ 闲时' };
@@ -622,7 +622,7 @@ function renderNav(){
         var tg=g.tools[t];
         var tSel=(v.t==='projtool'&&v.proj===p&&v.tool===t);
         var tOpen=state.projOpen2[p+'|'+t]!==false;
-        var hasS=tg.sorder.length>0;
+        var hasS=tg.sorder.length>=2; // 单会话时来源行即代表它，不再展开（避免与来源行重名）
         h+='<div class="nav-item sub'+(tSel?' on':'')+'" data-proj="'+escQ(p)+'" data-tool="'+escQ(t)+'">'+
           (hasS?'<span class="pchev'+(tOpen?' open':'')+'" data-tgl2="'+escQ(p+'|'+t)+'">'+chevRSvg()+'</span>':'<span class="pchev"></span>')+
           '<span class="icw" data-ic-tool="'+escQ(t)+'">'+bubbleSvg()+'</span>'+

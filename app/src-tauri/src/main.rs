@@ -759,7 +759,7 @@ fn clip_save(app: AppHandle, state: State<'_, AppState>, text: String) {
 #[tauri::command]
 fn clip_edit(app: AppHandle, text: String) {
     clipboard_watch::hide_hud(&app);
-    let _ = open_capture_window(&app, &text, "剪贴板", "", "剪贴板", "clip");
+    let _ = open_capture_window(&app, &text, "clipboard", "", "剪贴板", "clip");
 }
 
 #[tauri::command]
