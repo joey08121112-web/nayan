@@ -6,7 +6,7 @@
 //! - 自捕获抑制：⌥S 的 ⌘C 兜底会改剪贴板，抑制窗口期内忽略
 //! - 首次读取内容时 macOS 会弹一次「允许粘贴」系统提示（SCK 同款行为），允许一次即可
 
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
