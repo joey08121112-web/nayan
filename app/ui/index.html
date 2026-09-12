@@ -683,7 +683,7 @@ function renderNav(){
       });
     }
   });
-    if(!order.length) h='<div class="side-empty">还没有项目</div>';
+    if(!torder.length) h='<div class="side-empty">还没有来源——用 ⌥S/⌥Z 捕获后自动出现</div>';
   gid('projList').innerHTML=h;
   fillToolIcons();
   Array.prototype.forEach.call(gid('projList').querySelectorAll('.nav-item'),function(el){
@@ -702,7 +702,9 @@ function renderNav(){
 
   // 项目 datalist（新建表单用）
   var dl='';
-  order.forEach(function(p){ if(p) dl+='<option value="'+escQ(p)+'">'; });
+  var wsSet={};
+  state.items.forEach(function(it){ var w=projOf(it); if(w) wsSet[w]=1; });
+  Object.keys(wsSet).forEach(function(p){ dl+='<option value="'+escQ(p)+'">'; });
   gid('projOptions').innerHTML=dl;
 
   gid('vtitle').textContent=viewTitle(v);
