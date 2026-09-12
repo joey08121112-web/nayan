@@ -14,8 +14,12 @@ use tauri::{AppHandle, Manager};
 use crate::ax_capture::CLIP_SUPPRESS_UNTIL;
 
 pub static CLIP_WATCH_ON: AtomicBool = AtomicBool::new(true);
+pub static CLIP_SCOPE_ALL: AtomicBool = AtomicBool::new(false); // false=仅关注 App（默认）
+pub static CLIP_APPS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static LAST_SEEN: AtomicI64 = AtomicI64::new(-1);
 static LAST_TEXT: Mutex<String> = Mutex::new(String::new());
+
+const PSEUDO_SOURCES: &[&str] = &["hotkey","clipboard","webbox","web","other","mcp","剪贴板"];
 
 const MIN_LEN: usize = 10; // 少于 10 字符的复制不值得打扰
 const POLL_MS: u64 = 2000;
@@ -57,6 +61,18 @@ fn poll_once(app: &AppHandle) {
     if now == prev || prev < 0 {
         return;
     }
+    // 来源过滤（被动通道只盯目标 App；微信/网页等日常复制静默跳过）
+    if !CLIP_SCOPE_ALL.load(Ordering::Relaxed) {
+        let front = crate::ax_capture::front_app_name();
+        let inlist = CLIP_APPS
+            .lock()
+            .map(|l| l.iter().any(|a| a.eq_ignore_ascii_case(&front)))
+            .unwrap_or(false);
+        if !inlist {
+            return;
+        }
+        LAST_SEEN.store(now, Ordering::Relaxed);
+    }
     let Ok(text) = clip_text() else { return };
     let text = text.trim().to_string();
     if text.chars().count() < MIN_LEN {
@@ -69,8 +85,9 @@ fn poll_once(app: &AppHandle) {
     *last = text.clone();
     drop(last);
     crate::log_line(&format!(
-        "[剪贴板] 检测到新复制 {} 字符 → 弹快速收录",
-        text.chars().count()
+        "[剪贴板] 检测到新复制 {} 字符（来自 {}）→ 弹快速收录",
+        text.chars().count(),
+        crate::ax_capture::front_app_name()
     ));
     show_hud(app, &text);
 }
@@ -106,4 +123,33 @@ pub fn hide_hud(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("cliphud") {
         let _ = w.hide();
     }
+}
+
+/// 自动学习：在某个 App 里主动捕获（⌥S/⌥Z）成功 → 该 App 加入关注列表
+pub fn learn(app: &AppHandle, app_name: &str) {
+    if app_name.is_empty() || PSEUDO_SOURCES.contains(&app_name) {
+        return;
+    }
+    {
+        let mut l = match CLIP_APPS.lock() {
+            Ok(l) => l,
+            Err(_) => return,
+        };
+        if l.iter().any(|x| x == app_name) {
+            return;
+        }
+        l.push(app_name.to_string());
+    }
+    let _ = app;
+    crate::log_line(&format!("[剪贴板] 已自动关注 {}", app_name));
+}
+
+pub fn set_apps(list: Vec<String>) {
+    if let Ok(mut l) = CLIP_APPS.lock() {
+        *l = list;
+    }
+}
+
+pub fn get_apps() -> Vec<String> {
+    CLIP_APPS.lock().map(|l| l.clone()).unwrap_or_default()
 }

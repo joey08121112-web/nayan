@@ -100,6 +100,22 @@ pub struct FrontApp {
     pub title: String,
 }
 
+/// 只取前台 App 名（不查窗口标题，剪贴板监听高频用）
+pub fn front_app_name() -> String {
+    unsafe {
+        let pool = NSAutoreleasePool::new(nil);
+        let ws: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let app: id = msg_send![ws, frontmostApplication];
+        let name = if app == nil {
+            String::new()
+        } else {
+            ns_to_string(msg_send![app, localizedName])
+        };
+        NSAutoreleasePool::drain(pool);
+        name
+    }
+}
+
 pub fn front_app_info() -> Option<FrontApp> {
     unsafe {
         with_pool(|| {

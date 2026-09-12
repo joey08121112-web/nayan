@@ -1008,10 +1008,15 @@ function setPaneHTML(){
     '<div class="addrow" style="align-items:center"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="s-autostart"> 开机自启<span class="hint" style="margin:0">登录后菜单栏常驻</span></label></div>'+
     '<label class="flabel">权限状态</label>'+
     '<div id="permRows" class="hint" style="display:flex;flex-direction:column;gap:6px">检查中…</div>'+
+    '<label class="flabel">快捷键</label>'+
+    '<div class="addrow" style="align-items:center"><label style="font-size:13px;min-width:70px">划词捕获</label><span class="hint" id="hk-1" style="margin:0;font-family:'SF Mono',Menlo,monospace;font-size:12.5px">⌥S</span><span style="flex:1"></span><button type="button" class="sec" id="hk-set-1" style="padding:3px 10px;font-size:12px">更改</button></div>'+
+    '<div class="addrow" style="align-items:center"><label style="font-size:13px;min-width:70px">框选捕获</label><span class="hint" id="hk-2" style="margin:0;font-family:'SF Mono',Menlo,monospace;font-size:12.5px">⌥Z</span><span style="flex:1"></span><button type="button" class="sec" id="hk-set-2" style="padding:3px 10px;font-size:12px">更改</button></div>'+
     '<label class="flabel">捕获通道</label>'+
-    '<div class="hint" id="hotkeyLine">⌥S 划词捕获 · ⌥Z 框选捕获</div>'+
-    '<div class="addrow" style="align-items:center"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px"><input type="checkbox" id="s-clip"> 剪贴板监听<span class="hint" style="margin:0">在任何 App 复制后，右下角弹快速收录</span></label></div>'+
-    '<div class="hint">ZCode 等 Electron 应用框选自动切像素识别（需屏幕录制权限）· MCP 对 AI 说一句话即可入库 · 网页 AI 用浏览器扩展。</div>'+
+    '<div class="hint">⌥Z 框选在 ZCode 等 Electron 应用里自动切像素识别 · MCP 对 AI 说一句话即可入库 · 网页 AI 用浏览器扩展。</div>'+
+    '<div class="addrow" style="align-items:center"><label style="font-size:13px;min-width:70px">剪贴板监听</label><select id="s-clip-scope" style="flex:1"><option value="watchlist">仅关注的 App（推荐）</option><option value="all">全部 App</option></select></div>'+
+    '<div id="clipApps" style="display:flex;flex-wrap:wrap;gap:6px"></div>'+
+    '<div class="addrow"><input id="s-clip-add" placeholder="添加关注的 App 名，如 TRAE" style="flex:1"><button type="button" class="sec" id="s-clip-addbtn">添加</button></div>'+
+    '<div class="hint">在关注的 App 里复制 → 右下角弹快速收录；微信等日常复制不会打扰。用 ⌥S/⌥Z 捕获过的 App 会自动加入关注。首次使用会弹一次「允许粘贴」授权。</div>'+
     '<div style="height:1px;background:var(--line,rgba(0,0,0,.08));margin:14px 0"></div>'+
     '<label class="flabel">AI 拆步</label>'+
     '<div class="hint">调用你自己配置的大模型（OpenAI 兼容格式）把原文整理成步骤清单。Key 只保存在本机。不配置也可以用 MCP（对 AI 说「拆成步骤」）或「按行拆步」。</div>'+
@@ -1049,6 +1054,49 @@ function bindSettings(){
   });
   gid('saveSet').onclick=saveSettings;
   gid('testSet').onclick=testSettings;
+  Array.prototype.forEach.call([1,2],function(slot){
+    gid('hk-set-'+slot).onclick=function(){
+      var btn=gid('hk-set-'+slot), span=gid('hk-'+slot);
+      var old=span.textContent;
+      btn.disabled=true; span.textContent='按下新快捷键…';
+      TAPI.invoke('hotkey_capture_start',{slot:slot}).catch(function(){});
+      var tries=0;
+      var poll=function(){
+        tries++;
+        TAPI.invoke('hotkey_take',{slot:slot}).then(function(r){
+          if(r.state==='waiting'){ if(tries<24){ setTimeout(poll,250); return; } }
+          if(r.state==='ok'){ toast('✓ 快捷键已改为 '+fmtHotkey(r.combo)); }
+          else if(r.state==='error'){ toast('✗ '+r.error); }
+          else if(r.state==='cancelled'){ toast('已取消'); }
+          btn.disabled=false; loadSettings();
+        }).catch(function(){ btn.disabled=false; loadSettings(); });
+      };
+      setTimeout(poll,300);
+    };
+  });
+  gid('s-clip-scope').onchange=function(){
+    api('POST','/api/settings',{clip_scope:gid('s-clip-scope').value}).then(function(){ toast('监听范围已更新'); }).catch(function(e){ toast(e.message); });
+  };
+  function renderClipApps(list){
+    window.__clipApps=(list||[]);
+    gid('clipApps').innerHTML=(list||[]).map(function(n){
+      return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--chip,rgba(0,0,0,.05));border:1px solid var(--line,rgba(0,0,0,.08));border-radius:999px;padding:3px 10px;font-size:12.5px">'+esc(n)+
+        '<button type="button" data-app="'+escQ(n)+'" style="border:none;background:none;cursor:pointer;color:var(--faint,rgba(0,0,0,.4));font-size:13px;padding:0;line-height:1">✕</button></span>';
+    }).join('')||'<span class="hint">暂无——用 ⌥S 捕获过的 App 会自动加入</span>';
+    Array.prototype.forEach.call(gid('clipApps').querySelectorAll('[data-app]'),function(b){
+      b.onclick=function(){
+        var name=b.getAttribute('data-app');
+        var cur=(list||[]).filter(function(x){return x!==name;});
+        api('POST','/api/settings',{clip_apps:cur}).then(function(){ renderClipApps(cur); }).catch(function(e){ toast(e.message); });
+      };
+    });
+  }
+  gid('s-clip-addbtn').onclick=function(){
+    var v=gid('s-clip-add').value.trim(); if(!v) return;
+    var cur=window.__clipApps||[];
+    if(cur.some(function(x){return x===v;})){ gid('s-clip-add').value=''; return; }
+    api('POST','/api/settings',{clip_apps:cur.concat([v])}).then(function(){ gid('s-clip-add').value=''; loadSettings(); }).catch(function(e){ toast(e.message); });
+  };
   gid('s-autostart').onchange=function(){
     if(!TAPI) { gid('s-autostart').checked=false; return; }
     TAPI.invoke('autostart_toggle').then(function(v){ gid('s-autostart').checked=v; toast(v?'已开启开机自启':'已关闭开机自启'); })
@@ -1063,7 +1111,10 @@ function loadSettings(){
     gid('s-key').value='';
     gid('s-key').placeholder=s.has_key?'已保存 ✓（留空 = 不修改）':'OpenAI 兼容接口的 Key';
     gid('s-clip').checked=(s.clipboard_watch!==false);
-    if(gid('hotkeyLine')) gid('hotkeyLine').innerHTML=fmtHotkey(s.hotkey)+' 划词捕获 · '+fmtHotkey(s.hotkey_box)+' 框选捕获';
+    if(gid('hk-1')) gid('hk-1').textContent=fmtHotkey(s.hotkey);
+    if(gid('hk-2')) gid('hk-2').textContent=fmtHotkey(s.hotkey_box);
+    if(gid('s-clip-scope')) gid('s-clip-scope').value=(s.clip_scope==='all')?'all':'watchlist';
+    if(gid('clipApps')) renderClipApps(s.clip_apps||[]);
     syncSeg();
   }).catch(function(e){ toast(e.message); });
   /* 权限状态 */

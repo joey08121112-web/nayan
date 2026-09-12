@@ -46,6 +46,10 @@ struct Config {
     hotkey_box: String,
     #[serde(default = "d_clip_watch")]
     clipboard_watch: bool,
+    #[serde(default = "d_clip_scope")]
+    clip_scope: String,
+    #[serde(default = "d_clip_apps")]
+    clip_apps: Vec<String>,
     #[serde(default)]
     db_path: Option<String>,
 }
@@ -60,6 +64,14 @@ fn d_hotkey_box() -> String {
 }
 fn d_clip_watch() -> bool {
     true
+}
+fn d_clip_scope() -> String {
+    "watchlist".into()
+}
+fn d_clip_apps() -> Vec<String> {
+    ["ZCode","TRAE","WorkBuddy","CodeBuddy","Cursor","Windsurf","Visual Studio Code",
+     "Xcode","iTerm2","Terminal","ChatGPT","Claude","Xiaomi MiMo"]
+        .iter().map(|s| s.to_string()).collect()
 }
 
 fn preset_for(provider: &str) -> Option<(&'static str, &'static str)> {
@@ -83,6 +95,8 @@ fn load_config(path: &PathBuf) -> Config {
             hotkey: d_hotkey(),
             hotkey_box: d_hotkey_box(),
             clipboard_watch: d_clip_watch(),
+            clip_scope: d_clip_scope(),
+            clip_apps: d_clip_apps(),
             db_path: None,
         });
     if cfg.base_url.is_empty() || cfg.model.is_empty() {
@@ -534,36 +548,71 @@ fn handle_api(state: &AppState, method: &str, path: &str, body: &Value) -> Resul
                 "has_key": !g.0.api_key.is_empty(),
                 "hotkey": g.0.hotkey,
                 "hotkey_box": g.0.hotkey_box,
-                "clipboard_watch": g.0.clipboard_watch
+                "clipboard_watch": g.0.clipboard_watch,
+                "clip_scope": g.0.clip_scope,
+                "clip_apps": g.0.clip_apps
             }))
         }
         ("POST", ["api", "settings"]) => {
             let mut g = state.cfg.lock().map_err(|_| "配置被占用")?;
             let (cfg, cfg_path) = &mut *g;
-            let provider_in = body["provider"].as_str().unwrap_or("custom");
-            let provider = if preset_for(provider_in).is_some() {
-                provider_in.to_string()
-            } else {
-                "custom".to_string()
-            };
-            cfg.provider = provider.clone();
-            let preset = preset_for(&provider);
-            let base = body["base_url"].as_str().map(|s| s.trim().to_string()).unwrap_or_default();
-            cfg.base_url = if !base.is_empty() {
-                base.trim_end_matches('/').to_string()
-            } else {
-                preset.map(|(b, _)| b.to_string()).unwrap_or_default()
-            };
-            let model = body["model"].as_str().map(|s| s.trim().to_string()).unwrap_or_default();
-            cfg.model = if !model.is_empty() {
-                model
-            } else {
-                preset.map(|(_, m)| m.to_string()).unwrap_or_default()
-            };
-            match body.get("api_key") {
-                Some(Value::Null) => cfg.api_key = String::new(),
-                Some(Value::String(s)) if !s.trim().is_empty() => cfg.api_key = s.trim().to_string(),
-                _ => {}
+            if body.get("provider").is_some() || body.get("base_url").is_some() || body.get("model").is_some() {
+                let provider_in = body["provider"].as_str().unwrap_or("custom");
+                let provider = if preset_for(provider_in).is_some() {
+                    provider_in.to_string()
+                } else {
+                    "custom".to_string()
+                };
+                cfg.provider = provider.clone();
+                let preset = preset_for(&provider);
+                let base = body["base_url"].as_str().map(|s| s.trim().to_string()).unwrap_or_default();
+                cfg.base_url = if !base.is_empty() {
+                    base.trim_end_matches('/').to_string()
+                } else {
+                    preset.map(|(b, _)| b.to_string()).unwrap_or_default()
+                };
+                let model = body["model"].as_str().map(|s| s.trim().to_string()).unwrap_or_default();
+                cfg.model = if model.is_empty() {
+                    model
+                } else {
+                    preset.map(|(_, m)| m.to_string()).unwrap_or_default()
+                };
+                match body.get("api_key") {
+                    Some(Value::Null) => cfg.api_key = String::new(),
+                    Some(Value::String(s)) if !s.trim().is_empty() => cfg.api_key = s.trim().to_string(),
+                    _ => {}
+                }
+            }
+            if let Some(v) = body.get("clip_scope").and_then(|x| x.as_str()) {
+                let all = v == "all";
+                cfg.clip_scope = v.to_string();
+                clipboard_watch::CLIP_SCOPE_ALL.store(all, std::sync::atomic::Ordering::Relaxed);
+                log_line(&format!("[设置] 剪贴板监听范围 = {}", if all { "全部 App" } else { "仅关注 App" }));
+            }
+            if let Some(list) = body.get("clip_apps").and_then(|x| x.as_array()) {
+                let apps: Vec<String> = list
+                    .iter()
+                    .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let n = apps.len();
+                cfg.clip_apps = apps.clone();
+                clipboard_watch::set_apps(apps);
+                log_line(&format!("[设置] 关注 App = {} 个", n));
+            }
+            if let Some(c) = body.get("hotkey").and_then(|x| x.as_str()) {
+                if let Some((kc, mask)) = carbon_hotkeys::parse_shortcut(c) {
+                    carbon_hotkeys::set_binding(kc, mask, 1);
+                    cfg.hotkey = c.to_string();
+                    log_line(&format!("[设置] 划词热键 = {}", c));
+                }
+            }
+            if let Some(c) = body.get("hotkey_box").and_then(|x| x.as_str()) {
+                if let Some((kc, mask)) = carbon_hotkeys::parse_shortcut(c) {
+                    carbon_hotkeys::set_binding(kc, mask, 2);
+                    cfg.hotkey_box = c.to_string();
+                    log_line(&format!("[设置] 框选热键 = {}", c));
+                }
             }
             if let Some(v) = body.get("clipboard_watch") {
                 let on = v.as_bool().unwrap_or(true);
@@ -881,6 +930,45 @@ fn open_screen_settings() {
 fn autostart_status(app: AppHandle) -> bool {
     use tauri_plugin_autostart::ManagerExt;
     app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+fn hotkey_capture_start(slot: u32) {
+    carbon_hotkeys::start_capture_mode(slot);
+}
+
+#[tauri::command]
+fn hotkey_take(state: State<'_, AppState>, slot: u32) -> Value {
+    match carbon_hotkeys::take_captured() {
+        None => json!({ "state": "waiting" }),
+        Some(c) if c == "__cancel__" => json!({ "state": "cancelled" }),
+        Some(c) if c == "__none__" => {
+            json!({ "state": "error", "error": "需要带修饰键（⌥/⌃/⌘ 或它们的组合），纯字母会和打字冲突" })
+        }
+        Some(combo) => {
+            let (kc, mask) = match carbon_hotkeys::parse_shortcut(&combo) {
+                Some(v) => v,
+                None => return json!({ "state": "error", "error": "无法识别的组合" }),
+            };
+            if let Some(other) = carbon_hotkeys::conflict_with(kc, mask, slot) {
+                let name = if other == 1 { "划词捕获" } else { "框选捕获" };
+                return json!({ "state": "error", "error": format!("与{}快捷键冲突，请换一个", name) });
+            }
+            carbon_hotkeys::set_binding(kc, mask, slot);
+            {
+                let mut g = state.cfg.lock().unwrap();
+                let (cfg, cfg_path) = &mut *g;
+                match slot {
+                    1 => cfg.hotkey = combo.clone(),
+                    2 => cfg.hotkey_box = combo.clone(),
+                    _ => {}
+                }
+                let _ = fs::write(cfg_path, serde_json::to_string_pretty(cfg).unwrap_or_default());
+            }
+            log_line(&format!("[设置] 槽位 {} 热键改为 {}", slot, combo));
+            json!({ "state": "ok", "combo": combo })
+        }
+    }
 }
 
 #[tauri::command]
@@ -1343,6 +1431,7 @@ fn start_capture(app: AppHandle) {
         let joined = tauri::async_runtime::spawn_blocking(gather_capture);
         match joined.await {
             Ok(Ok(src)) => {
+                clipboard_watch::learn(&app, &src.app_name);
                 if let Err(e) =
                     open_capture_window(&app, &src.text, &src.app_name, &src.ws, &src.sr, &src.channel)
                 {
@@ -1565,6 +1654,8 @@ fn main() {
 
             // 第 3 步：剪贴板被动通道（2s 轮询 changeCount，检测到新复制弹快速收录 HUD）
             clipboard_watch::CLIP_WATCH_ON.store(cfg.clipboard_watch, std::sync::atomic::Ordering::Relaxed);
+            clipboard_watch::CLIP_SCOPE_ALL.store(cfg.clip_scope == "all", std::sync::atomic::Ordering::Relaxed);
+            clipboard_watch::set_apps(cfg.clip_apps.clone());
             clipboard_watch::start(app.handle().clone());
             log_line(&format!(
                 "[剪贴板] 监听已启动（{}）",
@@ -1603,7 +1694,9 @@ fn main() {
             autostart_status,
             autostart_toggle,
             app_icon,
-            match_project
+            match_project,
+            hotkey_capture_start,
+            hotkey_take
         ])
         .run(tauri::generate_context!())
         .expect("纳言启动失败");
