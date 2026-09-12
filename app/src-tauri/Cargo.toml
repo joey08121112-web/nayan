@@ -21,6 +21,7 @@ arboard = "3"
 core-graphics = "0.24"
 cocoa = "0.26"
 objc = "0.2"
+tauri-plugin-single-instance = "2"
 
 [profile.release]
 strip = true

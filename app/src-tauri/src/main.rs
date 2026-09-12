@@ -767,6 +767,104 @@ fn clip_dismiss(app: AppHandle) {
     clipboard_watch::hide_hud(&app);
 }
 
+// ---------- 单实例守卫（本地端口锁；二次启动 → 激活已有实例后退出） ----------
+const SINGLETON_PORT: u16 = 58777;
+
+fn single_instance_guard(app: &AppHandle) -> bool {
+    use std::net::TcpListener;
+    match TcpListener::bind(("127.0.0.1", SINGLETON_PORT)) {
+        Ok(listener) => {
+            let h = app.clone();
+            std::thread::spawn(move || {
+                for stream in listener.incoming() {
+                    let Ok(mut s) = stream else { continue };
+                    let _ = std::io::Write::write_all(&mut s, b"ok");
+                    show_main(&h);
+                    let h2 = h.clone();
+                    let _ = h.run_on_main_thread(move || {
+                        activate_app();
+                        if let Some(w) = h2.get_webview_window("main") {
+                            let _ = w.set_focus();
+                        }
+                    });
+                }
+            });
+            true
+        }
+        Err(_) => {
+            if let Ok(mut s) = std::net::TcpStream::connect(("127.0.0.1", SINGLETON_PORT)) {
+                let _ = std::io::Write::write_all(&mut s, b"show");
+                let _ = std::io::Read::read(&mut s, &mut [0u8; 2]);
+            }
+            false
+        }
+    }
+}
+
+fn base64_encode(data: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = *chunk.get(1).unwrap_or(&0) as u32;
+        let b2 = *chunk.get(2).unwrap_or(&0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(T[(n >> 18 & 63) as usize] as char);
+        out.push(T[(n >> 12 & 63) as usize] as char);
+        out.push(if chunk.len() > 1 { T[(n >> 6 & 63) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 2 { T[(n & 63) as usize] as char } else { '=' });
+    }
+    out
+}
+
+/// 按 App 名取真实应用图标（base64 PNG），找不到返回空串
+#[tauri::command]
+fn app_icon(name: String) -> String {
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::{NSAutoreleasePool, NSString};
+    use objc::{class, msg_send, sel, sel_impl};
+    unsafe {
+        let pool = NSAutoreleasePool::new(nil);
+        let ws: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let ns_name: id = NSString::alloc(nil).init_str(&name);
+        let path: id = msg_send![ws, fullPathForApplication: ns_name];
+        let mut out = String::new();
+        if path != nil {
+            let icon: id = msg_send![ws, iconForFile: path];
+            if icon != nil {
+                let sz = cocoa::foundation::NSSize::new(32.0, 32.0);
+                let _: () = msg_send![icon, setSize: sz];
+                let tiff: id = msg_send![icon, TIFFRepresentation];
+                let rep: id = msg_send![class!(NSBitmapImageRep), imageRepWithData: tiff];
+                let props: id = msg_send![class!(NSDictionary), dictionary];
+                let png: id = msg_send![rep, representationUsingType: 4u64 properties: props]; // NSBitmapImageFileTypePNG
+                if png != nil {
+                    let len: usize = msg_send![png, length];
+                    let bytes: *const u8 = msg_send![png, bytes];
+                    if !bytes.is_null() && len > 0 {
+                        let slice = std::slice::from_raw_parts(bytes, len);
+                        out = format!("data:image/png;base64,{}", base64_encode(slice));
+                    }
+                }
+            }
+        }
+        NSAutoreleasePool::drain(pool);
+        out
+    }
+}
+
+/// 按会话标识匹配历史上用过的项目（智能归属：同窗口 → 同项目）
+#[tauri::command]
+fn match_project(state: State<'_, AppState>, session_ref: String) -> String {
+    let conn = state.db.lock().unwrap();
+    conn.query_row(
+        "SELECT workspace FROM suggestions WHERE session_ref=?1 AND workspace<>'' ORDER BY id DESC LIMIT 1",
+        [session_ref],
+        |r| r.get::<_, String>(0),
+    )
+    .unwrap_or_default()
+}
+
 #[tauri::command]
 fn perm_status() -> Value {
     json!({ "ax": ax_capture::ax_trusted(), "screen": ocr::screen_recording_ok() })
@@ -1278,6 +1376,15 @@ fn main() {
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
+            // 单实例守卫：二次启动 → 激活已有实例 → 本实例退出
+            if !single_instance_guard(app.handle()) {
+                log_line("检测到纳言已在运行，激活已有实例后退出");
+                notify(app.handle(), "纳言已在运行", "已为你切到正在运行的纳言窗口");
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                app.handle().exit(0);
+                return Ok(());
+            }
+
             let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
             let _ = fs::create_dir_all(&app_data);
             let _ = LOG_PATH.set(app_data.join("nayan.log"));
@@ -1494,7 +1601,9 @@ fn main() {
             perm_status,
             open_screen_settings,
             autostart_status,
-            autostart_toggle
+            autostart_toggle,
+            app_icon,
+            match_project
         ])
         .run(tauri::generate_context!())
         .expect("纳言启动失败");

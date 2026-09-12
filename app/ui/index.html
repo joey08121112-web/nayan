@@ -444,7 +444,7 @@ var STATUS_LABEL = { 'inbox':'收件箱', 'todo':'待办', 'doing':'专注中', 
 var KIND_NAME = { 'suggestion':'AI 建议', 'idle':'闲时任务' };
 var KIND_TAG = { 'idle':'⚡ 闲时' };
 var state = { items: [], view: { t:'inbox' }, q: '', sel: 0, pane: { mode:'empty' },
-  projOpen: {}, snap: '', refocusStep: 0 };
+  projOpen: {}, projOpen2: {}, snap: '', refocusStep: 0 };
 
 function gid(id){ return document.getElementById(id); }
 function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
@@ -519,6 +519,7 @@ function viewTitle(v){
   if(v.t==='kind') return KIND_NAME[v.kind]||'';
   if(v.t==='proj') return v.proj||'未归类';
   if(v.t==='projtool') return (TOOL_LABEL[v.tool]||v.tool)+' · '+(v.proj||'未归类');
+  if(v.t==='session') return sessLabel(v.session||'');
   return '';
 }
 function visibleItems(){
@@ -529,6 +530,7 @@ function visibleItems(){
     if(v.t==='kind' && kindOf(it)!==v.kind) return false;
     if(v.t==='proj' && projOf(it)!==v.proj) return false;
     if(v.t==='projtool' && (projOf(it)!==v.proj || (it.source_tool||'other')!==v.tool)) return false;
+    if(v.t==='session' && (projOf(it)!==v.proj || (it.source_tool||'other')!==v.tool || (it.session_ref||'')!==v.session)) return false;
     if(q){
       var hay=((it.title||'')+' '+(it.quote||'')+' '+(it.my_note||'')+' '+(it.user_msg||'')).toLowerCase();
       if(hay.indexOf(q)<0) return false;
@@ -542,6 +544,30 @@ function renderAll(){ renderNav(); renderList(); renderFocus(); renderReset(); r
 function bubbleSvg(){ return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5z"/></svg>'; }
 function folderSvg(){ return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'; }
 function chevRSvg(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>'; }
+function docSvg(){ return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'; }
+function lastSeg(p){ var s=String(p||'').replace(/\/+$/,''); var i=s.lastIndexOf('/'); return i>=0? s.slice(i+1) : s; }
+function sessLabel(sr){ return String(sr||'').replace(/^窗口：/,'').trim()||'未命名会话'; }
+function fillToolIcons(){
+  if(!TAPI) return;
+  var names={};
+  state.items.forEach(function(it){ var t=it.source_tool||'other'; if(!names[t]) names[t]=1; });
+  Object.keys(names).forEach(function(t){
+    var key='nayan-ic-'+t;
+    var b64=null; try{ b64=localStorage.getItem(key); }catch(e){}
+    if(b64){ paintIcon(t,b64); return; }
+    TAPI.invoke('app_icon',{name:t}).then(function(d){
+      if(!d) return;
+      try{ localStorage.setItem(key,d); }catch(e){}
+      paintIcon(t,d);
+    }).catch(function(){});
+  });
+}
+function paintIcon(tool,d){
+  Array.prototype.forEach.call(document.querySelectorAll('[data-ic-tool]'),function(el){
+    if(el.getAttribute('data-ic-tool')!==tool) return;
+    el.innerHTML='<img src="'+d+'" style="width:15px;height:15px;border-radius:4px;display:block" alt="">';
+  });
+}
 
 function renderNav(){
   var c={ all:state.items.length, inbox:0, today:0, suggestion:0, idle:0 };
@@ -565,43 +591,68 @@ function renderNav(){
     el.classList.toggle('on', v.t==='kind' && el.getAttribute('data-kind')===v.kind);
   });
 
-  // 项目树：项目 → 来源软件
+  // 项目树：项目 → 来源软件 → 会话窗口
   var order=[], groups={};
   state.items.forEach(function(it){
     var p=projOf(it);
     if(!groups[p]){ groups[p]={ count:0, tools:{}, torder:[] }; order.push(p); }
     var g=groups[p]; g.count++;
     var t=it.source_tool||'other';
-    if(g.tools[t]==null){ g.tools[t]=0; g.torder.push(t); }
-    g.tools[t]++;
+    if(g.tools[t]==null){ g.tools[t]={ count:0, sess:{}, sorder:[] }; g.torder.push(t); }
+    g.tools[t].count++;
+    var sr=it.session_ref||'';
+    if(sr.indexOf('窗口：')===0 && sr.length>3){
+      if(g.tools[t].sess[sr]==null){ g.tools[t].sess[sr]=0; g.tools[t].sorder.push(sr); }
+      g.tools[t].sess[sr]++;
+    }
   });
   var h='';
   order.forEach(function(p){
     var g=groups[p];
     var open=state.projOpen[p]!==false;      // 默认展开
     var isSel=(v.t==='proj'&&v.proj===p);
-    h+='<div class="nav-item proj'+(isSel?' on':'')+'" data-proj="'+escQ(p)+'">'+
+    var label=p?lastSeg(p):'未归类';
+    h+='<div class="nav-item proj'+(isSel?' on':'')+'" data-proj="'+escQ(p)+'" title="'+escQ(p||'未归类')+'">'+
       '<span class="pchev'+(open?' open':'')+'" data-tgl="'+escQ(p)+'">'+chevRSvg()+'</span>'+
       '<span class="icw">'+folderSvg()+'</span>'+
-      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p||'未归类')+'</span>'+
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(label)+'</span>'+
       '<span class="cnt">'+g.count+'</span></div>';
     if(open){
       g.torder.forEach(function(t){
+        var tg=g.tools[t];
         var tSel=(v.t==='projtool'&&v.proj===p&&v.tool===t);
+        var tOpen=state.projOpen2[p+'|'+t]!==false;
+        var hasS=tg.sorder.length>0;
         h+='<div class="nav-item sub'+(tSel?' on':'')+'" data-proj="'+escQ(p)+'" data-tool="'+escQ(t)+'">'+
-          '<span class="icw">'+bubbleSvg()+'</span>'+
+          (hasS?'<span class="pchev'+(tOpen?' open':'')+'" data-tgl2="'+escQ(p+'|'+t)+'">'+chevRSvg()+'</span>':'<span class="pchev"></span>')+
+          '<span class="icw" data-ic-tool="'+escQ(t)+'">'+bubbleSvg()+'</span>'+
           '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(TOOL_LABEL[t]||t)+'</span>'+
-          '<span class="cnt">'+g.tools[t]+'</span></div>';
+          '<span class="cnt">'+tg.count+'</span></div>';
+        if(open && tOpen){
+          tg.sorder.forEach(function(sr){
+            var sSel=(v.t==='session'&&v.proj===p&&v.tool===t&&v.session===sr);
+            h+='<div class="nav-item sub2'+(sSel?' on':'')+'" data-proj="'+escQ(p)+'" data-tool="'+escQ(t)+'" data-session="'+escQ(sr)+'">'+
+              '<span class="pchev"></span>'+
+              '<span class="icw">'+docSvg()+'</span>'+
+              '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sessLabel(sr))+'</span>'+
+              '<span class="cnt">'+tg.sess[sr]+'</span></div>';
+          });
+        }
       });
     }
   });
   if(!order.length) h='<div class="side-empty">还没有项目</div>';
   gid('projList').innerHTML=h;
+  fillToolIcons();
   Array.prototype.forEach.call(gid('projList').querySelectorAll('.nav-item'),function(el){
     el.onclick=function(ev){
       var p=el.getAttribute('data-proj');
       var tgl=ev.target.closest?ev.target.closest('[data-tgl]'):null;
       if(tgl){ state.projOpen[p]=state.projOpen[p]===false; renderNav(); return; }
+      var tgl2=ev.target.closest?ev.target.closest('[data-tgl2]'):null;
+      if(tgl2){ var k2=tgl2.getAttribute('data-tgl2'); state.projOpen2[k2]=state.projOpen2[k2]===false; renderNav(); return; }
+      var sr=el.getAttribute('data-session');
+      if(sr!=null){ state.view={ t:'session', proj:p, tool:el.getAttribute('data-tool'), session:sr }; renderAll(); return; }
       state.view = el.getAttribute('data-tool')!=null
         ? { t:'projtool', proj:p, tool:el.getAttribute('data-tool') }
         : { t:'proj', proj:p };

@@ -127,6 +127,12 @@ try {
   var savedProj = localStorage.getItem('nayan-last-project');
   if (savedProj && !projInput.value) projInput.value = savedProj;
 } catch (e) {}
+/* 智能归属：同窗口标题的历史卡片用同项目 */
+if (TAPI && sr && !projInput.value) {
+  TAPI.invoke('match_project', { sessionRef: sr }).then(function (ws) {
+    if (ws && !projInput.value) { projInput.value = ws; try { localStorage.setItem('nayan-last-project', ws); } catch (e) {} }
+  }).catch(function () {});
+}
 if (TAPI) {
   TAPI.invoke('api', { method: 'GET', path: '/api/projects' }).then(fillProjects).catch(function () {});
 } else {

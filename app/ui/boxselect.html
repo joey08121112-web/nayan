@@ -152,10 +152,27 @@ document.addEventListener('pointerup', function (e) {
   } else {
     payload = { blocks: hits(x0, y0, e.clientX, e.clientY), rect: null };
   }
-  setHint('正在处理…');
-  if (TAPI) TAPI.invoke('box_select_finish', payload).catch(function (err) {
-    setHint('<span style="color:#ff8a8a">处理出错：' + err + '</span>');
-  });
+  // WisPal 式 harvest 动画：命中块收拢飞向捕获小窗方向（右下角）
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var animated = false;
+  if (!reduced) {
+    var blkEls = blocksEl.querySelectorAll('.blk');
+    var tx = innerWidth - 70, ty = innerHeight - 60;
+    blkEls.forEach(function (b) {
+      var bx = parseFloat(b.style.left) + 30, by = parseFloat(b.style.top) + 12;
+      b.style.transition = 'transform .34s cubic-bezier(.45,0,.7,.4), opacity .34s ease';
+      b.style.transform = 'translate(' + (tx - bx) + 'px,' + (ty - by) + 'px) scale(.1)';
+      b.style.opacity = '0';
+      animated = true;
+    });
+    if (hs.length || window.__mode === 'ocr') { rectEl.style.transition = 'opacity .3s ease'; rectEl.style.opacity = '0'; }
+  }
+  setHint(animated ? '<b>✓ 已收进捕获窗</b>' : '正在处理…');
+  setTimeout(function () {
+    if (TAPI) TAPI.invoke('box_select_finish', payload).catch(function (err) {
+      setHint('<span style="color:#ff8a8a">处理出错：' + err + '</span>');
+    });
+  }, animated ? 360 : 0);
 });
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape' && TAPI) TAPI.invoke('box_select_cancel').catch(function(){});
