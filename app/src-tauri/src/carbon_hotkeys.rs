@@ -45,6 +45,12 @@ extern "C" {
     fn CGEventTapEnable(tap: *mut c_void, enable: bool);
     fn CGEventGetIntegerValueField(event: *mut c_void, field: u32) -> i64;
     fn CGEventGetFlags(event: *mut c_void) -> u64;
+    fn CGEventKeyboardGetUnicodeString(
+        event: *mut c_void,
+        max_len: usize,
+        out_len: *mut usize,
+        out_str: *mut u16,
+    );
 }
 
 #[link(name = "CoreFoundation", kind = "framework")]
@@ -191,9 +197,20 @@ unsafe extern "C" fn tap_callback(
     let kc = CGEventGetIntegerValueField(event, K_CG_KEYBOARD_EVENT_KEYCODE) as u32;
     let flags = CGEventGetFlags(event);
 
-    // 追踪 ⌘V：剪贴板监听用它识别「输入法搬运」（写剪贴板→立刻粘贴）并静默跳过
-    if flags & F_CMD != 0 && kc == 9 {
-        crate::clipboard_watch::note_paste();
+    // 追踪「搬运信号」：⌘V 或携带长文本载荷的按键插入（语音输入法识别后写剪贴板再注入的通用指纹）。
+    // 剪贴板监听在变化后 2.5s 内见到该信号 → 判定为输入法搬运，静默跳过。
+    if ev_type == K_CG_EVENT_KEY_DOWN {
+        let is_paste = flags & F_CMD != 0 && kc == 9; // ⌘V
+        if !is_paste {
+            let mut buf = [0u16; 512];
+            let mut len: usize = 0;
+            CGEventKeyboardGetUnicodeString(event, 512, &mut len, buf.as_mut_ptr());
+            if len > 2 {
+                crate::clipboard_watch::note_paste();
+            }
+        } else {
+            crate::clipboard_watch::note_paste();
+        }
     }
 
     // 录制模式优先：正在改绑定时，按键被记录并拦截
