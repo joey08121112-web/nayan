@@ -63,7 +63,7 @@ fn d_hotkey_box() -> String {
     "alt+shift+x".into()
 }
 fn d_clip_watch() -> bool {
-    true
+    false // 默认关闭：语音输入法经剪贴板搬运文字会误触发，用户可在设置里主动开启
 }
 fn d_clip_scope() -> String {
     "watchlist".into()
