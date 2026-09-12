@@ -1704,6 +1704,12 @@ fn main() {
             hotkey_take,
             js_log
         ])
-        .run(tauri::generate_context!())
-        .expect("纳言启动失败");
+        .build(tauri::generate_context!())
+        .expect("纳言启动失败")
+        .run(|app, event| {
+            // macOS Dock 点击/「重新打开」：唤出主窗（否则表现为"点不开"）
+            if let tauri::RunEvent::Reopen { .. } = event {
+                show_main(app);
+            }
+        });
 }
