@@ -662,7 +662,7 @@ function renderNav(){
           '<span class="icw" data-ic-tool="'+escQ(t)+'">'+bubbleSvg()+'</span>'+
           '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(TOOL_LABEL[t]||t)+'</span>'+
           '<span class="cnt">'+tg.count+'</span></div>';
-        if(open && tOpen){
+        if(open && tOpen && hasS){
           tg.sorder.forEach(function(sr){
             var sSel=(v.t==='session'&&v.proj===p&&v.tool===t&&v.session===sr);
             h+='<div class="nav-item sub2'+(sSel?' on':'')+'" data-proj="'+escQ(p)+'" data-tool="'+escQ(t)+'" data-session="'+escQ(sr)+'">'+
