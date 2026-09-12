@@ -191,6 +191,11 @@ unsafe extern "C" fn tap_callback(
     let kc = CGEventGetIntegerValueField(event, K_CG_KEYBOARD_EVENT_KEYCODE) as u32;
     let flags = CGEventGetFlags(event);
 
+    // 追踪 ⌘V：剪贴板监听用它识别「输入法搬运」（写剪贴板→立刻粘贴）并静默跳过
+    if flags & F_CMD != 0 && kc == 9 {
+        crate::clipboard_watch::note_paste();
+    }
+
     // 录制模式优先：正在改绑定时，按键被记录并拦截
     let capturing = CAPTURE_SLOT.lock().map(|s| s.is_some()).unwrap_or(false);
     if capturing {

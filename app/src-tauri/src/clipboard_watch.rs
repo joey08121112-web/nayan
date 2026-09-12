@@ -21,6 +21,15 @@ static LAST_TEXT: Mutex<String> = Mutex::new(String::new());
 
 const PSEUDO_SOURCES: &[&str] = &["hotkey","clipboard","webbox","web","other","mcp","剪贴板"];
 
+static LAST_PASTE_MS: AtomicU64 = AtomicU64::new(0);
+
+/// HID 层检测到 ⌘V 粘贴时调用（输入法搬运：写剪贴板→立刻粘贴）
+pub fn note_paste() {
+    let n = crate::ax_capture::now_ms();
+    LAST_PASTE_MS.store(n, std::sync::atomic::Ordering::Relaxed);
+    CLIP_SUPPRESS_UNTIL.store(n + 1500, std::sync::atomic::Ordering::Relaxed);
+}
+
 const MIN_LEN: usize = 10; // 少于 10 字符的复制不值得打扰
 const POLL_MS: u64 = 2000;
 
@@ -80,6 +89,11 @@ fn poll_once(app: &AppHandle) {
         && (text.ends_with(".png") || text.ends_with(".jpg") || text.ends_with(".jpeg")
             || text.ends_with(".heic") || text.ends_with(".tiff") || text.contains("PasteboardHistory"));
     if looks_like_image_path {
+        return;
+    }
+    // 输入法搬运判定：粘贴动作发生在剪贴板变化后 2.5s 内 → 是语音/工具在搬运文字，非性收录
+    let last_paste = LAST_PASTE_MS.load(std::sync::atomic::Ordering::Relaxed);
+    if last_paste > 0 && crate::ax_capture::now_ms().saturating_sub(last_paste) < 2500 {
         return;
     }
     if text.chars().count() < MIN_LEN {
