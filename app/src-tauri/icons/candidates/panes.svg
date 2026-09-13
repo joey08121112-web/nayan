@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="pa-bg" x1="0" y1="0" x2=".5" y2="1">
+      <stop offset="0" stop-color="#f0f2f8"/><stop offset="1" stop-color="#d5dcec"/>
+    </linearGradient>
+    <linearGradient id="pa-front" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6a5bff"/><stop offset="1" stop-color="#3f7bfa"/>
+    </linearGradient>
+    <linearGradient id="pa-sh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="squircle"><rect x="100" y="100" width="824" height="824" rx="185" ry="185"/></clipPath>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="30"/></filter>
+  </defs>
+  <rect x="100" y="124" width="824" height="824" rx="185" fill="#000" opacity=".32" filter="url(#soft)"/>
+  <g clip-path="url(#squircle)">
+    <g transform="translate(100,100) scale(1.609375)">
+      <rect width="512" height="512" fill="url(#pa-bg)"/>
+      <g transform="rotate(-12 190 196)"><rect x="110" y="137" width="160" height="118" rx="22" fill="#99a3c8" opacity=".9"/></g>
+      <g transform="rotate(9 330 230)"><rect x="245" y="168" width="170" height="124" rx="22" fill="#7e8bc0" opacity=".95"/></g>
+      <g transform="rotate(-3 262 300)"><rect x="157" y="225" width="210" height="150" rx="26" fill="url(#pa-front)"/>
+      <circle cx="190" cy="253" r="9" fill="#ff6b5e" opacity=".95"/><circle cx="214" cy="253" r="9" fill="#febc2e" opacity=".95"/><circle cx="238" cy="253" r="9" fill="#28c840" opacity=".95"/>
+      <rect x="188" y="284" width="150" height="19" rx="9.5" fill="#fff" opacity=".95"/>
+      <rect x="188" y="314" width="106" height="19" rx="9.5" fill="#fff" opacity=".65"/></g>
+      <path d="M0 0h512v148q-256 86-512 0z" fill="url(#pa-sh)"/>
+    </g>
+  </g>
+</svg>

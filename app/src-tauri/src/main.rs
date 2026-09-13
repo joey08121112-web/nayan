@@ -1588,7 +1588,7 @@ fn main() {
             let quit = MenuItem::with_id(app, "quit", "退出纳言", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &capture, &autostart, &quit])?;
             TrayIconBuilder::with_id("main-tray")
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tauri::include_image!("icons/menubar-Template.png"))
                 .icon_as_template(true)
                 .tooltip("纳言 · 建议收件箱")
                 .menu(&menu)

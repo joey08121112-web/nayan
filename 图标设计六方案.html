@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>纳言 · App 图标六方案</title>
+<style>
+:root{
+  --page:#e9e9ee; --panel:#ffffff; --line:rgba(0,0,0,.10); --hair:rgba(0,0,0,.06);
+  --ink:#1d1d1f; --sub:#86868b; --faint:#aeaeb2;
+  --accent:#0071e3; --ok:#1d9a52; --fire:#f56300; --doing:#7d5aff;
+  --field:rgba(120,120,128,.09); --hover:rgba(0,0,0,.045);
+  --spring:cubic-bezier(.34,1.56,.64,1); --easeout:cubic-bezier(.22,1,.36,1);
+  --desk:linear-gradient(160deg,#dfe4ee 0%,#cdd5e6 45%,#b9c2da 100%);
+}
+body[data-wall="dark"]{
+  --page:#08080a; --ink:#f5f5f7; --sub:#98989f; --faint:#6c6c70;
+  --panel:#17171a; --line:rgba(255,255,255,.12); --hair:rgba(255,255,255,.07);
+  --field:rgba(255,255,255,.08); --hover:rgba(255,255,255,.06);
+  --desk:linear-gradient(160deg,#3b2f6e 0%,#241f4e 45%,#141230 100%);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",sans-serif;
+  font-size:13px;color:var(--ink);background:var(--page);overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;transition:background .4s,color .3s;padding-bottom:150px;
+}
+button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer}
+svg{display:block}
+
+/* ============ 顶部控制条 ============ */
+.ctrl{
+  position:sticky;top:12px;margin:12px auto 0;width:max-content;max-width:calc(100% - 24px);z-index:50;
+  display:flex;align-items:center;gap:10px;padding:6px;
+  background:rgba(250,250,252,.72);backdrop-filter:blur(24px) saturate(1.5);
+  border:.5px solid var(--line);border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.14);
+}
+body[data-wall="dark"] .ctrl{background:rgba(28,28,32,.72)}
+.ctrl .ttl{font-size:12.5px;font-weight:700;color:var(--sub);padding:0 6px 0 10px;white-space:nowrap}
+.dbtn2{
+  border:.5px solid var(--line);background:var(--panel);border-radius:999px;
+  font-size:12px;font-weight:600;padding:4px 12px;white-space:nowrap;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);transition:transform .15s var(--spring),box-shadow .15s;
+}
+.dbtn2:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.14)}
+.dbtn2:active{transform:scale(.94)}
+.tg{border:0;font:inherit;font-size:12px;color:var(--sub);padding:5px 10px;border-radius:999px;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
+.tg::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--faint);transition:background .2s}
+.tg.on{color:var(--ink)}
+.tg.on::before{background:var(--ok)}
+.hint{font-size:11px;color:var(--faint);padding-right:8px;white-space:nowrap}
+
+/* ============ 案例卡 ============ */
+.grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  gap:16px;max-width:1280px;margin:20px auto 0;padding:0 20px;
+}
+.card{
+  background:var(--panel);border:.5px solid var(--line);border-radius:20px;padding:18px 18px 16px;
+  box-shadow:0 2px 6px rgba(0,0,0,.05),0 18px 44px rgba(0,0,0,.08);
+  animation:cardIn .5s var(--spring) both;position:relative;overflow:hidden;
+}
+body[data-wall="dark"] .card{box-shadow:0 2px 6px rgba(0,0,0,.4),0 18px 44px rgba(0,0,0,.45)}
+@keyframes cardIn{0%{opacity:0;transform:translateY(18px) scale(.97)}100%{opacity:1;transform:none}}
+.card .no{
+  position:absolute;top:14px;left:14px;z-index:5;width:24px;height:24px;border-radius:8px;
+  background:var(--field);color:var(--sub);font-size:12px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);
+}
+.card h2{font-size:16.5px;font-weight:800;display:flex;align-items:baseline;gap:8px;margin:2px 2px 2px;padding-left:34px}
+.card h2 .tag{font-size:10px;font-weight:700;color:var(--accent);background:rgba(0,113,227,.1);border-radius:5px;padding:2px 7px;letter-spacing:.4px}
+.slogan{font-size:12.5px;color:var(--sub);line-height:1.6;margin:4px 2px 14px;padding-left:34px}
+
+/* 桌面舞台 + 3D 翻转 */
+.stage{
+  --rx:0deg;--ry:0deg;--sx:50%;--sy:0%;
+  position:relative;height:230px;border-radius:16px;background:var(--desk);
+  display:flex;align-items:center;justify-content:center;perspective:700px;overflow:hidden;
+  transition:background .4s;cursor:pointer;
+}
+body[data-wall="dark"] .stage::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.06),transparent 60%)}
+.stage .sheen{
+  position:absolute;inset:-40%;pointer-events:none;z-index:6;
+  background:radial-gradient(circle at var(--sx) var(--sy),rgba(255,255,255,.28),transparent 46%);
+  opacity:0;transition:opacity .25s;
+}
+.stage:hover .sheen{opacity:1}
+.icon3d{
+  width:138px;height:138px;position:relative;z-index:2;
+  transform:rotateX(var(--rx)) rotateY(var(--ry));
+  transition:transform .18s ease-out;transform-style:preserve-3d;
+  filter:drop-shadow(0 14px 26px rgba(0,0,0,.32)) drop-shadow(0 2px 6px rgba(0,0,0,.18));
+}
+.icon{
+  width:100%;height:100%;border-radius:22.5%;overflow:hidden;position:relative;
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.35),inset 0 0 0 2.5px rgba(255,255,255,.08);
+  transition:transform .3s var(--spring);
+}
+.stage:active .icon3d{transform:rotateX(var(--rx)) rotateY(var(--ry)) scale(.96)}
+.stage.sel::after{
+  content:'已标记';position:absolute;top:10px;right:10px;z-index:7;
+  font-size:10.5px;font-weight:700;color:#fff;background:var(--accent);
+  border-radius:99px;padding:3px 10px;box-shadow:0 2px 8px rgba(0,113,227,.4);
+  animation:popIn .4s var(--spring);
+}
+@keyframes popIn{0%{opacity:0;transform:scale(.5)}62%{opacity:1;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
+.ladder{display:flex;align-items:flex-end;gap:18px;padding:14px 6px 2px}
+.ladder .li{display:flex;flex-direction:column;align-items:center;gap:6px}
+.ladder .li b{font-size:9.5px;color:var(--faint);font-weight:500;font-variant-numeric:tabular-nums}
+.ladder .icon{filter:drop-shadow(0 3px 6px rgba(0,0,0,.22));border-radius:22.5%}
+.refs{display:flex;flex-wrap:wrap;gap:4px;margin:12px 2px 8px}
+.refs span{font-size:10.5px;background:var(--field);color:var(--sub);border-radius:5px;padding:2px 7px}
+.card ul{list-style:none;margin-top:2px}
+.card li{font-size:11.8px;line-height:1.5;padding-left:13px;position:relative;margin-top:3px}
+.card li::before{content:'';position:absolute;left:1px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.card li.neg::before{background:var(--fire)}
+
+/* ============ 16px 菜单栏生存挑战 ============ */
+.mbwrap{max-width:1280px;margin:26px auto 0;padding:0 20px}
+.mbtitle{font-size:15px;font-weight:800;margin:0 2px 10px;display:flex;align-items:baseline;gap:10px}
+.mbtitle p{font-size:12px;color:var(--sub);font-weight:400}
+.menubar{
+  display:flex;align-items:center;height:34px;padding:0 12px;border-radius:10px;
+  background:rgba(246,246,248,.9);border:.5px solid var(--line);
+  box-shadow:0 1px 4px rgba(0,0,0,.08);backdrop-filter:blur(10px);font-size:12.5px;font-weight:600;
+}
+body[data-wall="dark"] .menubar{background:rgba(40,40,44,.92);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.menubar .m{padding:0 9px;color:var(--ink)}
+.menubar .mb-icons{display:flex;align-items:center;gap:14px;margin-left:auto;padding-right:10px}
+.mb-it{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.mb-it .icon{border-radius:22.5%;box-shadow:0 0 0 .5px rgba(0,0,0,.18)}
+body[data-wall="dark"] .mb-it .icon{box-shadow:0 0 0 .5px rgba(255,255,255,.25)}
+.mb-it b{font-size:9px;color:var(--faint);font-weight:600}
+.menubar .sys{display:flex;align-items:center;gap:8px;color:var(--ink);font-variant-numeric:tabular-nums}
+.batt{width:22px;height:11px;border:1px solid var(--ink);border-radius:3px;position:relative;opacity:.85}
+.batt::before{content:'';position:absolute;inset:1.5px;right:5px;background:var(--ink);border-radius:1px}
+.batt::after{content:'';position:absolute;right:-3.5px;top:3px;width:2px;height:5px;background:var(--ink);border-radius:0 2px 2px 0}
+
+/* ============ 底部 Dock ============ */
+.dock{
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:80;
+  display:flex;align-items:flex-end;gap:2px;padding:9px 10px 7px;
+  background:rgba(250,250,252,.55);backdrop-filter:blur(30px) saturate(1.8);
+  border:.5px solid var(--line);border-radius:24px;box-shadow:0 14px 44px rgba(0,0,0,.25);
+}
+body[data-wall="dark"] .dock{background:rgba(40,40,46,.55)}
+.dk-it{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;transition:margin .18s ease-out}
+.dk-it .icon{
+  width:56px;height:56px;border-radius:22.5%;cursor:pointer;
+  transform-origin:bottom center;transition:transform .18s var(--spring),box-shadow .2s;
+  box-shadow:0 6px 14px rgba(0,0,0,.28),inset 0 0 0 .5px rgba(255,255,255,.3);
+}
+.dk-it .icon:hover{transform:scale(1.12) translateY(-4px)}
+.dk-it.sel .icon{box-shadow:0 0 0 3px var(--accent),0 6px 14px rgba(0,0,0,.28)}
+.dk-it::after{
+  content:attr(data-name);position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%) scale(.9);
+  background:rgba(30,30,34,.92);color:#fff;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:8px;
+  white-space:nowrap;opacity:0;pointer-events:none;transition:all .15s;
+}
+.dk-it:hover::after{opacity:1;transform:translateX(-50%) scale(1)}
+.dk-sep{width:1px;height:52px;background:var(--line);margin:0 8px;align-self:center}
+.dk-dot{width:4px;height:4px;border-radius:50%;background:rgba(0,0,0,.35);margin-top:3px}
+body[data-wall="dark"] .dk-dot{background:rgba(255,255,255,.4)}
+.dk-hint{
+  position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:79;
+  font-size:11px;color:var(--sub);background:var(--field);backdrop-filter:blur(10px);
+  padding:4px 12px;border-radius:99px;white-space:nowrap;pointer-events:none;
+}
+
+/* ============ Toast ============ */
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:400;
+  background:rgba(29,29,31,.72);backdrop-filter:blur(24px);color:#fff;
+  padding:8px 18px;border-radius:99px;display:none;align-items:center;gap:8px;
+  box-shadow:0 8px 28px rgba(0,0,0,.25);font-size:13px}
+body[data-wall="dark"] .toast{background:rgba(245,245,247,.85);color:#1d1d1f}
+.toast.show{display:flex;animation:toastIn .45s var(--spring)}
+.toast.hide{animation:toastOut .3s ease both}
+@keyframes toastIn{0%{opacity:0;transform:translate(-50%,18px) scale(.9)}62%{opacity:1;transform:translate(-50%,-3px) scale(1.02)}100%{opacity:1;transform:translate(-50%,0)}}
+@keyframes toastOut{to{opacity:0;transform:translate(-50%,-12px) scale(.95)}}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body data-wall="light">
+
+<header class="ctrl">
+  <span class="ttl">纳言 · 图标六方案</span>
+  <button class="dbtn2" data-wall-tg>壁纸 浅 / 深</button>
+  <button class="tg" data-tg="dock">Dock 预览</button>
+  <span class="hint">点图标标记候选 · 1-6 快捷键</span>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<div class="mbwrap">
+  <div class="mbtitle">16px 生存挑战 <p>图标一生大部分时间只有指甲盖大——菜单栏和 Dock 里站得住才算数（点下面菜单栏里的图标也可标记）</p></div>
+  <div class="menubar">
+    <span class="m"></span>
+    <span class="m">纳言</span>
+    <span class="m">文件</span>
+    <span class="m">编辑</span>
+    <span class="m">显示</span>
+    <span class="m">帮助</span>
+    <div class="mb-icons" id="mbIcons"></div>
+    <div class="sys"><span>⌘</span><span class="batt"></span><span>周三 18:42</span></div>
+  </div>
+</div>
+
+<div class="dk-hint" id="dkHint" style="display:none">把它们丢进一条 Dock 里比一比（悬停放大 · 点击标记）</div>
+<div class="dock" id="dock" style="display:none"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   六个图标 · 全矢量 SVG（512 画布，可无损导出 icns）
+   ============================================================ */
+function shine(id,op){
+  return '<defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="#fff" stop-opacity="'+(op||'.3')+'"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>'+
+    '<path d="M0 0h512v148q-256 86-512 0z" fill="url(#'+id+')"/>';
+}
+var ICONS={
+ seal:{
+  name:'言印',tag:'名字即标志',
+  slogan:'把「纳言」的「言」刻成一枚朱砂印——古代纳言是替君王收纳言语的官，这个名字本来就是这个意思。',
+  refs:['印章 × 字标','国风现代'],
+  good:['名字直出，看一眼就能记住，讲得出故事','几何笔画全矢量，16px 依然清楚','正红在 Dock 里极少见，识别度拉满'],
+  bad:['红色带「提醒/警告」心智，可能被误读','气质偏中文产品，出海要再斟酌'],
+  svg:function(){return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">'+
+   '<defs><linearGradient id="se-bg" x1="0" y1="0" x2="1" y2="1">'+
+   '<stop offset="0" stop-color="#ff7a45"/><stop offset=".5" stop-color="#f43f2e"/><stop offset="1" stop-color="#c81e2a"/></linearGradient></defs>'+
+   '<rect width="512" height="512" fill="url(#se-bg)"/>'+
+   '<g fill="#fff8ee">'+
+   '<rect x="214" y="76" width="84" height="32" rx="16"/>'+
+   '<rect x="158" y="140" width="196" height="32" rx="16"/>'+
+   '<rect x="158" y="200" width="196" height="32" rx="16"/>'+
+   '<rect x="158" y="260" width="196" height="32" rx="16"/>'+
+   '<rect x="178" y="320" width="156" height="122" rx="24" fill="none" stroke="#fff8ee" stroke-width="32"/>'+
+   '</g>'+shine('se-sh','.26')+'</svg>';}
+ },
+ flow:{
+  name:'聚流',tag:'通道可视化',
+  slogan:'四颗来源之珠——划词、框选、剪贴板、MCP——顺着玻璃漏斗汇成一滴，落进收件槽。产品的灵魂画成了一张图。',
+  refs:['通道 × 汇流','来源色对应'],
+  good:['把「四条捕获通道归一」直接画出来，故事最产品','四色圆点可以和真实来源 App 一一对应','浅色玻璃气质和 app 内部 UI 无缝'],
+  bad:['元素偏多，16px 只剩漏斗和水滴','漏斗意象容易和数据分析类 App 撞脸'],
+  svg:function(){return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">'+
+   '<defs><linearGradient id="fl-bg" x1="0" y1="0" x2=".6" y2="1">'+
+   '<stop offset="0" stop-color="#f5f7fc"/><stop offset="1" stop-color="#d9dfee"/></linearGradient>'+
+   '<linearGradient id="fl-drop" x1="0" y1="0" x2="1" y2="1">'+
+   '<stop offset="0" stop-color="#3f7bfa"/><stop offset="1" stop-color="#6a5bff"/></linearGradient></defs>'+
+   '<rect width="512" height="512" fill="url(#fl-bg)"/>'+
+   '<circle cx="152" cy="140" r="24" fill="#0a84ff"/><circle cx="144" cy="132" r="7" fill="#fff" opacity=".55"/>'+
+   '<circle cx="220" cy="116" r="20" fill="#7d5aff"/><circle cx="213" cy="109" r="6" fill="#fff" opacity=".55"/>'+
+   '<circle cx="288" cy="118" r="20" fill="#ff9500"/><circle cx="281" cy="111" r="6" fill="#fff" opacity=".55"/>'+
+   '<circle cx="354" cy="142" r="24" fill="#30d158"/><circle cx="346" cy="134" r="7" fill="#fff" opacity=".55"/>'+
+   '<path d="M108 180 L404 180 L256 322 Z" fill="#3a3f4c" opacity=".08"/>'+
+   '<path d="M110 184 L256 320" stroke="#3a3f4c" stroke-width="26" fill="none" stroke-linecap="round"/>'+
+   '<path d="M402 184 L256 320" stroke="#3a3f4c" stroke-width="26" fill="none" stroke-linecap="round"/>'+
+   '<rect x="120" y="173" width="272" height="13" rx="6.5" fill="#3a3f4c" opacity=".2"/>'+
+   '<path d="M256 350 c 25 33 39 54 39 73 a 39 39 0 1 1 -78 0 c 0 -19 14 -40 39 -73 z" fill="url(#fl-drop)"/>'+
+   '<circle cx="243" cy="424" r="10" fill="#fff" opacity=".4"/>'+
+   '<rect x="178" y="484" width="156" height="16" rx="8" fill="#3a3f4c" opacity=".28"/>'+
+   shine('fl-sh','.4')+'</svg>';}
+ },
+ comet:{
+  name:'星落',tag:'捕获瞬间',
+  slogan:'深夜里一颗流星坠进托盘——「捕获的那一下」被定格。和 app 里收纳入箱的 harvest 动画是同一个意象。',
+  refs:['夜空 × 收成','现有 logo 血统'],
+  good:['故事感最强，托盘延续了现在的 logo','深色图标在浅色 Dock / 壁纸上反差大、显精致','光晕和流星天然适合做 Dock 弹跳动效'],
+  bad:['深色壁纸下不够跳，需要亮边救','星星被天气 / 天文类 App 用得比较多'],
+  svg:function(){return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">'+
+   '<defs><radialGradient id="cm-bg" cx=".3" cy=".16" r="1.15">'+
+   '<stop offset="0" stop-color="#4c3f96"/><stop offset=".52" stop-color="#272258"/><stop offset="1" stop-color="#12102e"/></radialGradient>'+
+   '<radialGradient id="cm-glow" cx=".5" cy=".5" r=".5">'+
+   '<stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".4" stop-color="#cfd8ff" stop-opacity=".28"/><stop offset="1" stop-color="#cfd8ff" stop-opacity="0"/></radialGradient>'+
+   '<linearGradient id="cm-trail" x1="148" y1="84" x2="292" y2="182" gradientUnits="userSpaceOnUse">'+
+   '<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".95"/></linearGradient></defs>'+
+   '<rect width="512" height="512" fill="url(#cm-bg)"/>'+
+   '<circle cx="118" cy="88" r="5" fill="#fff" opacity=".7"/><circle cx="398" cy="66" r="4" fill="#fff" opacity=".5"/>'+
+   '<circle cx="432" cy="178" r="6" fill="#fff" opacity=".55"/><circle cx="88" cy="206" r="4" fill="#fff" opacity=".45"/>'+
+   '<circle cx="352" cy="118" r="3" fill="#fff" opacity=".5"/><circle cx="70" cy="330" r="4" fill="#fff" opacity=".35"/>'+
+   '<path d="M148 84 Q 240 118 290 176" stroke="url(#cm-trail)" stroke-width="26" fill="none" stroke-linecap="round"/>'+
+   '<circle cx="296" cy="184" r="62" fill="url(#cm-glow)"/>'+
+   '<circle cx="296" cy="184" r="30" fill="#fff"/>'+
+   '<path d="M108 352 h 62 l 30 46 h 112 l 30 -46 h 62" fill="none" stroke="#8fb4ff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>'+
+   '<path d="M108 352 h 62 l 30 46 h 112 l 30 -46 h 62" fill="none" stroke="#eef3ff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>'+
+   '</svg>';}
+ },
+ spotlight:{
+  name:'一束光',tag:'一次只一条',
+  slogan:'满屏灰暗的记录里，聚光灯只点亮一条——把「一次只专注一条」刻在图标上，产品的哲学就是它。',
+  refs:['聚光 × 极简','暗色高级感'],
+  good:['产品哲学的纯表达，克制、高级、耐看','16px 就是「黑底一条亮线」，小尺寸识别度反而最高','实装后做菜单栏微动效（光缓缓扫过）极其顺手'],
+  bad:['太抽象，不看说明猜不到是干嘛的','黑底在深色壁纸下会融掉，要靠光晕撑开'],
+  svg:function(){return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">'+
+   '<defs><linearGradient id="sp-bg" x1="0" y1="0" x2="0" y2="1">'+
+   '<stop offset="0" stop-color="#1b1d24"/><stop offset="1" stop-color="#0a0b0f"/></linearGradient>'+
+   '<linearGradient id="sp-cone" x1="0" y1="0" x2="0" y2="1">'+
+   '<stop offset="0" stop-color="#8cbeff" stop-opacity="0"/><stop offset="1" stop-color="#8cbeff" stop-opacity=".4"/></linearGradient>'+
+   '<linearGradient id="sp-line" x1="0" y1="0" x2="1" y2="0">'+
+   '<stop offset="0" stop-color="#9ccaff"/><stop offset="1" stop-color="#3f7bfa"/></linearGradient>'+
+   '<filter id="sp-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="14"/></filter></defs>'+
+   '<rect width="512" height="512" fill="url(#sp-bg)"/>'+
+   '<rect x="120" y="118" width="250" height="24" rx="12" fill="#fff" opacity=".09"/>'+
+   '<rect x="120" y="180" width="196" height="24" rx="12" fill="#fff" opacity=".06"/>'+
+   '<rect x="120" y="390" width="230" height="24" rx="12" fill="#fff" opacity=".09"/>'+
+   '<rect x="120" y="442" width="168" height="24" rx="12" fill="#fff" opacity=".06"/>'+
+   '<path d="M198 0 L314 0 L364 312 L148 312 Z" fill="url(#sp-cone)" filter="url(#sp-blur)"/>'+
+   '<rect x="138" y="286" width="236" height="46" rx="23" fill="#4d8dff" opacity=".5" filter="url(#sp-blur)"/>'+
+   '<rect x="150" y="296" width="212" height="32" rx="16" fill="url(#sp-line)"/>'+
+   '<circle cx="182" cy="312" r="9" fill="#fff" opacity=".95"/>'+
+   '</svg>';}
+ },
+ panes:{
+  name:'三窗归一',tag:'痛点场景',
+  slogan:'三个叠着的玻璃窗——你并行开着的那些 AI 会话，最终都被最前面这扇收走。多窗口打工人的日常，一眼看懂。',
+  refs:['玻璃层叠 × 多窗','macOS 原生语汇'],
+  good:['痛点场景（多 AI 窗口并行）最直白，不用解释','窗口 + 红绿灯是 macOS 的原生词汇，气质最系统','玻璃质感与 app 内部液态玻璃完全同语言'],
+  bad:['三扇窗在 16px 会互相糊在一起','「窗口堆叠」是文件管理器的常见意象'],
+  svg:function(){return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">'+
+   '<defs><linearGradient id="pa-bg" x1="0" y1="0" x2=".5" y2="1">'+
+   '<stop offset="0" stop-color="#f0f2f8"/><stop offset="1" stop-color="#d5dcec"/></linearGradient>'+
+   '<linearGradient id="pa-front" x1="0" y1="0" x2="1" y2="1">'+
+   '<stop offset="0" stop-color="#6a5bff"/><stop offset="1" stop-color="#3f7bfa"/></linearGradient></defs>'+
+   '<rect width="512" height="512" fill="url(#pa-bg)"/>'+
+   '<g transform="rotate(-12 190 196)"><rect x="110" y="137" width="160" height="118" rx="22" fill="#99a3c8" opacity=".9"/></g>'+
+   '<g transform="rotate(9 330 230)"><rect x="245" y="168" width="170" height="124" rx="22" fill="#7e8bc0" opacity=".95"/></g>'+
+   '<g transform="rotate(-3 262 300)"><rect x="157" y="225" width="210" height="150" rx="26" fill="url(#pa-front)"/>'+
+   '<circle cx="190" cy="253" r="9" fill="#ff6b5e" opacity=".95"/><circle cx="214" cy="253" r="9" fill="#febc2e" opacity=".95"/><circle cx="238" cy="253" r="9" fill="#28c840" opacity=".95"/>'+
+   '<rect x="188" y="284" width="150" height="19" rx="9.5" fill="#fff" opacity=".95"/>'+
+   '<rect x="188" y="314" width="106" height="19" rx="9.5" fill="#fff" opacity=".65"/></g>'+
+   shine('pa-sh','.5')+'</svg>';}
+ },
+ quotes:{
+  name:'金句',tag:'值得收藏的话',
+  slogan:'两枚金色引号——AI 说过的那些话，值得被引用、被收进箱子里。功能本身就是「留住金句」。',
+  refs:['字形 × 海报','青金撞色'],
+  good:['「引用」和功能零翻译成本，几何极简单','任何尺寸都锐利，16px 依旧清楚','青金撞色在 Dock 里非常打眼，年轻'],
+  bad:['引号意象在笔记 / 引用类工具里出现过','青绿主色和 macOS 系统色系有点距离'],
+  svg:function(){return '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">'+
+   '<defs><linearGradient id="qu-bg" x1="0" y1="0" x2=".8" y2="1">'+
+   '<stop offset="0" stop-color="#1cc5ae"/><stop offset="1" stop-color="#0b7fa8"/></linearGradient>'+
+   '<linearGradient id="qu-gold" x1="0" y1="0" x2="0" y2="1">'+
+   '<stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#f0a12f"/></linearGradient></defs>'+
+   '<rect width="512" height="512" fill="url(#qu-bg)"/>'+
+   '<circle cx="256" cy="252" r="168" fill="#fff" opacity=".07"/>'+
+   '<g fill="url(#qu-gold)">'+
+   '<circle cx="188" cy="204" r="50"/><rect x="180" y="232" width="42" height="116" rx="21" transform="rotate(24 201 232)"/>'+
+   '<circle cx="324" cy="204" r="50"/><rect x="316" y="232" width="42" height="116" rx="21" transform="rotate(24 337 232)"/>'+
+   '</g>'+
+   '<path d="M404 96 l 11 27 27 11 -27 11 -11 27 -11 -27 -27 -11 27 -11 z" fill="#fff" opacity=".95"/>'+
+   '<path d="M112 130 l 7 17 17 7 -17 7 -7 17 -7 -17 -17 -7 17 -7 z" fill="#fff" opacity=".6"/>'+
+   shine('qu-sh','.28')+'</svg>';}
+ },
+};
+
+/* ================= 渲染 ================= */
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+var order=['seal','flow','comet','spotlight','panes','quotes'];
+var NUM=['①','②','③','④','⑤','⑥'];
+var selected=null;
+
+function iconEl(key,px){
+  return '<div class="icon" style="width:'+px+'px;height:'+px+'px">'+ICONS[key].svg()+'</div>';
+}
+function renderCards(){
+  gid('grid').innerHTML=order.map(function(k,i){
+    var c=ICONS[k];
+    return '<div class="card" data-key="'+k+'" style="animation-delay:'+(i*70)+'ms">'+
+      '<span class="no">'+NUM[i]+'</span>'+
+      '<h2>'+c.name+'<span class="tag">'+c.tag+'</span></h2>'+
+      '<p class="slogan">'+esc(c.slogan)+'</p>'+
+      '<div class="stage" data-stage="'+k+'"><div class="sheen"></div><div class="icon3d">'+iconEl(k,138)+'</div></div>'+
+      '<div class="ladder">'+
+        [96,48,28,16].map(function(px){return '<span class="li">'+iconEl(k,px)+'<b>'+px+'px</b></span>'}).join('')+
+      '</div>'+
+      '<div class="refs">'+c.refs.map(function(r){return '<span>'+r+'</span>'}).join('')+'</div>'+
+      '<ul>'+c.good.map(function(x){return '<li>'+x+'</li>'}).join('')+c.bad.map(function(x){return '<li class="neg">'+x+'</li>'}).join('')+'</ul>'+
+    '</div>';
+  }).join('');
+}
+function renderMenubar(){
+  gid('mbIcons').innerHTML=order.map(function(k){
+    return '<span class="mb-it" data-key="'+k+'" data-name="'+ICONS[k].name+'">'+iconEl(k,17)+'<b>'+ICONS[k].name+'</b></span>';
+  }).join('');
+}
+function renderDock(){
+  gid('dock').innerHTML=order.map(function(k){
+    return '<span class="dk-it" data-key="'+k+'" data-name="'+ICONS[k].name+'"><span class="icon">'+ICONS[k].svg()+'</span><span class="dk-dot"></span></span>';
+  }).join('');
+}
+function gid(id){return document.getElementById(id)}
+
+/* ================= 交互 ================= */
+function toast(m){
+  var e=gid('toast');
+  e.textContent=m;
+  e.classList.remove('show','hide');void e.offsetWidth;
+  e.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(function(){
+    e.classList.remove('show');e.classList.add('hide');
+    setTimeout(function(){e.classList.remove('hide')},320);
+  },2200);
+}
+function markSel(key){
+  selected=key;
+  document.querySelectorAll('.stage').forEach(function(s){s.classList.toggle('sel',s.getAttribute('data-stage')===key)});
+  document.querySelectorAll('.dk-it').forEach(function(d){d.classList.toggle('sel',d.getAttribute('data-key')===key)});
+  var i=order.indexOf(key);
+  toast(NUM[i]+' '+ICONS[key].name+' · 已标记候选');
+}
+document.addEventListener('click',function(e){
+  var st=e.target.closest('.stage');
+  if(st)return markSel(st.getAttribute('data-stage'));
+  var mb=e.target.closest('.mb-it');
+  if(mb)return markSel(mb.getAttribute('data-key'));
+  var dk=e.target.closest('.dk-it');
+  if(dk)return markSel(dk.getAttribute('data-key'));
+});
+document.addEventListener('keydown',function(e){
+  if(e.target.tagName==='INPUT')return;
+  var i='123456'.indexOf(e.key);
+  if(i>=0)markSel(order[i]);
+  if(e.key==='d')document.querySelector('[data-wall-tg]').click();
+});
+/* 3D 翻转 + 光泽 */
+document.addEventListener('mousemove',function(e){
+  var st=e.target.closest('.stage');
+  document.querySelectorAll('.stage').forEach(function(s){
+    if(s!==st){s.style.setProperty('--rx','0deg');s.style.setProperty('--ry','0deg');return}
+  });
+  if(!st)return;
+  var r=st.getBoundingClientRect();
+  var x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+  st.style.setProperty('--rx',((.5-y)*14).toFixed(1)+'deg');
+  st.style.setProperty('--ry',((x-.5)*16).toFixed(1)+'deg');
+  st.style.setProperty('--sx',(x*100).toFixed(1)+'%');
+  st.style.setProperty('--sy',(y*100).toFixed(1)+'%');
+});
+/* Dock 放大镜 */
+var dock=gid('dock');
+dock.addEventListener('mousemove',function(e){
+  var items=dock.querySelectorAll('.dk-it');
+  items.forEach(function(it){
+    var r=it.getBoundingClientRect();
+    var d=Math.abs(e.clientX-(r.left+r.width/2));
+    var s=Math.max(0,1-d/150);
+    var k=1+s*.5;
+    var ic=it.querySelector('.icon');
+    ic.style.transform='scale('+k.toFixed(3)+') translateY(-'+(s*7).toFixed(1)+'px)';
+    it.style.margin='0 '+(s*7).toFixed(1)+'px';
+  });
+});
+dock.addEventListener('mouseleave',function(){
+  dock.querySelectorAll('.icon').forEach(function(ic){ic.style.transform=''});
+  dock.querySelectorAll('.dk-it').forEach(function(it){it.style.margin='0'});
+});
+/* 壁纸 / Dock 开关 */
+document.querySelector('[data-wall-tg]').addEventListener('click',function(){
+  var dark=document.body.dataset.wall!=='dark';
+  document.body.dataset.wall=dark?'dark':'light';
+});
+document.querySelector('[data-tg="dock"]').addEventListener('click',function(){
+  var on=gid('dock').style.display==='none';
+  gid('dock').style.display=on?'flex':'none';
+  gid('dkHint').style.display=on?'block':'none';
+  this.classList.toggle('on',on);
+});
+
+/* ================= 启动 ================= */
+renderCards();
+renderMenubar();
+renderDock();
+</script>
+</body>
+</html>

@@ -72,13 +72,13 @@ body.dark .sidebar{ background:rgba(28,28,32,.55);
   transition:background .12s ease; }
 .nav-item svg.ic{ color:var(--sub); }
 .nav-item:hover{ background:var(--hover); }
-.nav-item.on{ background:var(--sel); font-weight:500; color:var(--accent); }
+.nav-item.on{ font-weight:500; color:var(--accent); }
 .nav-item.on svg.ic{ color:var(--accent); }
 .nav-item .cnt{ margin-left:auto; font-size:11.5px; color:var(--sub);
   font-variant-numeric:tabular-nums; font-weight:500; }
 /* 项目行的展开箭头 */
 .nav-item .pchev{ width:14px; height:14px; flex-shrink:0; display:flex; align-items:center;
-  justify-content:center; color:var(--faint); margin-left:-4px; transition:transform .15s ease; }
+  justify-content:center; color:var(--faint); margin-left:-4px; transition:transform .3s var(--spring); }
 .nav-item .pchev svg{ width:10px; height:10px; }
 .nav-item .pchev.open{ transform:rotate(90deg); }
 .nav-item .pchev:hover{ color:var(--sub); }
@@ -165,9 +165,10 @@ body.dark .quickadd{ background:rgba(23,23,27,.6); }
 .card{ background:rgba(255,255,255,.66); backdrop-filter:blur(20px) saturate(1.4);
   -webkit-backdrop-filter:blur(20px) saturate(1.4);
   border-radius:12px; padding:9px 12px 8px; margin:0 12px 7px; cursor:pointer;
-  border:1px solid transparent;
+  border:1px solid transparent; position:relative; overflow:hidden;
   box-shadow:0 0 0 .5px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.05);
-  transition:border-color .12s ease, box-shadow .12s ease, transform .12s ease; }
+  transition:border-color .15s ease, box-shadow .15s ease, transform .18s var(--spring),
+    opacity .28s ease, margin .3s var(--easeout), max-height .3s var(--easeout), padding .3s var(--easeout); }
 body.dark .card{ background:rgba(28,28,32,.55); }
 .card:hover{ transform:translateY(-1px); }
 .card.sel{ border-color:var(--accent);
@@ -210,13 +211,11 @@ button.mchip:hover{ color:var(--ink); background:var(--line); }
 .dmeta a{ font-weight:500; }
 
 .dtoprow{ display:flex; align-items:center; gap:10px; margin:16px 0 4px; flex-wrap:wrap; }
-.seg{ display:flex; gap:2px; background:var(--field); border-radius:9px; padding:2px; }
-.seg button{ border-radius:7px; padding:5px 12px; font-size:12px; font-weight:500;
+.seg{ display:flex; gap:2px; background:var(--field); border-radius:9px; padding:2px; position:relative; }
+.seg button{ position:relative; z-index:1; border-radius:7px; padding:5px 12px; font-size:12px; font-weight:500;
   color:var(--sub); background:transparent; }
 .seg button:hover{ color:var(--ink); }
-.seg button.on{ background:var(--panel); color:var(--ink); font-weight:600;
-  box-shadow:0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04); }
-body.dark .seg button.on{ box-shadow:0 1px 3px rgba(0,0,0,.5), 0 0 0 .5px rgba(255,255,255,.08); }
+.seg button.on{ color:var(--ink); font-weight:600; }
 
 .dblock{ margin-top:18px; }
 .dlabel{ font-size:11px; color:var(--faint); font-weight:600; margin:0 2px 6px; }
@@ -247,7 +246,7 @@ body.dark .aiquote{ background:rgba(23,23,27,.72); }
 .sprogress{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--sub);
   margin-bottom:5px; font-variant-numeric:tabular-nums; }
 .sprogress .bar{ flex:1; max-width:220px; height:4px; background:var(--panel2); border-radius:99px; overflow:hidden; }
-.sprogress .bar i{ display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .3s ease; }
+.sprogress .bar i{ display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .55s var(--spring); }
 .step{ display:flex; align-items:flex-start; gap:7px; padding:7px 8px; border-radius:9px; line-height:1.5; }
 .step:hover{ background:var(--hover); }
 .step .ck{ flex-shrink:0; width:16px; height:16px; margin-top:2px; border:1.5px solid var(--line);
@@ -255,13 +254,11 @@ body.dark .aiquote{ background:rgba(23,23,27,.72); }
   transition:background .12s ease, border-color .12s ease; }
 .step .ck:hover{ border-color:var(--accent); }
 .step.done .ck{ background:var(--accent); border-color:var(--accent); }
-.step.done .ck::after{ content:'✓'; position:absolute; inset:0; display:flex; align-items:center;
-  justify-content:center; font-size:10px; font-weight:800; color:#fff; }
 .step .sidx{ flex-shrink:0; min-width:16px; text-align:right; margin-top:2px; font-size:11px;
   color:var(--faint); font-variant-numeric:tabular-nums; font-weight:600; }
 .step .smain{ flex:1; min-width:0; }
 .step .stext{ display:block; font-size:13px; word-break:break-all; white-space:pre-wrap; }
-.step.done .stext{ color:var(--faint); text-decoration:line-through; }
+.step.done .stext{ color:var(--faint); }
 .step .stext.cmd{ font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11.5px;
   background:rgba(0,113,227,.08); padding:3px 8px; border-radius:6px; color:var(--accent); font-weight:500; }
 body.dark .step .stext.cmd{ background:rgba(10,132,255,.14); }
@@ -362,7 +359,7 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 .ss-title{ font-size:17px; font-weight:700; letter-spacing:-.01em; padding:0 10px 14px }
 .ss-item{ padding:7px 12px; border-radius:8px; font-size:13px; cursor:pointer; color:var(--ink) }
 .ss-item:hover{ background:var(--hover) }
-.ss-item.on{ background:var(--sel); font-weight:600 }
+.ss-item.on{ font-weight:600 }
 .ss-main{ overflow-y:auto; padding:104px 56px 80px }
 .ss-wrap{ max-width:640px; margin:0 auto }
 .ss-back{ position:fixed; top:54px; left:22px; z-index:310; border:1px solid var(--line);
@@ -387,6 +384,127 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 .ss-h2{ font-size:21px; font-weight:800; letter-spacing:-.01em; margin:0 0 18px }
 .ss-cat-title{ font-size:15px; font-weight:700; margin:0 0 12px }
 </style>
+<style id="fx">
+/* ============ 动效层（16 项微交互，全部 vanilla CSS/JS，WKWebView 兼容） ============ */
+:root{ --spring:cubic-bezier(.34,1.56,.64,1); --easeout:cubic-bezier(.22,1,.36,1); }
+button:active{ transform:scale(.96); }
+.nav-item:active{ transform:scale(.985); }
+
+/* ⑨ 数字翻滚 */
+.roll{ display:inline-flex; overflow:hidden; height:1.3em; line-height:1.3em; position:relative; vertical-align:bottom; }
+.roll i{ font-style:normal; display:block; }
+.roll .r-old{ animation:rollUp .38s var(--easeout) both; }
+.roll .r-new{ position:absolute; left:0; top:100%; animation:rollIn .38s var(--easeout) both; }
+@keyframes rollUp{ to{ transform:translateY(-100%); } }
+@keyframes rollIn{ from{ transform:translateY(-100%); } to{ transform:translateY(0); } }
+
+/* ③ 侧栏选中滑块 */
+#navPill{ position:absolute; left:8px; right:8px; border-radius:6px; background:var(--sel);
+  z-index:0; pointer-events:none; opacity:0;
+  transition:top .38s var(--spring), height .25s var(--spring), opacity .2s; }
+
+/* ④ 来源树弹性折叠 */
+.subwrap{ overflow:hidden; transition:max-height .42s var(--spring), opacity .28s ease; max-height:600px; opacity:1; }
+.subwrap.fold{ max-height:0; opacity:0; }
+
+/* ⑤ 分段 Tab 滑块（白色滑块弹簧滑动，按钮本底透明） */
+.seg{ position:relative; }
+.seg .slider{ position:absolute; top:2px; bottom:2px; border-radius:7px; background:var(--panel);
+  box-shadow:0 1px 3px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04);
+  transition:left .32s var(--spring), width .32s var(--spring); }
+body.dark .seg .slider{ box-shadow:0 1px 3px rgba(0,0,0,.5), 0 0 0 .5px rgba(255,255,255,.08); }
+
+/* ①②⑥⑦⑧ 卡片动效 */
+.card.in{ animation:cardIn .5s var(--spring) both; }
+@keyframes cardIn{ 0%{ opacity:0; transform:translateY(16px) scale(.965); } 62%{ opacity:1; transform:translateY(-2px) scale(1.004); } 100%{ opacity:1; transform:none; } }
+.card.new{ animation:cardNew .55s var(--spring) both; }
+@keyframes cardNew{ 0%{ opacity:0; transform:translateY(-20px) scale(.94); } 55%{ opacity:1; transform:translateY(3px) scale(1.012); } 100%{ opacity:1; transform:none; } }
+.card.flash::after{ content:''; position:absolute; inset:0; border-radius:12px; pointer-events:none;
+  animation:flashRing .9s var(--easeout) both; }
+@keyframes flashRing{ 0%{ box-shadow:0 0 0 0 rgba(0,113,227,.4); } 100%{ box-shadow:0 0 0 14px rgba(0,113,227,0); } }
+.card.pop{ animation:selPop .3s var(--spring); }
+@keyframes selPop{ 0%{ transform:scale(.985); } 100%{ transform:scale(1); } }
+.card.jelly{ animation:jelly .55s var(--spring); }
+@keyframes jelly{ 0%{ transform:scale(1,1); } 28%{ transform:scale(1.035,.93); } 48%{ transform:scale(.975,1.035); } 68%{ transform:scale(1.012,.988); } 100%{ transform:scale(1,1); } }
+.card.bye{ opacity:0!important; transform:translateX(64px) rotate(1.6deg)!important; max-height:0!important; margin-bottom:0!important;
+  padding-top:0!important; padding-bottom:0!important; border-width:0!important;
+  transition:all .34s cubic-bezier(.5,0,.75,.4); }
+.cdot.morph{ animation:dotPop .45s var(--spring); }
+@keyframes dotPop{ 0%{ transform:scale(.3); } 60%{ transform:scale(1.4); } 100%{ transform:scale(1); } }
+
+/* ⑦ 步骤勾选：✓ 描画 + 删除线从左扫过 */
+.step .ck svg{ position:absolute; inset:0; width:100%; height:100%; }
+.step .ck svg polyline{ fill:none; stroke:#fff; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:16; stroke-dashoffset:0; }
+.step.fx-done-on .ck svg polyline{ animation:drawIn .3s var(--easeout) .05s both; }
+@keyframes drawIn{ from{ stroke-dashoffset:16; } to{ stroke-dashoffset:0; } }
+.step .stext{ position:relative; width:fit-content; max-width:100%; }
+.step .stext::after{ content:''; position:absolute; left:0; top:54%; height:1.5px; width:100%; background:var(--faint);
+  transform:scaleX(0); transform-origin:0 50%; transition:transform .32s var(--easeout) .05s; }
+.step.done .stext::after{ transform:scaleX(1); }
+.step.fx-done-on .stext::after{ animation:sweepIn .34s var(--easeout) .05s both; }
+@keyframes sweepIn{ from{ transform:scaleX(0); } to{ transform:scaleX(1); } }
+.step.stepin{ animation:rowIn .4s var(--spring) both; }
+@keyframes rowIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+
+/* ⑩ 复制 morph（上下翻转出绿色已复制） */
+.cp-morph{ position:relative; font-size:11px; color:var(--sub); padding:2px 8px; border-radius:5px; overflow:hidden; }
+.cp-morph:hover{ background:var(--panel2); color:var(--ink); }
+.cp-morph .l1,.cp-morph .l2{ display:block; transition:transform .28s var(--spring), opacity .2s; }
+.cp-morph .l2{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:var(--ok); font-weight:700; transform:translateY(120%); opacity:0; }
+.cp-morph.ok .l1{ transform:translateY(-120%); opacity:0; }
+.cp-morph.ok .l2{ transform:translateY(0); opacity:1; }
+.okpop{ animation:okPop .4s var(--spring); }
+@keyframes okPop{ 0%{ transform:scale(.6); } 60%{ transform:scale(1.25); } 100%{ transform:scale(1); } }
+
+/* ⑪ 详情面板切换（选中变化时才播放，步骤刷新不打扰） */
+.dwrap.panein{ animation:paneIn .34s var(--easeout); }
+.fpanel.panein{ animation:paneIn .34s var(--easeout); }
+@keyframes paneIn{ 0%{ opacity:0; transform:translateY(12px) scale(.99); filter:blur(3px); } 100%{ opacity:1; transform:none; filter:none; } }
+
+/* ⑫ Toast 弹性出入场 */
+.err.show{ display:flex; animation:toastIn .45s var(--spring); }
+.err.hide{ animation:toastOut .3s ease both; }
+@keyframes toastIn{ 0%{ opacity:0; transform:translate(-50%,26px) scale(.88); } 62%{ opacity:1; transform:translate(-50%,-3px) scale(1.015); } 100%{ opacity:1; transform:translate(-50%,0) scale(1); } }
+@keyframes toastOut{ to{ opacity:0; transform:translate(-50%,16px) scale(.95); } }
+
+/* ⑬ 深浅色圆形揭示 */
+#veil{ position:fixed; inset:0; z-index:500; pointer-events:none; opacity:0; }
+
+/* ⑭ 设置面板弹簧入场 + 分类切换淡化 + 分类滑块 */
+#settingsScreen.open{ animation:panelIn .38s var(--spring); }
+@keyframes panelIn{ 0%{ opacity:0; transform:scale(.965) translateY(10px); } 100%{ opacity:1; transform:none; } }
+#ssPill{ position:absolute; left:0; right:0; border-radius:8px; background:var(--sel); z-index:0;
+  pointer-events:none; opacity:0; transition:top .35s var(--spring), height .25s var(--spring), opacity .2s; }
+#settingsScreen .ss-item{ position:relative; z-index:1; }
+.ss-wrap.swapin{ animation:paneIn .3s var(--easeout); }
+
+/* ⑮ AI 拆步 shimmer */
+.dbtn.busy{ color:transparent!important; pointer-events:none; position:relative; overflow:hidden; }
+.dbtn.busy::after{ content:'⏳ 拆解中…'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:var(--sub); font-size:12px;
+  background:linear-gradient(100deg,transparent 30%,rgba(125,90,255,.25) 50%,transparent 70%);
+  background-size:220% 100%; animation:shimmer 1s linear infinite; }
+@keyframes shimmer{ 0%{ background-position:120% 0; } 100%{ background-position:-120% 0; } }
+
+/* ⑯ 空状态呼吸 + 快记果冻脉冲 */
+.empty .big{ animation:floatY 3.2s ease-in-out infinite; }
+@keyframes floatY{ 0%,100%{ transform:translateY(0) rotate(-2deg); } 50%{ transform:translateY(-7px) rotate(2deg); } }
+.empty h2{ animation:rowIn .4s .05s var(--easeout) both; }
+.empty .hint{ animation:rowIn .45s .16s var(--easeout) both; }
+.quickadd.squish{ animation:squish .38s var(--spring); }
+@keyframes squish{ 0%{ transform:scale(1); } 30%{ transform:scale(1.025,.92); } 60%{ transform:scale(.985,1.02); } 100%{ transform:scale(1); } }
+
+/* 专注条形态切换滑入 */
+.focusstrip.stripin{ animation:stripIn .45s var(--spring); }
+@keyframes stripIn{ 0%{ opacity:0; transform:translateY(-10px) scale(.97); } 100%{ opacity:1; transform:none; } }
+
+/* 系统开了「减弱动态效果」时全部降级为瞬时 */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{ animation-duration:.001s !important; animation-iteration-count:1 !important; transition-duration:.001s !important; }
+}
+</style>
 </head>
 <body>
 <div class="dragstrip" data-tauri-drag-region aria-hidden="true"></div>
@@ -394,6 +512,7 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 
 <aside class="sidebar">
   <nav class="side-scroll">
+    <div id="navPill" aria-hidden="true"></div>
     <div class="brand" data-tauri-drag-region title="建议收件箱">
       <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
       <div class="bname">纳言</div>
@@ -470,15 +589,19 @@ body.dark .ambient::after{ background:radial-gradient(circle, rgba(94,92,230,.22
 <section class="detail" id="detail"></section>
 <datalist id="projOptions"></datalist>
 <div id="err" class="err"></div>
+<div id="veil" aria-hidden="true"></div>
 
 <div id="settingsScreen">
   <button class="ss-back" id="ssBack">‹ 返回</button>
   <div class="ss-side">
     <div class="ss-title">设置</div>
-    <div class="ss-item on" data-ss="general">通用</div>
-    <div class="ss-item" data-ss="capture">捕获</div>
-    <div class="ss-item" data-ss="ai">AI 拆步</div>
-    <div class="ss-item" data-ss="about">关于</div>
+    <div style="position:relative">
+      <div id="ssPill" aria-hidden="true"></div>
+      <div class="ss-item on" data-ss="general">通用</div>
+      <div class="ss-item" data-ss="capture">捕获</div>
+      <div class="ss-item" data-ss="ai">AI 拆步</div>
+      <div class="ss-item" data-ss="about">关于</div>
+    </div>
   </div>
   <div class="ss-main"><div class="ss-wrap" id="ssContent"></div></div>
 </div>
@@ -490,12 +613,79 @@ var STATUS_LABEL = { 'inbox':'收件箱', 'todo':'待办', 'doing':'专注中', 
 var KIND_NAME = { 'suggestion':'AI 建议', 'idle':'闲时任务' };
 var KIND_TAG = { 'idle':'⚡ 闲时' };
 var state = { items: [], view: { t:'inbox' }, q: '', sel: 0, pane: { mode:'empty' },
-  projOpen: {}, projOpen2: {}, snap: '', refocusStep: 0 };
+  projOpen: {}, projOpen2: {}, snap: '', refocusStep: 0,
+  fx: { flyIn:null, jelly:0, dotPop:0, stepFx:0, stepsIn:false, focusIn:false },
+  lastPct: {}, paneKey: '', rollMem: {} };
 
 function gid(id){ return document.getElementById(id); }
 function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
 function escQ(s){ return esc(s).replace(/"/g,'&quot;'); }
-function toast(m){ var e=gid('err'); e.textContent=m; e.style.display='block'; setTimeout(function(){ e.style.display='none'; },2600); }
+/* ⑫ Toast：弹性弹起、走时滑落（旧版是瞬间闪现） */
+function toast(m){
+  var e=gid('err');
+  e.textContent=m;
+  e.classList.remove('show','hide'); void e.offsetWidth;
+  e.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(function(){
+    e.classList.remove('show'); e.classList.add('hide');
+    setTimeout(function(){ e.classList.remove('hide'); },320);
+  },2400);
+}
+/* ⑨ 数字翻滚：值变化时旧数字上滚出、新数字落下（rollMem 跨重绘记住旧值） */
+function rollTo(id, txt){
+  var el=gid(id);
+  var from=state.rollMem.hasOwnProperty(id)?state.rollMem[id]:(el?el.textContent:txt);
+  state.rollMem[id]=txt;
+  if(!el || String(from)===String(txt)) return;
+  el.innerHTML='<span class="r-old">'+esc(from)+'</span><span class="r-new">'+esc(txt)+'</span>';
+  el.classList.add('roll');
+  setTimeout(function(){ el.textContent=txt; el.classList.remove('roll'); },420);
+}
+/* 右栏保存后的统一刷新（从 bindEntry 提升为全局，patchStatus 也要用） */
+function refresh(p){ p.then(function(){ load(false); }).catch(function(e){ toast(e.message); }); }
+/* ⑤⑥⑦⑧ 状态变更统一入口：状态点弹跳 / 完成果冻 / 专注条滑入 / 放弃侧滑退场 */
+function patchStatus(it, st){
+  var cardEl=document.querySelector('.card[data-id="'+it.id+'"]');
+  state.fx.dotPop=it.id;
+  if(st==='done') state.fx.jelly=it.id;
+  if(st==='doing') state.fx.focusIn=true;
+  if(st==='dropped' && cardEl && state.view.t!=='all'){
+    // 非「全部记录」视图才侧滑退场；全部记录里放弃 = 原地变半透明
+    cardEl.style.maxHeight=cardEl.offsetHeight+'px';
+    void cardEl.offsetWidth;
+    cardEl.classList.add('bye');
+    setTimeout(function(){ refresh(api('PATCH','/api/suggestions/'+it.id,{status:st})); },380);
+    return;
+  }
+  refresh(api('PATCH','/api/suggestions/'+it.id,{status:st}));
+}
+/* ⑤ 分段滑块定位（instant=true 首次摆放不做动画） */
+function moveSeg(sliderId, btnSel, btn, instant){
+  var sl=gid(sliderId); if(!sl) return;
+  if(!btn){
+    Array.prototype.forEach.call(document.querySelectorAll(btnSel),function(b){
+      if(b.classList.contains('on')) btn=b;
+    });
+  }
+  if(!btn) return;
+  if(instant) sl.style.transition='none';
+  sl.style.left=btn.offsetLeft+'px';
+  sl.style.width=btn.offsetWidth+'px';
+  if(instant){ void sl.offsetWidth; sl.style.transition=''; }
+}
+/* ③ 侧栏选中滑块跟随当前高亮行 */
+function movePill(){
+  var sc=document.querySelector('.side-scroll');
+  var pill=gid('navPill');
+  if(!sc||!pill) return;
+  var on=sc.querySelector('.nav-item.on');
+  if(!on){ pill.style.opacity='0'; return; }
+  pill.style.opacity='1';
+  pill.style.top=on.offsetTop+'px';
+  pill.style.height=on.offsetHeight+'px';
+}
+window.addEventListener('resize', movePill);
 /* 双运行时：打包成 App 时走 Tauri 原生命令；浏览器打开时走 HTTP（与旧版完全兼容） */
 var TAPI = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core : null;
 /* 诊断：脚本错误与关键事件写进纳言日志（nayan.log） */
@@ -521,7 +711,7 @@ function api(method,url,body){
     });
   });
 }
-function load(silent){
+function load(silent, stagger){
   return api('GET','/api/suggestions').then(function(items){
     var snap=JSON.stringify(items);
     if(silent && snap===state.snap) return;      // 数据没变不重绘
@@ -529,7 +719,13 @@ function load(silent){
     var a=document.activeElement;
     if(silent && a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable) &&
        gid('detail').contains(a)) return;
-    state.snap=snap; state.items=items; renderAll();
+    // ② 自动刷新发现新条目 → 让它飞进来（⌥⇧S / 剪贴板 / MCP 新收录都有入场感）
+    if(silent && state.items.length){
+      var known={}; state.items.forEach(function(x){ known[x.id]=1; });
+      var fresh=items.filter(function(x){ return !known[x.id]; }).map(function(x){ return x.id; });
+      if(fresh.length) state.fx.flyIn=fresh;
+    }
+    state.snap=snap; state.items=items; renderAll(!!stagger);
   }).catch(function(e){ if(!silent) toast(e.message); });
 }
 function kindOf(it){ return it.kind||'suggestion'; }
@@ -590,7 +786,7 @@ function visibleItems(){
     return true;
   });
 }
-function renderAll(){ renderNav(); renderList(); renderFocus(); renderReset(); renderDetail(); }
+function renderAll(stagger){ renderNav(); renderList(stagger); renderFocus(); renderReset(); renderDetail(); }
 
 /* ---------- 侧栏：计数 + 项目树 ---------- */
 function bubbleSvg(){ return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5z"/></svg>'; }
@@ -629,11 +825,11 @@ function renderNav(){
     if(dayKey(it.created_at)===tk) c.today++;
     c[kindOf(it)]++;
   });
-  gid('cnt-inbox').textContent=c.inbox;
-  gid('cnt-today').textContent=c.today;
-  gid('cnt-all').textContent=c.all;
-  gid('cnt-suggestion').textContent=c.suggestion||'';
-  gid('cnt-idle').textContent=c.idle||'';
+  rollTo('cnt-inbox', c.inbox);
+  rollTo('cnt-today', c.today);
+  rollTo('cnt-all', c.all);
+  rollTo('cnt-suggestion', c.suggestion||'');
+  rollTo('cnt-idle', c.idle||'');
 
   var v=state.view;
   Array.prototype.forEach.call(document.querySelectorAll('.nav-item[data-view]'),function(el){
@@ -671,6 +867,7 @@ function renderNav(){
       '<span class="cnt">'+tg.count+'</span></div>';
     if(tOpen){
       tg.sorder.sort(function(a,b){ return tools[t].sess[b].n - tools[t].sess[a].n; });
+      h+='<div class="subwrap" data-sw="T|'+escQ(t)+'">';
       tg.sorder.forEach(function(sr){
         var se=tools[t].sess[sr];
         var sSel=(v.t==='session'&&v.tool===t&&v.session===sr);
@@ -681,6 +878,7 @@ function renderNav(){
           (se.ws?'<span style="color:var(--sub);font-size:11px;flex-shrink:0" title="'+escQ(se.ws)+'">📁 '+esc(lastSeg(se.ws))+'</span>':'')+
           '<span class="cnt">'+se.n+'</span></div>';
       });
+      h+='</div>';
     }
   });
     if(!torder.length) h='<div class="side-empty">还没有来源——用 ⌥S/⌥Z 捕获后自动出现</div>';
@@ -692,11 +890,36 @@ function renderNav(){
       var tgl=ev.target.closest?ev.target.closest('[data-tgl]'):null;
       if(tgl){ state.projOpen[p]=state.projOpen[p]===false; renderNav(); return; }
       var tgl2=ev.target.closest?ev.target.closest('[data-tgl2]'):null;
-      if(tgl2){ var k2=tgl2.getAttribute('data-tgl2'); state.projOpen2[k2]=state.projOpen2[k2]===false; renderNav(); return; }
+      if(tgl2){
+        var k2=tgl2.getAttribute('data-tgl2');
+        var willOpen=state.projOpen2[k2]===false;
+        state.projOpen2[k2]=willOpen;
+        if(willOpen){
+          renderNav(); movePill();
+          var sw2=null;
+          Array.prototype.forEach.call(document.querySelectorAll('.subwrap'),function(x){
+            if(x.getAttribute('data-sw')===k2) sw2=x;
+          });
+          if(sw2){ sw2.classList.add('fold'); void sw2.offsetWidth; sw2.classList.remove('fold'); }
+          return;
+        }
+        // ④ 收起：先弹性塌合再重绘，展开则直接重绘（新行从 max-height 0 弹开）
+        var sw=null;
+        Array.prototype.forEach.call(document.querySelectorAll('.subwrap'),function(x){
+          if(x.getAttribute('data-sw')===k2) sw=x;
+        });
+        if(sw){
+          sw.style.maxHeight=sw.scrollHeight+'px';
+          void sw.offsetWidth;
+          sw.classList.add('fold');
+          setTimeout(function(){ renderNav(); movePill(); },430);
+        } else { renderNav(); movePill(); }
+        return;
+      }
       var sr=el.getAttribute('data-session');
-      if(sr!=null){ state.view={ t:'session', tool:el.getAttribute('data-tool'), session:sr }; renderAll(); return; }
+      if(sr!=null){ state.view={ t:'session', tool:el.getAttribute('data-tool'), session:sr }; renderAll(true); return; }
       state.view = { t:'tool', tool:el.getAttribute('data-tool') };
-      renderAll();
+      renderAll(true);
     };
   });
 
@@ -708,15 +931,15 @@ function renderNav(){
   gid('projOptions').innerHTML=dl;
 
   gid('vtitle').textContent=viewTitle(v);
-  gid('vcount').textContent='';
   var n=visibleItems().length;
   var wk=['日','一','二','三','四','五','六'][new Date().getDay()];
-  gid('vcount').textContent=n?n+' 条':'';
+  rollTo('vcount', n?n+' 条':'');
   gid('vsub').textContent=(new Date().getMonth()+1)+'月'+new Date().getDate()+'日 周'+wk;
+  movePill();
 }
 
 /* ---------- 中列列表 ---------- */
-function card(it){
+function card(it, animCls, animDelay){
   var sel=state.sel===it.id?' sel':'';
   var steps=it.steps||[];
   var meta=[];
@@ -728,16 +951,24 @@ function card(it){
   }
   meta.push('<span class="grow"></span>');
   meta.push('<span>'+esc(String(it.created_at||'').slice(11,16))+'</span>');
-  return '<div class="card '+it.status+sel+'" data-id="'+it.id+'">'+
-    '<div class="ctitle"><span class="cdot s-'+it.status+'" title="'+STATUS_LABEL[it.status]+'"></span>'+
+  // ⑥ 刚改过状态的卡片圆点弹跳变色；⑦ 刚完成的卡片果冻一下
+  var dotCls='cdot s-'+it.status+(state.fx.dotPop===it.id?' morph':'');
+  var jellyCls=state.fx.jelly===it.id?' jelly':'';
+  return '<div class="card '+it.status+sel+jellyCls+(animCls?' '+animCls:'')+'" data-id="'+it.id+'"'+
+    (animDelay?' style="animation-delay:'+animDelay+'ms"':'')+'>'+
+    '<div class="ctitle"><span class="'+dotCls+'" title="'+STATUS_LABEL[it.status]+'"></span>'+
     '<span style="flex:1">'+esc(it.title)+'</span></div>'+
     '<div class="cmeta">'+meta.join('')+'</div>'+
     '</div>';
 }
-function renderList(){
+function renderList(stagger){
   var items=visibleItems().slice().sort(function(a,b){ return b.id-a.id; });
   var list=gid('list');
-  gid('vcount').textContent=items.length?items.length+' 条':'';
+  rollTo('vcount', items.length?items.length+' 条':'');
+  // ② 本轮要飞入的新条目
+  var fly={};
+  if(state.fx.flyIn){ state.fx.flyIn.forEach(function(id){ fly[id]=1; }); }
+  state.fx.flyIn=null;
   if(!items.length){
     var allEmpty=!state.items.length;
     list.innerHTML='<div class="empty">'+
@@ -745,13 +976,21 @@ function renderList(){
       (allEmpty?'<h2>箱子是空的</h2><div class="hint">选中文字按 <kbd>⌥⇧S</kbd> 一键收进来<br>或者对 AI 说「<b>记到收件箱</b>」 · 也可以在上面输入框直接记</div>'
                :'<h2>这里没有内容</h2><div class="hint">换个视图或搜索词试试</div>')+
       '</div>';
+    state.fx.jelly=0; state.fx.dotPop=0;
     return;
   }
-  var html='', cur=null, buf=[];
+  var html='', cur=null, buf=[], di=0, idx=0;
   function flush(){
     if(cur===null) return;
-    html+='<div class="datehead"><b>'+dayLabel(cur)+'</b><span>'+buf.length+' 条</span></div>'+
-          buf.map(card).join('');
+    // ① 日期头与卡片依次弹起
+    html+='<div class="datehead"'+(stagger?' style="animation:rowIn .4s '+(di*40)+'ms var(--easeout) both"':'')+'><b>'+dayLabel(cur)+'</b><span>'+buf.length+' 条</span></div>'+
+          buf.map(function(it){
+            var extra='', delay=0;
+            if(fly[it.id]){ extra='new flash'; }
+            else if(stagger && idx<14){ extra='in'; delay=Math.min(430,idx*36)+(idx%3)*18; }
+            idx++;
+            return card(it, extra, delay);
+          }).join('');
   }
   items.forEach(function(it){
     var k=dayKey(it.created_at);
@@ -760,12 +999,16 @@ function renderList(){
   });
   flush();
   list.innerHTML=html;
+  state.fx.jelly=0; state.fx.dotPop=0;
   Array.prototype.forEach.call(list.querySelectorAll('.card'),function(el){
     el.onclick=function(){
       state.sel=Number(el.getAttribute('data-id'));
       state.pane={ mode:'entry' };
       Array.prototype.forEach.call(list.querySelectorAll('.card'),function(c){
-        c.classList.toggle('sel', Number(c.getAttribute('data-id'))===state.sel);
+        var on=Number(c.getAttribute('data-id'))===state.sel;
+        c.classList.toggle('sel', on);
+        c.classList.remove('pop');
+        if(on){ void c.offsetWidth; c.classList.add('pop'); }
       });
       renderDetail();
     };
@@ -785,29 +1028,30 @@ function renderFocus(){
     var steps=doing.steps||[];
     var done=steps.filter(function(s){ return s.done; }).length;
     box.style.display='flex';
-    box.className='focusstrip';
+    box.className='focusstrip'+(state.fx.focusIn?' stripin':'');
+    state.fx.focusIn=false;
     box.innerHTML=
       '<span class="fdot"></span><span class="ftitle">'+esc(doing.title)+'</span>'+
-      (steps.length?'<span class="fprog">'+done+'/'+steps.length+' 步</span>':'')+
+      (steps.length?'<span class="fprog" id="fprog"></span>':'')+
       '<span class="fgrow"></span>'+
       '<button class="fbtn" data-fact="done">✓ 完成</button>'+
       '<button class="fbtn" data-fact="todo">放回</button>';
+    if(steps.length) rollTo('fprog', done+'/'+steps.length+' 步');
     box.onclick=function(ev){
       var b=ev.target.closest?ev.target.closest('[data-fact]'):null;
       if(!b) return;
-      api('PATCH','/api/suggestions/'+doing.id,{status:b.getAttribute('data-fact')})
-        .then(function(){ load(false); }).catch(function(e){ toast(e.message); });
+      patchStatus(doing, b.getAttribute('data-fact'));
     };
   } else if(todos.length && !state.q){
     box.style.display='flex';
-    box.className='focusstrip quiet';
+    box.className='focusstrip quiet'+(state.fx.focusIn?' stripin':'');
+    state.fx.focusIn=false;
     box.innerHTML=
       '<span class="ftitle">下一件事：'+esc(todos[0].title)+'</span>'+
       '<span class="fgrow"></span>'+
       '<button class="fbtn" data-fact="start">▶ 开始专注</button>';
     box.onclick=function(){
-      api('PATCH','/api/suggestions/'+todos[0].id,{status:'doing'})
-        .then(function(){ load(false); }).catch(function(e){ toast(e.message); });
+      patchStatus(todos[0], 'doing');
     };
   } else {
     box.style.display='none';
@@ -840,11 +1084,11 @@ try{ var savedReset=localStorage.getItem('inbox-reset-date'); if(savedReset) gid
 function stepsBlock(it){
   var steps=it.steps||[];
   var done=steps.filter(function(s){ return s.done; }).length;
-  var h='<div class="dblock"><div class="dlabel">执行步骤'+(steps.length?' · '+done+'/'+steps.length:'')+
+  var h='<div class="dblock"><div class="dlabel">执行步骤'+(steps.length?' · <span id="stepCnt">'+done+'/'+steps.length+'</span>':'')+
     '<span class="grow" style="float:right;font-weight:400">结果贴回给 AI 判断对错</span></div>';
   if(steps.length){
     var pct=Math.round(done*100/steps.length);
-    h+='<div class="steps"><div class="sprogress"><span>'+done+'/'+steps.length+' 步</span><div class="bar"><i style="width:'+pct+'%"></i></div></div>'+
+    h+='<div class="steps"><div class="sprogress"><span id="sprogTxt">'+done+'/'+steps.length+' 步</span><div class="bar"><i id="sprogBar" style="width:'+pct+'%"></i></div></div>'+
       steps.map(function(s,i){ return stepRow(s,i); }).join('')+
       '<div class="sadd"><input placeholder="自己加一步…" data-add="'+it.id+'"><button class="dbtn" data-act="addstep">＋ 加一步</button></div></div>';
   } else {
@@ -853,8 +1097,11 @@ function stepsBlock(it){
   return h+'</div>';
 }
 function stepRow(s,idx){
-  return '<div class="step'+(s.done?' done':'')+'" data-step="'+s.id+'">'+
-    '<span class="ck" data-act="toggle" title="做完点这里"></span>'+
+  // ⑦ 刚勾完的那步播 ✓ 描画 + 删除线扫过；⑮ AI 拆步后整单逐条弹入
+  var fxDone=state.fx.stepFx===s.id && s.done;
+  return '<div class="step'+(s.done?' done':'')+(fxDone?' fx-done-on':'')+(state.fx.stepsIn?' stepin':'')+'" data-step="'+s.id+'"'+
+    (state.fx.stepsIn?' style="animation-delay:'+idx*90+'ms"':'')+'>'+
+    '<span class="ck" data-act="toggle" title="做完点这里">'+(s.done?'<svg viewBox="0 0 16 16"><polyline points="3.5 8.5 6.8 11.5 12.5 4.5"/></svg>':'')+'</span>'+
     '<span class="sidx">'+(idx+1)+'.</span>'+
     '<div class="smain"><span class="stext'+(s.is_cmd?' cmd':'')+'">'+esc(s.content)+'</span>'+
     '<input class="sresult" data-act="result" value="'+escQ(s.result||'')+'" placeholder="执行结果 / AI 检查结论…（⏎ 保存，自动跳下一条）"></div>'+
@@ -881,7 +1128,7 @@ function entryHTML(it){
       (ws?'<span class="sep"></span><span class="mchip" title="项目目录">📁 '+esc(lastSeg(ws))+'</span>':'')+
       sessionLink(it)+
     '</div>'+
-    '<div class="dtoprow"><div class="seg" id="segStatus">'+
+    '<div class="dtoprow"><div class="seg" id="segStatus"><div class="slider" id="segSlider"></div>'+
       ['inbox','todo','doing','done','dropped'].map(function(st){
         return '<button data-st="'+st+'"'+(it.status===st?' class="on"':'')+'>'+STATUS_LABEL[st]+'</button>';
       }).join('')+
@@ -890,7 +1137,7 @@ function entryHTML(it){
       '<textarea class="dta" id="d-usermsg" placeholder="你发给 AI 的话 / 背景（可选）…">'+esc(it.user_msg||'')+'</textarea></div>'+
     '<div class="dblock"><div class="dlabel">AI 原文</div>'+
       (it.quote
-        ? '<div class="aiquote"><div class="aihead">'+bubbleSvg()+esc(toolName(it))+'<span class="fgrow"></span><button class="cp" data-act="copyquote">⧉ 复制</button></div><div class="aibody">'+esc(it.quote)+'</div></div>'
+        ? '<div class="aiquote"><div class="aihead">'+bubbleSvg()+esc(toolName(it))+'<span class="fgrow"></span><button class="cp-morph" data-act="copyquote"><span class="l1">⧉ 复制</span><span class="l2">✓ 已复制</span></button></div><div class="aibody">'+esc(it.quote)+'</div></div>'
         : '<div class="dta" style="min-height:0;color:var(--faint);background:transparent;border-style:dashed">没有原文</div>')+
     '</div>'+
     stepsBlock(it)+
@@ -911,16 +1158,20 @@ function nextStepIdAfter(it, stepId){
 }
 function bindEntry(it){
   var box=gid('detail');
-  function refresh(p){ p.then(function(){ load(false); }).catch(function(e){ toast(e.message); }); }
   var tEl=gid('dtitle');
   tEl.addEventListener('keydown',function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); tEl.blur(); } });
   tEl.addEventListener('blur',function(){
     var v=tEl.textContent.trim();
     if(v && v!==it.title) refresh(api('PATCH','/api/suggestions/'+it.id,{title:v}));
   });
+  // ⑤ 状态 Tab：滑块先弹簧滑过去，后台再发请求
   Array.prototype.forEach.call(box.querySelectorAll('#segStatus button'),function(b){
-    b.onclick=function(){ refresh(api('PATCH','/api/suggestions/'+it.id,{status:b.getAttribute('data-st')})); };
+    b.onclick=function(){
+      moveSeg('segSlider', null, b, false);
+      patchStatus(it, b.getAttribute('data-st'));
+    };
   });
+  moveSeg('segSlider', '#segStatus button', null, true);
   [['d-usermsg','user_msg'],['d-note','my_note']].forEach(function(pair){
     var el=gid(pair[0]);
     el.addEventListener('keydown',function(ev){
@@ -935,7 +1186,8 @@ function bindEntry(it){
       var act=btn.getAttribute('data-act');
       if(act==='copyquote'){
         navigator.clipboard.writeText(it.quote||'').then(function(){
-          btn.textContent='✓ 已复制'; setTimeout(function(){ btn.textContent='⧉ 复制'; },900);
+          btn.classList.add('ok');
+          setTimeout(function(){ btn.classList.remove('ok'); },1100);
         });
         return;
       }
@@ -949,10 +1201,15 @@ function bindEntry(it){
           .catch(function(e){ toast('✗ '+(e.message||'来源没找到')); });
         return;
       }
-      if(act==='toggle'&&step){ refresh(api('PATCH','/api/steps/'+step.id,{done:!step.done})); }
+      if(act==='toggle'&&step){
+        // ⑦ 勾上才播描画动画；重绘后该行带 fx-done-on 重放一次
+        state.fx.stepFx=step.done?0:step.id;
+        refresh(api('PATCH','/api/steps/'+step.id,{done:!step.done}));
+      }
       else if(act==='copystep'&&step){
         navigator.clipboard.writeText(step.content).then(function(){
-          btn.textContent='✓'; setTimeout(function(){ btn.textContent='⧉'; },900);
+          btn.textContent='✓'; btn.classList.add('okpop');
+          setTimeout(function(){ btn.textContent='⧉'; btn.classList.remove('okpop'); },900);
         });
       }
       else if(act==='delstep'&&step){ refresh(api('DELETE','/api/steps/'+step.id)); }
@@ -969,13 +1226,27 @@ function bindEntry(it){
         refresh(api('POST','/api/suggestions/'+it.id+'/steps',{steps:lines.map(function(l){ return {content:l,is_cmd:looksCmd(l)}; })}));
       }
       else if(act==='aisplit'){
-        btn.disabled=true; btn.textContent='⏳ 拆解中…'; aiBusy=true;
-        api('POST','/api/ai/split/'+it.id).then(function(){ aiBusy=false; load(false); }).catch(function(e){
-          aiBusy=false; toast(e.message); btn.disabled=false; btn.textContent='🪄 AI 拆步';
+        // ⑮ 按钮 label 沉降 + 流光 shimmer，拆完步骤逐条弹入
+        btn.disabled=true; btn.classList.add('busy'); aiBusy=true;
+        api('POST','/api/ai/split/'+it.id).then(function(){
+          aiBusy=false; state.fx.stepsIn=true; load(false);
+        }).catch(function(e){
+          aiBusy=false; toast(e.message); btn.disabled=false; btn.classList.remove('busy');
         });
       }
-      else if(act==='del'){ refresh(api('DELETE','/api/suggestions/'+it.id)); state.sel=0; state.pane={mode:'empty'}; }
-      else if(act==='inbox'||act==='dropped'){ refresh(api('PATCH','/api/suggestions/'+it.id,{status:act})); }
+      else if(act==='del'){
+        // ⑧ 删除：卡片先侧滑塌合，再发请求
+        var delCard=document.querySelector('.card[data-id="'+it.id+'"]');
+        state.sel=0; state.pane={mode:'empty'};
+        if(delCard){
+          delCard.style.maxHeight=delCard.offsetHeight+'px';
+          void delCard.offsetWidth;
+          delCard.classList.add('bye');
+          setTimeout(function(){ refresh(api('DELETE','/api/suggestions/'+it.id)); },340);
+        } else { refresh(api('DELETE','/api/suggestions/'+it.id)); }
+      }
+      else if(act==='inbox'){ patchStatus(it,'inbox'); }
+      else if(act==='dropped'){ patchStatus(it,'dropped'); }
     };
   });
   // 执行结果：⏎ 保存并跳下一步，失焦也保存
@@ -1039,7 +1310,10 @@ function bindAdd(){
       kind:gid('f-kind').value,
       workspace:curWs
     }).then(function(created){
-      if(created&&created.id){ state.sel=created.id; state.pane={mode:'entry'}; }
+      if(created&&created.id){
+        state.fx.flyIn=[created.id];
+        state.sel=created.id; state.pane={mode:'entry'};
+      }
       else { state.pane={mode:'empty'}; }
       if(curWs){ try{ localStorage.setItem('nayan-last-project',curWs); }catch(e){} }
       load(false);
@@ -1085,6 +1359,7 @@ function aiHTML(){
     '<label class="flabel">服务商</label>'+
     '<select id="s-provider" style="display:none"><option value="glm">智谱 GLM</option><option value="deepseek">DeepSeek</option><option value="openai">OpenAI</option><option value="custom">自定义</option></select>'+
     '<div class="seg" id="segProvider">'+
+      '<div class="slider" id="segProvSlider"></div>'+
       '<button type="button" data-v="glm">智谱</button>'+
       '<button type="button" data-v="deepseek">DeepSeek</button>'+
       '<button type="button" data-v="openai">OpenAI</button>'+
@@ -1113,6 +1388,7 @@ function aboutHTML(){
 
 /* ---------- 设置全屏（System Settings 式） ---------- */
 var ssCat='general';
+var ssJustOpened=false;
 function ssSetCat(c){
   try { TAPI.invoke('js_log', { msg: '[设置] 切换分类 → ' + c }); } catch (_) {}
   ssCat=c;
@@ -1120,6 +1396,7 @@ function ssSetCat(c){
 }
 function openSettings(){
   try { TAPI.invoke('js_log', { msg: '[设置] 打开设置页' }); } catch (_) {}
+  ssJustOpened=true;
   gid('settingsScreen').classList.add('open');
   ssRender();
 }
@@ -1131,7 +1408,27 @@ function ssRender(){
   Array.prototype.forEach.call(document.querySelectorAll('#settingsScreen .ss-item'),function(el){
     el.classList.toggle('on', el.getAttribute('data-ss')===ssCat);
   });
+  // ⑭ 分类滑块：打开时先无动画摆到位，之后切换才弹簧滑动
+  var pill=gid('ssPill');
+  var onItem=document.querySelector('#settingsScreen .ss-item.on');
+  if(pill && onItem){
+    if(ssJustOpened){
+      pill.style.transition='none';
+      pill.style.top=onItem.offsetTop+'px';
+      pill.style.height=onItem.offsetHeight+'px';
+      void pill.offsetWidth;
+      pill.style.transition='';
+      pill.style.opacity='1';
+      ssJustOpened=false;
+    } else {
+      pill.style.opacity='1';
+      pill.style.top=onItem.offsetTop+'px';
+      pill.style.height=onItem.offsetHeight+'px';
+    }
+  }
+  // ⑭ 分类内容交叉淡化
   var c=gid('ssContent');
+  c.classList.remove('swapin'); void c.offsetWidth; c.classList.add('swapin');
   if(ssCat==='general'){ c.innerHTML=generalHTML(); bindGeneral(); }
   else if(ssCat==='capture'){ c.innerHTML=captureHTML(); bindCapture(); }
   else if(ssCat==='ai'){ c.innerHTML=aiHTML(); bindAI(); }
@@ -1147,9 +1444,17 @@ function fillVersion(){
 
 function syncSeg(){
   var v=gid('s-provider').value;
+  var onBtn=null;
   Array.prototype.forEach.call(document.querySelectorAll('#segProvider button'),function(b){
-    b.classList.toggle('on', b.getAttribute('data-v')===v);
+    var on=b.getAttribute('data-v')===v;
+    b.classList.toggle('on', on);
+    if(on) onBtn=b;
   });
+  if(onBtn){
+    var sl=gid('segProvSlider');
+    // 首次摆放（还没定位过）不做动画；之后跟随切换弹簧滑动
+    moveSeg('segProvSlider', null, onBtn, !(sl && sl.style.left));
+  }
 }
 /* ---------- 设置分类绑定（按当前分类只绑自己的元素） ---------- */
 function bindSettings(){
@@ -1238,6 +1543,7 @@ function bindAI(){
   Array.prototype.forEach.call(document.querySelectorAll('#segProvider button'),function(b){
     b.onclick=function(){
       gid('s-provider').value=b.getAttribute('data-v');
+      moveSeg('segProvSlider', null, b, false);
       onProviderChange(); syncSeg();
     };
   });
@@ -1251,7 +1557,7 @@ function loadSettings(){
     gid('s-model').value=s.model||'';
     gid('s-key').value='';
     gid('s-key').placeholder=s.has_key?'已保存 ✓（留空 = 不修改）':'OpenAI 兼容接口的 Key';
-    gid('s-clip').checked=(s.clipboard_watch!==false);
+    if(gid('s-clip')) gid('s-clip').checked=(s.clipboard_watch!==false);
     if(gid('hk-1')) gid('hk-1').textContent=fmtHotkey(s.hotkey);
     if(gid('hk-2')) gid('hk-2').textContent=fmtHotkey(s.hotkey_box);
     if(gid('s-clip-scope')) gid('s-clip-scope').value=(s.clip_scope==='all')?'all':'watchlist';
@@ -1313,29 +1619,62 @@ function testSettings(){
 function renderDetail(){
   var box=gid('detail');
   var p=state.pane;
-  if(p.mode==='add'){ box.innerHTML=addPaneHTML(); bindAdd(); return; }
+  // ⑪ 只有换卡片/换面板时才播入场动画；勾步骤等局部刷新不打扰
+  var paneKey=state.sel+':'+p.mode;
+  var paneNew=paneKey!==state.paneKey;
+  state.paneKey=paneKey;
+  if(p.mode==='add'){
+    box.innerHTML=addPaneHTML();
+    var fp=box.querySelector('.fpanel');
+    if(fp && paneNew) fp.classList.add('panein');
+    bindAdd(); return;
+  }
   var it=findItem(state.sel);
   if(!it){
-    box.innerHTML='<div class="empty">'+
+    box.innerHTML='<div class="dwrap'+(paneNew?' panein':'')+'"><div class="empty">'+
       '<div class="big"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M7 9h10M7 13h6"/></svg></div>'+
       '<h2>选中一条看详情</h2>'+
       '<div class="hint">左边列表点一条 → 这里看<b>完整原文、步骤和执行结果</b><br>AI 给的一串命令 / 建议，被聊天顶走也不怕，都收在这里</div>'+
-      '</div>';
+      '</div></div>';
     return;
   }
   box.innerHTML=entryHTML(it);
+  if(paneNew){
+    var dw=box.querySelector('.dwrap');
+    if(dw) dw.classList.add('panein');
+  }
   bindEntry(it);
+  // ⑨ 进度条从上次的量弹簧充能到新的量（勾步骤时才有）
+  var bar=gid('sprogBar');
+  if(bar){
+    var steps=it.steps||[];
+    var doneN=steps.filter(function(s){ return s.done; }).length;
+    var pct=steps.length?Math.round(doneN*100/steps.length):0;
+    var prev=state.lastPct[it.id];
+    if(state.fx.stepFx && prev!=null && prev!==pct){
+      bar.style.width=prev+'%'; void bar.offsetWidth; bar.style.width=pct+'%';
+    }
+    state.lastPct[it.id]=pct;
+  }
+  // ⑨ 计数翻滚（rollMem 记着旧值，重绘后也能从旧值滚到新值）
+  var st2=it.steps||[];
+  if(st2.length){
+    var dn2=st2.filter(function(s){ return s.done; }).length;
+    rollTo('sprogTxt', dn2+'/'+st2.length+' 步');
+    rollTo('stepCnt', dn2+'/'+st2.length);
+  }
+  state.fx.stepFx=0; state.fx.stepsIn=false;
 }
 
 /* ---------- 侧栏 / 顶栏交互 ---------- */
 Array.prototype.forEach.call(document.querySelectorAll('.nav-item[data-view]'),function(el){
-  el.onclick=function(){ state.view={ t:el.getAttribute('data-view') }; renderAll(); };
+  el.onclick=function(){ state.view={ t:el.getAttribute('data-view') }; renderAll(true); };
 });
 Array.prototype.forEach.call(document.querySelectorAll('.nav-item[data-kind]'),function(el){
   el.onclick=function(){
     var k=el.getAttribute('data-kind');
     state.view = (state.view.t==='kind'&&state.view.kind===k) ? { t:'all' } : { t:'kind', kind:k };
-    renderAll();
+    renderAll(true);
   };
 });
 gid('moreBtn').onclick=function(){ state.pane={mode:'add'}; renderDetail();
@@ -1362,11 +1701,17 @@ gid('quickInput').addEventListener('keydown',function(ev){
   var t=gid('quickInput').value.trim();
   if(!t) return;
   gid('quickInput').value='';
+  // ⑯ 输入框果冻脉冲一下再收
+  var qa=gid('quickAdd');
+  qa.classList.remove('squish'); void qa.offsetWidth; qa.classList.add('squish');
   var ws='';
   var kind=(state.view.t==='kind'&&state.view.kind==='idle')?'idle':'suggestion';
   api('POST','/api/suggestions',{ title:t, kind:kind, workspace:ws })
     .then(function(created){
-      if(created&&created.id&&!state.sel){ state.sel=created.id; if(state.pane.mode==='empty') state.pane={mode:'entry'}; }
+      if(created&&created.id){
+        state.fx.flyIn=[created.id];
+        if(!state.sel){ state.sel=created.id; if(state.pane.mode==='empty') state.pane={mode:'entry'}; }
+      }
       load(false);
     })
     .catch(function(err){ toast(err.message); });
@@ -1374,7 +1719,7 @@ gid('quickInput').addEventListener('keydown',function(ev){
 var qTimer=null;
 gid('q').addEventListener('input',function(){
   clearTimeout(qTimer);
-  qTimer=setTimeout(function(){ state.q=gid('q').value.trim(); renderList(); renderNav(); },200);
+  qTimer=setTimeout(function(){ state.q=gid('q').value.trim(); renderList(true); renderNav(); },200);
 });
 
 /* 主题 */
@@ -1385,10 +1730,27 @@ function applyTheme(t){
 var theme='light';
 try{ theme=localStorage.getItem('inbox-theme') || new URLSearchParams(location.search).get('theme') || 'light'; }catch(e){}
 applyTheme(theme);
-gid('themeBtn').onclick=function(){
+gid('themeBtn').onclick=function(ev){
   var next=document.body.classList.contains('dark') ? 'light' : 'dark';
-  applyTheme(next);
-  try{ localStorage.setItem('inbox-theme',next); }catch(e){}
+  function justApply(){ applyTheme(next); try{ localStorage.setItem('inbox-theme',next); }catch(e){} }
+  // ⑬ 从按钮位置圆形揭示换肤；Web Animations 不可用则直接切换
+  try{
+    var r=ev.currentTarget.getBoundingClientRect();
+    var x=Math.round(r.left+r.width/2), y=Math.round(r.top+r.height/2);
+    var veil=gid('veil');
+    var R=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y))+40;
+    veil.style.background= next==='dark' ? '#0c0c0e' : '#f5f5f7';
+    veil.getAnimations().forEach(function(a){ a.cancel(); });
+    veil.style.opacity='1';
+    var a=veil.animate(
+      [{clipPath:'circle(0px at '+x+'px '+y+'px)'},{clipPath:'circle('+R+'px at '+x+'px '+y+'px)'}],
+      {duration:450,easing:'cubic-bezier(.3,0,.2,1)'});
+    a.onfinish=function(){
+      justApply();
+      var f=veil.animate([{opacity:1},{opacity:0}],{duration:220});
+      f.onfinish=function(){ veil.style.opacity='0'; };
+    };
+  }catch(e){ justApply(); }
 };
 
 var aiBusy=false;
@@ -1397,6 +1759,6 @@ setInterval(function(){
   if(aiBusy || document.visibilityState!=='visible') return;
   load(true);
 }, 4000);
-load();
+load(false, true);
 </script>
 
