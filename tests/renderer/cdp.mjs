@@ -21,6 +21,8 @@ export async function startChrome(extraArgs = [], { logFile } = {}) {
     ...(process.env.NAYAN_TEST_BROWSER_HEADFUL === '1' ? [] : ['--headless=new']),
     `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860',
+    // 不让 Chrome 把页面当成后台/被遮挡而停发 requestAnimationFrame（CI 上 dom、reader-async 等帧时卡住）
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
     'about:blank', ...extraArgs,
   ], { stdio: ['ignore', 'ignore', logFile ? fs.openSync(logFile, 'a') : 'ignore'] });
   // 等 DevTools 端口就绪
