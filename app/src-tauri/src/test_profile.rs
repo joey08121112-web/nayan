@@ -610,6 +610,8 @@ fn route<F>(
             "/rich-text.js" => Some(("rich-text.js", "application/javascript; charset=utf-8")),
             "/title-rule.js" => Some(("title-rule.js", "application/javascript; charset=utf-8")),
             "/plan-rule.js" => Some(("plan-rule.js", "application/javascript; charset=utf-8")),
+            "/onboarding.js" => Some(("onboarding.js", "application/javascript; charset=utf-8")),
+            "/onboarding.css" => Some(("onboarding.css", "text/css; charset=utf-8")),
             _ => None,
         };
         if let Some((name, ctype)) = file {

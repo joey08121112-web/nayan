@@ -37,7 +37,7 @@
 
 ### 下载预览版
 
-到 [Releases](https://github.com/joey08121112-web/nayan/releases) 下载 `NaYan-0.2.0.dmg`，打开后把纳言拖进「应用程序」。需要 macOS 13 或更新、Apple 芯片的 Mac。
+到 [Releases](https://github.com/joey08121112-web/nayan/releases) 下载 `NaYan-0.3.0.dmg`，打开后把纳言拖进「应用程序」。需要 macOS 13 或更新、Apple 芯片的 Mac。
 
 预览版**还没有经过苹果公证**，第一次打开会被系统拦下：
 1. 双击纳言，出现提示后点「完成」。
@@ -53,7 +53,7 @@ xattr -dr com.apple.quarantine /Applications/NaYan.app
 
 ### 从源码构建
 
-需要：macOS 13+（Apple Silicon 或 Intel）、Xcode Command Line Tools、Rust（rustup）、Node.js 20+。
+需要：macOS 13+（Apple 芯片；Intel 未测试）、Xcode Command Line Tools、Rust（rustup）、Node.js 20+。
 
 ```bash
 git clone https://github.com/joey08121112-web/nayan
@@ -90,6 +90,8 @@ AI 是**可选增强**，默认关闭。设置里分三档：
 3. **纳言订阅**：官方托管，尚未推出。
 
 开启后每个用 AI 的地方（拆步 / 对比 / 计划 / 起标题）还有单独开关；发送前会明确提示。
+
+完整的隐私说明（数据放在哪里、什么时候联网、哪些端口只在本机）见 [PRIVACY.md](PRIVACY.md)。
 
 ## MCP 接入
 

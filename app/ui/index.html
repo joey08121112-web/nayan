@@ -512,7 +512,7 @@ body.dark .fpanel .inner{ background:rgba(23,23,27,.72); }
   color:#fff; padding:8px 18px; border-radius:99px; display:none; z-index:600;
   box-shadow:0 8px 28px rgba(0,0,0,.25), 0 0 0 .5px rgba(255,255,255,.12) inset; font-size:13px; }
 body.dark .err{ background:rgba(245,245,247,.78); color:#1d1d1f; }
-.err .undo{ height:auto; margin-left:12px; padding:0; border:0; background:transparent; color:inherit; font:inherit; font-weight:600; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.err .undo{ height:auto; margin-left:12px; padding:0; border:0; background:transparent; color:inherit; font:inherit; font-weight:600; text-decoration:underline; text-underline-offset:3px; cursor:pointer; flex-shrink:0; white-space:nowrap; }
 .err .undo:disabled{ opacity:.5; }
 
 select{ -webkit-appearance:none; appearance:none;
@@ -1336,6 +1336,8 @@ body.focus-read #focusExit{ top:12px; right:auto; left:50%; transform:translateX
 <div id="err" class="err"></div>
 <div id="veil" aria-hidden="true"></div>
 
+<link rel="stylesheet" href="onboarding.css">
+<div id="onboarding" role="dialog" aria-modal="true" aria-labelledby="obTitle" hidden></div>
 <div id="settingsScreen">
   <button class="ss-back" id="ssBack">‹ 返回</button>
   <div class="ss-side">
@@ -1377,11 +1379,11 @@ var reduceMq=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduc
 function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
 function escQ(s){ return esc(s).replace(/"/g,'&quot;'); }
 /* ⑫ Toast：弹性弹起、走时滑落（旧版是瞬间闪现） */
-function toast(m, undo){
+function toast(m, undo, actionLabel){
   var e=gid('err');
   e.textContent=m;
   if(undo){
-    var b=document.createElement('button'); b.type='button'; b.className='undo'; b.textContent='撤销'; b.id='trashUndo';
+    var b=document.createElement('button'); b.type='button'; b.className='undo'; b.textContent=actionLabel||'撤销'; b.id=actionLabel?'permissionSettings':'trashUndo';
     b.onclick=function(){ b.disabled=true; undo().catch(function(err){ toast(err.message); }); };
     e.appendChild(b);
   }
@@ -1392,6 +1394,11 @@ function toast(m, undo){
     e.classList.remove('show'); e.classList.add('hide');
     setTimeout(function(){ e.classList.remove('hide'); },320);
   },undo?8000:2400);
+}
+function permissionToast(p){
+  var ax=p.kind==='ax';
+  toast(ax?'划词收录需要辅助功能权限。请到系统设置 › 隐私与安全性 › 辅助功能，开启纳言。':'框选收录需要屏幕录制权限。请到系统设置 › 隐私与安全性 › 屏幕录制，开启纳言。',
+    function(){return TAPI.invoke(ax?'open_ax_settings':'open_screen_settings');},'打开系统设置');
 }
 function moveToTrash(it){
   return api('DELETE','/api/suggestions/'+it.id).then(function(){
@@ -2660,6 +2667,7 @@ function generalHTML(){
         '<div class="seg" id="segTheme"><div class="slider" id="segThemeSlider"></div>'+
         '<button type="button" data-th="system">跟随系统</button><button type="button" data-th="light">浅色</button><button type="button" data-th="dark">深色</button></div></div>'+
       '<div class="ss-row"><div class="grow"><b>开机自启</b><div class="hint">登录后菜单栏常驻</div></div><label class="sw"><input type="checkbox" id="s-autostart"><span class="sl"></span></label></div>'+
+      '<div class="ss-row"><div class="grow"><b>首次使用引导</b><div class="hint">再看看收录方式，或试收一条。</div></div><button type="button" class="tb" id="reopenOnboarding">重新看一遍引导</button></div>'+
     '</div>'+
     '<h3 class="ss-cat-title" style="font-size:13px;color:var(--sub)">权限状态</h3>'+
     '<div class="ss-group"><div id="permRows" style="padding:6px 0"><span class="hint">检查中…</span></div></div>';
@@ -2737,6 +2745,7 @@ function aboutHTML(){
 var ssCat='general';
 var ssJustOpened=false;
 function ssSetCat(c){
+  cancelHotkeyRecording();
   try { TAPI.invoke('js_log', { msg: '[设置] 切换分类 → ' + c }); } catch (_) {}
   ssCat=c;
   ssRender();
@@ -2748,6 +2757,7 @@ function openSettings(){
   ssRender();
 }
 function closeSettings(){
+  cancelHotkeyRecording();
   var ss=gid('settingsScreen');
   if(!ss.classList.contains('open') || ss.classList.contains('closing')) return;
   if(reduceMq.matches){ ss.classList.remove('open'); return; }
@@ -2815,6 +2825,7 @@ function bindSettings(){
   bindGeneral(); bindCapture(); bindAI();
 }
 function bindGeneral(){
+  gid('reopenOnboarding').onclick=function(){openOnboarding();};
   var segT=gid('segTheme');
   if(segT){
     var paintT=function(instant){
@@ -2866,26 +2877,45 @@ function renderClipApps(list){
     };
   });
 }
+var hotkeyRecording=null;
+function cancelHotkeyRecording(){
+  var record=hotkeyRecording; if(!record)return;
+  hotkeyRecording=null; clearTimeout(record.timer);
+  if(TAPI)TAPI.invoke('hotkey_capture_cancel').catch(function(){});
+  [1,2].forEach(function(slot){var b=gid('hk-set-'+slot);if(b)b.disabled=false;});
+}
 function bindCapture(){
   loadSettings();
   Array.prototype.forEach.call([1,2],function(slot){
     var btn=gid('hk-set-'+slot); if(!btn) return;
     var span=gid('hk-'+slot);
     btn.onclick=function(){
-      btn.disabled=true; span.textContent='按下新快捷键…';
-      TAPI.invoke('hotkey_capture_start',{slot:slot}).catch(function(){});
+      if(!TAPI){toast('更改快捷键需要桌面版');return;}
+      cancelHotkeyRecording();
+      var record={timer:null};hotkeyRecording=record;
+      [1,2].forEach(function(s){var b=gid('hk-set-'+s);if(b)b.disabled=true;});
+      span.textContent='按下新快捷键…';
       var tries=0;
+      var finish=function(cancel){
+        if(hotkeyRecording!==record)return;
+        if(cancel)cancelHotkeyRecording();else{hotkeyRecording=null;[1,2].forEach(function(s){var b=gid('hk-set-'+s);if(b)b.disabled=false;});}
+        loadSettings();
+      };
       var poll=function(){
+        if(hotkeyRecording!==record)return;
         tries++;
         TAPI.invoke('hotkey_take',{slot:slot}).then(function(r){
-          if(r.state==='waiting'){ if(tries<24){ setTimeout(poll,250); return; } }
+          if(hotkeyRecording!==record)return;
+          if(r.state==='waiting'){ if(tries<24){ record.timer=setTimeout(poll,250); return; } finish(true);toast('已取消');return; }
           if(r.state==='ok'){ toast('✓ 快捷键已改为 '+fmtHotkey(r.combo)); }
           else if(r.state==='error'){ toast('✗ '+r.error); }
           else if(r.state==='cancelled'){ toast('已取消'); }
-          btn.disabled=false; loadSettings();
-        }).catch(function(){ btn.disabled=false; loadSettings(); });
+          finish(false);
+        }).catch(function(){finish(true);});
       };
-      setTimeout(poll,300);
+      TAPI.invoke('hotkey_capture_start',{slot:slot}).then(function(){
+        if(hotkeyRecording===record)record.timer=setTimeout(poll,300);
+      }).catch(function(e){if(hotkeyRecording===record){finish(true);toast(e.message||String(e));}});
     };
   });
   gid('s-clip-scope').onchange=function(){
@@ -4446,6 +4476,7 @@ gid('ssBack').onclick=function(){ closeSettings(); };
   window.addEventListener('focus', function(){ document.body.classList.remove('win-inactive'); });
 })();
 if (window.__TAURI__ && window.__TAURI__.event) {
+  window.__TAURI__.event.listen('capture-permission-needed', function(e){permissionToast(e.payload);});
   window.__TAURI__.event.listen('open-settings', function () { openSettings(); });
   /* 从访达拖文件进详情页附件区（Tauri 拦截原生拖放后经此事件给路径；坐标是物理像素） */
   window.__TAURI__.event.listen('tauri://drag-drop', function (e) {
@@ -4680,3 +4711,5 @@ load(false, true);
 api('GET','/api/settings').then(function(s){ paintHotkeyHints(s); setAiState(s); }).catch(function(){});   // 启动时把钉板底部键位换成真实设置
 loadAliases();
 </script>
+
+<script src="onboarding.js"></script>

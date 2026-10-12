@@ -209,6 +209,39 @@ try {
     perf.c100.codepoints === 100 * 1024 && perf.c1m.codepoints === 1024 * 1024 && perf.c100.setMs >= 0 && perf.c1m.setMs >= 0,
     JSON.stringify({ c100: perf.c100, c1m: perf.c1m }).slice(0, 200));
 
+  // 引导的真实 DOM 边界：示例外的选区不允许误收；Esc 跳过；现有界面令牌。
+  await cdp.go(base+'/index.html');
+  await cdp.eval("api=()=>Promise.resolve({});openOnboarding()");
+  check('D6-onboarding','第一步文案与三步计数',await cdp.eval("gid('obTitle').textContent==='值得的话，先收进来。' && gid('onboarding').textContent.includes('1 / 3')"));
+  await cdp.eval('renderOnboarding(3)');
+  check('D6-onboarding','未选择示例时按钮禁用',await cdp.eval("gid('obSave').disabled"));
+  await cdp.eval("(()=>{const r=document.createRange();r.selectNodeContents(gid('obTitle'));const s=getSelection();s.removeAllRanges();s.addRange(r);})()");
+  await new Promise(r=>setTimeout(r,80));
+  check('D6-onboarding','示例区外的选区不能保存',await cdp.eval("gid('obSave').disabled && onboarding.chosen===''") );
+  await cdp.eval("(()=>{const r=document.createRange();r.selectNodeContents(gid('obSample'));const s=getSelection();s.removeAllRanges();s.addRange(r);})()");
+  await new Promise(r=>setTimeout(r,80));
+  check('D6-onboarding','示例选区原话完整',await cdp.eval("onboarding.chosen===onboardingSample && !gid('obSave').disabled"));
+  check('D6-onboarding','三步卡片未超出窗口',await cdp.eval("(()=>{const r=document.querySelector('.ob-sheet').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth;})()"));
+  await cdp.eval("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");
+  check('D6-onboarding','Esc 关闭引导并停掉检测',await cdp.eval("gid('onboarding').hidden && onboarding.step===0 && onboarding.timer===null"));
+  for (const [kind,label,command] of [['ax','辅助功能','open_ax_settings'],['screen','屏幕录制','open_screen_settings']]) {
+    await cdp.eval(`window.__permCalls=[];TAPI={invoke:function(c){window.__permCalls.push(c);return Promise.resolve();}};permissionToast({kind:${JSON.stringify(kind)}})`);
+    check('D7-permission',label+' 提示说清权限与设置位置',await cdp.eval(`gid('err').textContent.includes(${JSON.stringify(label)}) && gid('err').textContent.includes('隐私与安全性') && !!gid('permissionSettings')`));
+    await cdp.eval("gid('permissionSettings').click()");
+    check('D7-permission',label+' 按钮只调用对应系统设置',await cdp.eval(`JSON.stringify(window.__permCalls)===${JSON.stringify(JSON.stringify([command]))}`));
+  }
+  await cdp.eval('TAPI=null');
+  const hotkeyMock="window.__hotkeyCalls=[];TAPI={invoke:function(c){window.__hotkeyCalls.push(c);return Promise.resolve(c==='hotkey_take'?{state:'waiting'}:c==='perm_status'?{ax:false,screen:false}:false);}};";
+  await cdp.eval(hotkeyMock+"openSettings();ssSetCat('capture');gid('hk-set-1').click();closeSettings()");
+  await new Promise(r=>setTimeout(r,400));
+  check('D8-hotkey','关闭设置立即取消，迟到启动回复不再轮询',await cdp.eval("hotkeyRecording===null && __hotkeyCalls.includes('hotkey_capture_cancel') && !__hotkeyCalls.includes('hotkey_take')"));
+  await cdp.eval(hotkeyMock+"openSettings();ssSetCat('capture');gid('hk-set-2').click();ssSetCat('general')");
+  await new Promise(r=>setTimeout(r,400));
+  check('D8-hotkey','离开捕获分类也释放录制状态',await cdp.eval("hotkeyRecording===null && __hotkeyCalls.includes('hotkey_capture_cancel') && !__hotkeyCalls.includes('hotkey_take')"));
+  await cdp.eval(hotkeyMock+"window.__realTimer=window.setTimeout;window.setTimeout=function(f,ms){return __realTimer(f,(ms===250||ms===300)?0:ms);};ssSetCat('capture');gid('hk-set-1').click()");
+  await new Promise(r=>setTimeout(r,350));
+  check('D8-hotkey','24 次等待后明确取消 Rust 录制并恢复按钮',await cdp.eval("hotkeyRecording===null && __hotkeyCalls.filter(c=>c==='hotkey_take').length===24 && __hotkeyCalls.includes('hotkey_capture_cancel') && !gid('hk-set-1').disabled && !gid('hk-set-2').disabled"));
+  await cdp.eval('window.setTimeout=__realTimer;TAPI=null');
   cleanup();
 } catch (e) {
   cleanup();

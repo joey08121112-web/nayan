@@ -5,6 +5,8 @@
 
 use std::os::raw::c_void;
 use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
 
 const K_CG_EVENT_TAP_HID: u32 = 0;
@@ -28,9 +30,11 @@ pub struct Binding {
 }
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
+static TAP_READY: AtomicBool = AtomicBool::new(false);
 static BINDINGS: Mutex<Vec<Binding>> = Mutex::new(Vec::new());
-static CAPTURE_SLOT: Mutex<Option<u32>> = Mutex::new(None);
-static CAPTURED: Mutex<Option<String>> = Mutex::new(None);
+struct CaptureState { slot: Option<u32>, deadline: Option<Instant>, captured: Option<String> }
+static CAPTURE_SLOT: Mutex<CaptureState> = Mutex::new(CaptureState { slot: None, deadline: None, captured: None });
+const CAPTURE_TIMEOUT: Duration = Duration::from_secs(8);
 
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
@@ -154,9 +158,12 @@ pub fn install(app: AppHandle, hotkeys: Vec<(String, u32)>) -> Result<(), String
         }
         CFRunLoopAddSource(CFRunLoopGetMain(), src, kCFRunLoopCommonModes);
         CGEventTapEnable(port, true);
+        TAP_READY.store(true, Ordering::Relaxed);
     }
     Ok(())
 }
+
+pub fn tap_ready() -> bool { TAP_READY.load(Ordering::Relaxed) }
 
 /// 换绑定（设置页/配置变更时调用）：改匹配表即生效
 pub fn set_binding(keycode: u32, mask: u64, action: u32) {
@@ -176,13 +183,47 @@ pub fn conflict_with(keycode: u32, mask: u64, except_action: u32) -> Option<u32>
 
 // ---------- 录制模式（设置页「更改」） ----------
 pub fn start_capture_mode(slot: u32) {
-    *CAPTURE_SLOT.lock().unwrap() = Some(slot);
-    *CAPTURED.lock().unwrap() = None;
+    start_capture_for(slot, CAPTURE_TIMEOUT);
+}
+
+fn start_capture_for(slot: u32, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    *CAPTURE_SLOT.lock().unwrap() = CaptureState { slot: Some(slot), deadline: Some(deadline), captured: None };
+    std::thread::spawn(move || {
+        std::thread::sleep(timeout);
+        let mut state = CAPTURE_SLOT.lock().unwrap();
+        // 旧定时器不能取消后来开始的录制。
+        if state.deadline == Some(deadline) { expire_capture(&mut state); }
+    });
+}
+
+fn expire_capture(state: &mut CaptureState) {
+    if state.slot.is_some() && state.deadline.is_some_and(|d| Instant::now() >= d) {
+        state.slot = None; state.deadline = None; state.captured = Some("__cancel__".into());
+    }
+}
+
+pub fn cancel_capture_mode() {
+    let mut state = CAPTURE_SLOT.lock().unwrap();
+    state.slot = None; state.deadline = None; state.captured = Some("__cancel__".into());
 }
 
 /// None = 还没录到；Some("__cancel__")=Esc；Some("__none__")=没带修饰键；Some(combo)=成功
 pub fn take_captured() -> Option<String> {
-    CAPTURED.lock().unwrap().clone()
+    let mut state = CAPTURE_SLOT.lock().unwrap();
+    expire_capture(&mut state);
+    state.captured.clone()
+}
+
+fn capture_key(kc: u32, flags: u64) -> bool {
+    let mut state = CAPTURE_SLOT.lock().unwrap();
+    expire_capture(&mut state);
+    if state.slot.is_none() { return false; }
+    if kc == 53 || !is_modifier_kc(kc) {
+        state.slot = None; state.deadline = None;
+        state.captured = Some(if kc == 53 { "__cancel__".into() } else { combo_string(kc, flags).unwrap_or_else(|| "__none__".into()) });
+    }
+    true
 }
 
 unsafe extern "C" fn tap_callback(
@@ -214,17 +255,7 @@ unsafe extern "C" fn tap_callback(
     }
 
     // 录制模式优先：正在改绑定时，按键被记录并拦截
-    let capturing = CAPTURE_SLOT.lock().map(|s| s.is_some()).unwrap_or(false);
-    if capturing {
-        if kc == 53 {
-            // Esc 取消
-            *CAPTURE_SLOT.lock().unwrap() = None;
-            *CAPTURED.lock().unwrap() = Some("__cancel__".into());
-        } else if !is_modifier_kc(kc) {
-            let combo = combo_string(kc, flags).unwrap_or_else(|| "__none__".into());
-            *CAPTURE_SLOT.lock().unwrap() = None;
-            *CAPTURED.lock().unwrap() = Some(combo);
-        }
+    if capture_key(kc, flags) {
         return std::ptr::null_mut(); // 录制期间一律拦截
     }
 
@@ -255,4 +286,24 @@ unsafe extern "C" fn tap_callback(
         }
     }
     event
+}
+
+#[cfg(test)]
+mod capture_tests {
+    use super::*;
+    #[test]
+    fn idle_recording_expires_without_a_key_and_next_key_is_not_consumed() {
+        start_capture_for(1, Duration::from_millis(20));
+        let limit = Instant::now() + Duration::from_secs(1);
+        // 不调用 take_captured / capture_key，直接确认后台超时清除状态。
+        while CAPTURE_SLOT.lock().unwrap().slot.is_some() && Instant::now() < limit {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(CAPTURE_SLOT.lock().unwrap().slot.is_none());
+        assert_eq!(take_captured().as_deref(), Some("__cancel__"));
+        assert!(!capture_key(0, 0), "过期后普通字符不能被录制拦截");
+        start_capture_mode(2); cancel_capture_mode();
+        assert!(!capture_key(1, F_ALT), "关闭设置后的按键不能被录制拦截");
+        assert_eq!(take_captured().as_deref(), Some("__cancel__"));
+    }
 }

@@ -1,0 +1,85 @@
+name: 问题反馈
+description: 纳言用起来不对劲的地方
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢反馈。先说清楚环境和复现路径，能大幅加快定位。
+        日志里有隐私内容的话，贴之前先摘掉你不想公开的部分。
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS 版本
+      placeholder: 例：15.2（Apple 菜单 → 关于本机）
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: 芯片
+      options:
+        - Apple 芯片（M 系列）
+        - Intel
+        - 不确定
+    validations:
+      required: true
+  - type: input
+    id: nayan-version
+    attributes:
+      label: 纳言版本
+      description: 菜单栏图标 → 关于
+      placeholder: 例：0.2.0
+    validations:
+      required: true
+  - type: checkboxes
+    id: capture-method
+    attributes:
+      label: 出问题时用的是哪种收录方式？（可多选）
+      options:
+        - label: 划词快记（⌥⇧S）
+        - label: 框选识别（⌥⇧X）
+        - label: 剪贴板监听
+        - label: 浏览器扩展
+        - label: MCP
+        - label: 快捷指令
+        - label: 手动输入（记一条）
+        - label: 不涉及收录
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: 两项系统权限给了吗？
+      description: 系统设置 › 隐私与安全性
+      options:
+        - label: 辅助功能已授予
+        - label: 屏幕录制已授予
+        - label: 没给 / 没查
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 一步步写清楚做了什么、看到了什么。
+      placeholder: |
+        1. 在 Chrome 里选中一段文字
+        2. 按 ⌥⇧S
+        3. ……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期发生什么
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际发生什么
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志（可选）
+      description: ~/Library/Application Support/com.nayan.app/nayan.log 里相关的几行；先摘掉不想公开的内容。
+      render: text

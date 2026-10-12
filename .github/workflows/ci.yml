@@ -1,0 +1,25 @@
+# 持续集成：跑不需要图形界面和真实 Chrome 的套件。
+# 两个不放进来的类别（本地 node scripts/test-all.mjs 仍然覆盖）：
+#   - source-map：读取私有仓库的证据文件，开源仓库里没有；
+#   - native-ui / real-app* / capture-walkthrough / delivery-bridge /
+#     extension-real-path：需要真实 App 窗口或真实 Chrome。
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Rust 测试
+        working-directory: app/src-tauri
+        run: cargo test --locked
+      - name: Node 套件（无图形界面）
+        # 套件名写在一行：YAML 折叠换行会变成空格，--only 只会收到第一段
+        run: node scripts/test-all.mjs --only dom,helpers,rich,rich-dom,reader-async,title-rule,plan-rule,envelope-goldens,box-overlay,trash-external,external-writers,schema-gate-consistency,mcp-ingestion,sync-ingestion

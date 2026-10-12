@@ -4,7 +4,7 @@
 
 ## 环境准备
 
-- macOS 13+，Apple Silicon 或 Intel
+- macOS 13+，Apple 芯片（Intel 未测试）
 - Xcode Command Line Tools（`xcode-select --install`）
 - Rust（rustup）
 - Node.js 20+
@@ -30,10 +30,12 @@ node tests/renderer/dom.test.mjs
 
 ## 提 PR 前要过的关
 
-1. `node scripts/test-all.mjs` 全绿，数字不比基线差；
+1. `node scripts/test-all.mjs` 全绿，数字不比基线差（基线规则见上文「跑测试」）；
 2. 如果你改了 `app/ui/index.html` 引入新的 js 文件：把它加进 `app/src-tauri/src/test_profile.rs` 的静态文件白名单，否则 real-app 系列测试里页面会直接报错；
 3. 如果你改了数据库 schema（`app/src-tauri/src/migrations.rs`）：`schema-gate.mjs` 必须同口径更新，`tests/migrations/`（含 `schema-gate-consistency`、`external-writers`）必须全过；
 4. `git status` 干净——测试不应往仓库写任何东西（输出目录默认都在系统临时目录）。
+
+PR 会触发 CI（GitHub Actions，macos-14）：`cargo test --locked` 加无需图形界面的测试套件。CI 只覆盖一部分，本地全量仍然以 `node scripts/test-all.mjs` 为准。
 
 ## 约定
 

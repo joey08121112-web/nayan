@@ -17,6 +17,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { synthEnvelope, REPO, UI_DIR, APP_BIN } from './fixtures.mjs';
 import { startChrome, CDP } from './cdp.mjs';
+import { checkOnboarding } from './onboarding-checks.mjs';
 
 const require = createRequire(import.meta.url);
 const { shortTitle } = require(path.join(REPO, 'app/ui/title-rule.js'));
@@ -53,7 +54,8 @@ async function api(method, p, body) {
 }
 const item = async (id) => (await api('GET', '/api/suggestions')).find((x) => x.id === id) || null;
 
-const chromeProc = await startChrome();
+const chromeProc = await startChrome([], {logFile:path.join(outDir,'chrome.log')});
+chromeProc.child.on('exit', (code, signal) => console.log(`Chrome 测试进程退出：code=${code}, signal=${signal}`));
 let cdp;
 process.on('exit', () => { try { cdp && cdp.close(); } catch (_) {} try { chromeProc.child.kill(); } catch (_) {} try { app.kill(); } catch (_) {} });
 
@@ -89,6 +91,8 @@ try {
   for (let i = 0; i < 150 && !up; i++) { try { up = (await fetch(base + '/api/suggestions')).ok; } catch (_) {} if (!up) await sleep(200); }
   if (!up) throw new Error('App HTTP 未就绪（见 ' + appLog + '）');
   check('R0', '真实 App 启动（隔离档案 ' + path.basename(root) + '）', true);
+  cdp = await CDP.connect(chromeProc.cdpPort);
+  await checkOnboarding({cdp,api,base,check,click,waitFor,sleep});
 
   // ---------- 造数据 ----------
   const lists = await api('GET', '/api/lists');
@@ -108,7 +112,6 @@ try {
   await api('PATCH', '/api/suggestions/' + arch.id, { status: 'done' });
   check('R1', '造 7 条数据', [a, b, c, d, e, pinned, arch].every((x) => x && x.id > 0));
 
-  cdp = await CDP.connect(chromeProc.cdpPort);
   await cdp.send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base }).catch(() => {});
   await cdp.go(base + '/');
   check('R1', '页面加载并取到数据', await waitFor('state.items.length>=7', 8000));

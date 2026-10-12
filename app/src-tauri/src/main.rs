@@ -32,6 +32,7 @@ use tauri::{
 };
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 const STATUSES: [&str; 5] = ["inbox", "todo", "doing", "done", "dropped"];
 const KINDS: [&str; 2] = ["suggestion", "idle"];
@@ -76,6 +77,9 @@ struct Config {
     /// 用户已同意过「这段内容会发给 某服务商」的功能（split / compare / plan / title）
     #[serde(default)]
     ai_consent: Vec<String>,
+    /// 旧配置默认已看过，避免升级时打断；全新安装显式 false。
+    #[serde(default = "d_true")]
+    onboarding_seen: bool,
 }
 /// 每个用到 AI 的地方单独开关；关着就走不靠 AI 的做法（按行拆 / 按段落拆 / 按时间点拆 / 取第一句）
 #[derive(Deserialize, Clone, serde::Serialize)]
@@ -144,6 +148,7 @@ fn load_config(path: &PathBuf) -> Config {
             ai_source: String::new(),
             ai_features: d_ai_features(),
             ai_consent: Vec::new(),
+            onboarding_seen: false,
         });
     // 旧配置（没有 ai_source）：配过 Key 的老用户 = 自己的 Key（拆步/对比/计划默认开、起标题默认关），没配的 = 不用 AI
     if cfg.ai_source.is_empty() {
@@ -1529,6 +1534,21 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
                 .map_err(|e| e.to_string())?;
             Ok(json!({"ok": true}))
         }
+        ("GET", ["api", "onboarding"]) => {
+            let count: i64 = conn.query_row("SELECT COUNT(*) FROM suggestions", [], |r| r.get(0))
+                .map_err(|e| e.to_string())?;
+            let g = state.cfg.lock().map_err(|_| "配置被占用")?;
+            Ok(json!({"show": !g.0.onboarding_seen && count == 0, "seen": g.0.onboarding_seen}))
+        }
+        ("POST", ["api", "onboarding"]) => {
+            let mut g = state.cfg.lock().map_err(|_| "配置被占用")?;
+            let mut cfg = g.0.clone();
+            cfg.onboarding_seen = true;
+            fs::write(&g.1, serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?)
+                .map_err(|e| format!("保存引导状态失败：{}", e))?;
+            g.0 = cfg;
+            Ok(json!({"seen": true}))
+        }
         ("GET", ["api", "settings"]) => {
             let g = state.cfg.lock().map_err(|_| "配置被占用")?;
             Ok(json!({
@@ -2513,13 +2533,52 @@ async fn pick_files(app: AppHandle) -> Result<Vec<String>, String> {
     Ok(rx.recv_timeout(Duration::from_secs(600)).unwrap_or_default())
 }
 
-#[tauri::command]
-fn perm_status() -> Value {
+fn permission_status(state: &AppState) -> Value {
+    if test_profile::test_mode() {
+        // 仅已校验的隔离档案可模拟检测；测试不探测或修改真实系统权限。
+        let cfg_path = state.cfg.lock().unwrap().1.clone();
+        let fixture: Value = fs::read_to_string(cfg_path).ok()
+            .and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(Value::Null);
+        if fixture["__test_permissions"].is_object() || !test_profile::native_box_allowed()
+            || std::env::var(test_profile::ENV_NATIVE_SOURCE).as_deref() == Ok("NaYan R11 Synthetic Fixture") {
+            return json!({"ax": fixture["__test_permissions"]["ax"].as_bool().unwrap_or(false),
+                "screen": fixture["__test_permissions"]["screen"].as_bool().unwrap_or(false)});
+        }
+    }
     json!({ "ax": ax_capture::ax_trusted(), "screen": ocr::screen_recording_ok() })
 }
 
 #[tauri::command]
+fn perm_status(state: State<'_, AppState>) -> Value { permission_status(&state) }
+
+fn missing_capture_permission(action: u32, p: &Value) -> Option<&'static str> {
+    if action == 1 && p["ax"] != true { Some("ax") }
+    else if action == 2 && p["screen"] != true { Some("screen") }
+    else { None }
+}
+
+fn capture_permission_ready(app: &AppHandle, action: u32) -> bool {
+    let p = permission_status(&app.state::<AppState>());
+    let Some(kind) = missing_capture_permission(action, &p) else { return true };
+    log_line(&format!("[捕获权限] action={} 缺少 {}", action, kind));
+    show_main(app);
+    let _ = app.emit_to("main", "capture-permission-needed", json!({"kind":kind}));
+    false
+}
+
+#[tauri::command]
+fn test_capture_attempt(app: AppHandle, action: u32) -> Result<(), String> {
+    if !test_profile::native_box_allowed() { return Err("仅隔离原生测试可模拟快捷键".into()); }
+    if action != 1 && action != 2 { return Err("未知捕获方式".into()); }
+    // 与生产入口共用前置检查；通过时也绝不读取真实来源或打开框选遮罩。
+    let ready = capture_permission_ready(&app, action);
+    log_line(&format!("[测试捕获权限] action={} ready={}", action, ready));
+    Ok(())
+}
+
+#[tauri::command]
 fn open_screen_settings() {
+    if test_profile::test_mode() { log_line("测试模式：打开屏幕录制设置被抑制"); return; }
     let _ = Command::new("open")
         .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
         .spawn();
@@ -2532,9 +2591,20 @@ fn autostart_status(app: AppHandle) -> bool {
 }
 
 #[tauri::command]
-fn hotkey_capture_start(slot: u32) {
+fn hotkey_capture_start(app: AppHandle, state: State<'_, AppState>, slot: u32) -> Result<(), String> {
+    if slot != 1 && slot != 2 { return Err("未知快捷键".into()); }
+    if !test_profile::test_mode() && !carbon_hotkeys::tap_ready() {
+        if !capture_permission_ready(&app, 1) { return Err("开启辅助功能后，再点更改快捷键。".into()); }
+        let cfg=state.cfg.lock().unwrap().0.clone();
+        carbon_hotkeys::install(app.clone(), vec![(cfg.hotkey,1),(cfg.hotkey_box,2)])?;
+        let _=app.global_shortcut().unregister_all();
+    }
     carbon_hotkeys::start_capture_mode(slot);
+    Ok(())
 }
+
+#[tauri::command]
+fn hotkey_capture_cancel() { carbon_hotkeys::cancel_capture_mode(); }
 
 #[tauri::command]
 fn hotkey_take(state: State<'_, AppState>, slot: u32) -> Value {
@@ -2585,6 +2655,7 @@ fn autostart_toggle(app: AppHandle) -> bool {
 
 #[tauri::command]
 fn open_ax_settings() {
+    if test_profile::test_mode() { log_line("测试模式：打开辅助功能设置被抑制"); return; }
     ax_capture::open_ax_settings();
 }
 
@@ -2765,6 +2836,7 @@ fn box_select_ready() -> Value {
 #[tauri::command]
 fn box_select_start(app: AppHandle) {
     if test_profile::test_mode() && !test_profile::native_box_allowed() { log_line("测试模式：框选捕获被拒绝"); return; }
+    if !capture_permission_ready(&app, 2) { return; }
     log_line("框选捕获开始");
     // 幂等：overlay 已开着就忽略
     if app.get_webview_window("boxselect").is_some() {
@@ -3494,6 +3566,7 @@ fn build_source(
 }
 
 fn start_capture(app: AppHandle) {
+    if (!test_profile::test_mode() || test_profile::native_box_allowed()) && !capture_permission_ready(&app, 1) { return; }
     if test_profile::test_mode() { log_line("测试模式：划词捕获被拒绝"); return; }
     log_line("划词捕获开始");
     tauri::async_runtime::spawn(async move {
@@ -3602,6 +3675,12 @@ fn main() {
                 .map(PathBuf::from)
                 .unwrap_or_else(|| app_data.join("inbox.db"));
             let mut conn = open_db(&db_path)?;
+            // 有内容的库也算已有用户；即使随后清空库也不再自动展示引导。
+            let has_items: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM suggestions)", [], |r| r.get(0))?;
+            if has_items && !cfg.onboarding_seen {
+                cfg.onboarding_seen = true;
+                fs::write(&cfg_path, serde_json::to_string_pretty(&cfg)?)?;
+            }
             if let Err(e) = trash::purge_expired(&mut conn, &app_data.join("captures"), "now") {
                 log_line(&format!("[最近删除] 启动自动清理失败：{}", e));
             }
@@ -3629,8 +3708,13 @@ fn main() {
             if let Some(p) = &test_profile {
                 if p.native_capture_source.is_some() {
                     for window_cfg in &native_windows {
+                        let probe = if p.native_capture_source.as_deref() == Some("NaYan R11 Synthetic Fixture") {
+                            // 隔离原生权限走查只监听本窗口按键；不安装全局热键，不捕获真实来源。
+                            "document.addEventListener('keydown',function(e){if(e.altKey&&e.shiftKey&&(e.code==='KeyS'||e.code==='KeyX')){e.preventDefault();window.__TAURI__.core.invoke('test_capture_attempt',{action:e.code==='KeyS'?1:2});}});"
+                        } else { "" };
                         tauri::WebviewWindowBuilder::from_config(app, window_cfg)?
                             .incognito(true)
+                            .initialization_script(probe)
                             .title(format!("NaYan owned {} · {}", p.run_id, window_cfg.label))
                             .build()?;
                     }
@@ -3739,7 +3823,14 @@ fn main() {
                 ],
             ) {
                 log_line(&format!("热键安装失败：{}", e));
-                notify(&app_handle, "纳言热键安装失败", &e);
+                // 辅助功能未开时 HID tap 无法安装；Carbon 注册让用户按键时仍能得到权限提示。
+                for (shortcut, action) in [(&cfg.hotkey, 1u32), (&cfg.hotkey_box, 2u32)] {
+                    if let Err(e) = app_handle.global_shortcut().on_shortcut(shortcut.as_str(), move |app, _, event| {
+                        if event.state == ShortcutState::Pressed {
+                            match action { 1 => start_capture(app.clone()), 2 => box_select_start(app.clone()), _ => {} }
+                        }
+                    }) { log_line(&format!("备用热键注册失败：{}", e)); }
+                }
             }
 
             // 托盘
@@ -3844,16 +3935,6 @@ fn main() {
                 let _ = w.show();
             }
 
-            // 第 0 步：辅助功能授权引导（AX 直读与 ⌘C 模拟都依赖它；未授权时捕获必然失败）
-            // 测试模式跳过：不弹通知、不做任何权限探测
-            if !is_test && !ax_capture::ax_trusted() {
-                notify(
-                    app.app_handle(),
-                    "纳言需要辅助功能权限",
-                    "系统设置 → 隐私与安全性 → 辅助功能 → 勾选纳言，然后重试 ⌥⇧S",
-                );
-            }
-
             // 第 3 步：剪贴板被动通道（2s 轮询 changeCount，检测到新复制弹快速收录 HUD）
             // 测试模式不启动轮询线程，全局开关强制关闭——测试实例不得读用户剪贴板
             if !is_test {
@@ -3878,6 +3959,8 @@ fn main() {
             // 主窗口点关闭 = 隐藏到菜单栏；捕获小窗正常关闭
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main" {
+                    carbon_hotkeys::cancel_capture_mode();
+                    let _ = window.emit("main-close-requested", ());
                     api.prevent_close();
                     let _ = window.hide();
                 }
@@ -3905,6 +3988,7 @@ fn main() {
             clip_edit,
             clip_dismiss,
             perm_status,
+            test_capture_attempt,
             open_screen_settings,
             autostart_status,
             autostart_toggle,
@@ -3912,6 +3996,7 @@ fn main() {
             own_icon,
             match_project,
             hotkey_capture_start,
+            hotkey_capture_cancel,
             hotkey_take,
             js_log,
             jump_to_source,
@@ -3933,6 +4018,35 @@ fn main() {
 // ============================================================================
 // P1-T03 单元测试（真实 handle_api / 真实 open_and_migrate / 临时目录隔离库）
 // ============================================================================
+#[cfg(test)]
+mod onboarding_tests {
+    use super::*;
+    #[test]
+    fn capture_permission_matches_selected_channel() {
+        for (ax, screen, selection, region) in [(false,false,Some("ax"),Some("screen")),(false,true,Some("ax"),None),(true,false,None,Some("screen")),(true,true,None,None)] {
+            let p=json!({"ax":ax,"screen":screen});
+            assert_eq!(missing_capture_permission(1,&p),selection);
+            assert_eq!(missing_capture_permission(2,&p),region);
+        }
+    }
+    #[test]
+    fn onboarding_only_for_fresh_empty_library_and_seen_survives_reload() {
+        let root = std::env::temp_dir().join(format!("nayan-onboarding-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&root).unwrap();
+        let cfg_path = root.join("config.json");
+        let st = AppState { db: Mutex::new(open_db(&root.join("inbox.db")).unwrap()), cfg: Mutex::new((load_config(&cfg_path), cfg_path.clone())) };
+        assert_eq!(handle_api(&st,"GET","/api/onboarding",&Value::Null).unwrap()["show"], true);
+        handle_api(&st,"POST","/api/onboarding",&json!({})).unwrap();
+        assert!(load_config(&cfg_path).onboarding_seen);
+        assert_eq!(handle_api(&st,"GET","/api/onboarding",&Value::Null).unwrap()["show"], false);
+        st.cfg.lock().unwrap().0.onboarding_seen=false;
+        handle_api(&st,"POST","/api/suggestions",&json!({"title":"已有的合成条目"})).unwrap();
+        assert_eq!(handle_api(&st,"GET","/api/onboarding",&Value::Null).unwrap()["show"], false);
+        fs::write(&cfg_path,"{}").unwrap();
+        assert!(load_config(&cfg_path).onboarding_seen, "旧配置即使空库也不打断升级用户");
+    }
+}
+
 #[cfg(test)]
 mod native_icon_tests {
     use super::*;

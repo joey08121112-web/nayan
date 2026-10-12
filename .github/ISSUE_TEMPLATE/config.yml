@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安装与使用说明
+    url: https://github.com/joey08121112-web/nayan#readme
+    about: 第一次打开被拦、权限、数据位置等常见问题先看 README；隐私相关见 PRIVACY.md。

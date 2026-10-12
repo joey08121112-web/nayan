@@ -4,17 +4,25 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+// 选型：NAYAN_TEST_CHROME > Chrome for Testing（puppeteer 缓存，与 extension-real-path 同一份）> 系统 Chrome。
+// 本机系统 Chrome 155 无头模式空闲约 31 秒自行退出（R11 复现，与测试无关），CfT 150 不会。
+export const CHROME = [
+  process.env.NAYAN_TEST_CHROME,
+  path.join(os.homedir(), '.cache/puppeteer/chrome/mac_arm-150.0.7871.24/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'),
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].filter(Boolean).find((p) => fs.existsSync(p)) || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
-export async function startChrome(extraArgs = []) {
+// 本机无头 Chrome 提前退出时，可显式用同一隔离档案的有窗口模式跑相同断言。
+export async function startChrome(extraArgs = [], { logFile } = {}) {
   if (!fs.existsSync(CHROME)) throw new Error('找不到 Google Chrome：' + CHROME);
   const cdpPort = 20000 + Math.floor(Math.random() * 20000);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'nayan-renderer-chrome-'));
   const child = spawn(CHROME, [
-    '--headless=new', `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`,
+    ...(process.env.NAYAN_TEST_BROWSER_HEADFUL === '1' ? [] : ['--headless=new']),
+    `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860',
     'about:blank', ...extraArgs,
-  ], { stdio: ['ignore', 'ignore', 'ignore'] });
+  ], { stdio: ['ignore', 'ignore', logFile ? fs.openSync(logFile, 'a') : 'ignore'] });
   // 等 DevTools 端口就绪
   for (let i = 0; i < 100; i++) {
     try {
@@ -33,10 +41,15 @@ export class CDP {
     this.id = 0;
     this.pending = new Map();
     this.handlers = new Map();
+    this.ws.onclose = () => {
+      for (const { rej, timer } of this.pending.values()) { clearTimeout(timer); rej(new Error('Chrome 调试连接已关闭')); }
+      this.pending.clear();
+    };
     this.ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.id && this.pending.has(msg.id)) {
-        const { res, rej } = this.pending.get(msg.id);
+        const { res, rej, timer } = this.pending.get(msg.id);
+        clearTimeout(timer);
         this.pending.delete(msg.id);
         if (msg.error) rej(new Error(msg.error.message));
         else res(msg.result);
@@ -67,9 +80,11 @@ export class CDP {
   }
   async send(method, params = {}) {
     await this.ready;
+    if (this.ws.readyState !== WebSocket.OPEN) throw new Error('Chrome 调试连接已关闭');
     const id = ++this.id;
     return new Promise((res, rej) => {
-      this.pending.set(id, { res, rej });
+      const timer = setTimeout(() => { this.pending.delete(id); rej(new Error('Chrome 调试请求超时：'+method)); }, 30000);
+      this.pending.set(id, { res, rej, timer });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
   }
