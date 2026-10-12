@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b08",
+  "format": "markdown",
+  "format_provenance": "declared",
+  "acquisition": "mcp",
+  "original": {
+    "kind": "text",
+    "text": "- 一级\n  - 二级\n    - 三级\n- 另一个一级"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "- 一级\n  - 二级\n    - 三级\n- 另一个一级",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "- 一级\n  - 二级\n    - 三级\n- 另一个一级"
+  }
+}

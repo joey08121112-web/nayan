@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-empty",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "manual",
+  "original": {
+    "kind": "text",
+    "text": ""
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": ""
+  }
+}

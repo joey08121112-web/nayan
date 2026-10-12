@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+  <!-- 纳言 · 菜单栏 Template（黑/透明，系统自动适配深浅色）：一页入缝（纸条落进投递口） -->
+  <defs>
+    <mask id="cut"><rect width="44" height="44" fill="#fff"/><rect x="9.6" y="8.6" width="24.8" height="22.4" rx="3" fill="#000"/></mask>
+    <clipPath id="up"><rect width="44" height="31"/></clipPath>
+  </defs>
+  <rect x="5" y="27" width="34" height="8" rx="4" fill="#000" mask="url(#cut)"/>
+  <rect x="5" y="31" width="34" height="4" rx="2" fill="#000"/>
+  <rect x="11" y="10" width="22" height="27" rx="1.8" fill="none" stroke="#000" stroke-width="2.4" clip-path="url(#up)"/>
+  <rect x="14.6" y="14" width="11" height="3.2" rx="1.6" fill="#000"/>
+  <rect x="14.6" y="20.4" width="14.4" height="2.4" rx="1.2" fill="#000" opacity=".5"/>
+</svg>

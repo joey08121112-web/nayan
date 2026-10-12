@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>框选捕获</title>
+<style>
+  /* 全屏框选 overlay：透明窗口 + 暗化 + 十字光标。视觉语言与浏览器扩展框选同源。 */
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;
+    cursor:crosshair;user-select:none;-webkit-user-select:none;touch-action:none;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  #dim{position:fixed;inset:0;background:rgba(4,5,9,.45)}
+  #rect{position:absolute;left:0;top:0;display:none;border:1.5px dashed rgba(140,210,215,.95);border-radius:6px;
+    background:rgba(140,210,215,.07);box-shadow:0 0 26px rgba(140,210,215,.16);pointer-events:none;z-index:3;
+    will-change:transform}
+  #rect.ok{border-color:rgba(240,148,100,.95);background:rgba(240,148,100,.09);
+    box-shadow:0 0 26px rgba(240,148,100,.2)}
+  .blk{position:absolute;border:1px solid rgba(240,148,100,.8);border-radius:4px;
+    background:rgba(240,148,100,.12);pointer-events:none}
+  #blocks{position:absolute;inset:0;pointer-events:none;z-index:2;will-change:transform}
+  #hint{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:5;
+    display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border-radius:999px;
+    background:rgba(40,42,48,.6);backdrop-filter:blur(20px) saturate(120%);-webkit-backdrop-filter:blur(20px) saturate(120%);
+    border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.1);
+    font-size:13px;color:rgba(255,255,255,.88);white-space:nowrap;pointer-events:none;
+    opacity:0;transition:opacity .3s ease,transform .34s cubic-bezier(.05,.7,.1,1);
+    transform:translateX(-50%) translateY(8px) scale(.96)}
+  #hint.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+  #hint .k{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:1px 6px;border-radius:4px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-bottom-width:1.5px;
+    color:rgba(255,255,255,.72)}
+  #hint b{color:#f09464;font-weight:600}
+  #hint .load{color:rgba(255,255,255,.55)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="dim"></div>
+<div id="blocks"></div>
+<div id="rect"></div>
+<div id="hint"><span class="load">正在读取界面文本…</span> <span class="k">Esc</span></div>
+<script>
+/* 框选 overlay：候选块由 Rust 走查后以 overlay 局部坐标推来；
+   矩形映射在本地做（双阈值：垂直覆盖≥50% 且横向≥24px，或面积≥45%），
+   与浏览器扩展 / HS 版同源。 */
+var TAPI = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core : null;
+var cands = [];
+var dragging = false, x0 = 0, y0 = 0, lastMap = 0;
+var rectEl = document.getElementById('rect');
+var blocksEl = document.getElementById('blocks');
+var hintEl = document.getElementById('hint');
+requestAnimationFrame(function(){ hintEl.classList.add('show'); });
+
+function setHint(html){ hintEl.innerHTML = html + ' <span class="k">Esc</span>'; }
+
+/* 候选块入口：Rust 走查完成后直接注入（eval），事件监听仅作兜底。
+   候选块 <8 = 该 App 不向 AX 暴露内容（ZCode 这类 Electron）→ 自动切像素识别模式 */
+window.__setCandidates = function (p) {
+  p = p || {};
+  window.__origin = { x: p.ox || 0, y: p.oy || 0 };
+  if (!Array.isArray(p.blocks)) return;   // 只有原点：走查还没完成，保持「读取中」
+  cands = p.blocks;
+  buildGroups();
+  window.__mode = cands.length >= 8 ? 'ax' : 'ocr';
+  if (!dragging) {
+    setHint(window.__mode === 'ocr'
+      ? '<b>这个 App 不提供文字</b> · 改用截图识别，可能有错字'
+      : '拖拽框选文字');
+  }
+};
+
+/* 段落级扩展（Wispal「整条消息」的对应）：同一父元素下的碎块视为一段，
+   命中其中一块就整段收入。父元素过大（整页容器）时不扩展，避免一框全选。 */
+var groups = {};
+function buildGroups() {
+  groups = {};
+  for (var i = 0; i < cands.length; i++) {
+    var g = cands[i].g;
+    if (!g) continue;
+    var e = groups[g] || (groups[g] = { items: [], top: Infinity, bottom: -Infinity });
+    e.items.push(cands[i]);
+    e.top = Math.min(e.top, cands[i].y);
+    e.bottom = Math.max(e.bottom, cands[i].y + cands[i].h);
+  }
+  for (var k in groups) {
+    if (groups[k].items.length > 12 || groups[k].bottom - groups[k].top > 240) delete groups[k];
+  }
+}
+
+if(TAPI)TAPI.invoke('box_select_ready').then(function(p){if(p)window.__setCandidates(p);}).catch(function(){setHint('选区初始化失败，请按 Esc 重试');});
+
+if (window.__TAURI__ && window.__TAURI__.event) {
+  window.__TAURI__.event.listen('box-candidates', function (e) { window.__setCandidates(e.payload); });
+} else if (!TAPI) {
+  setHint('<span class="load">Tauri 接口未注入，请重启纳言</span>');
+}
+
+function hits(ax, ay, bx, by) {
+  var L = Math.min(ax, bx), R = Math.max(ax, bx);
+  var T = Math.min(ay, by), B = Math.max(ay, by);
+  var out = [];
+  for (var i = 0; i < cands.length; i++) {
+    var c = cands[i];
+    var ix = Math.min(R, c.x + c.w) - Math.max(L, c.x);
+    var iy = Math.min(B, c.y + c.h) - Math.max(T, c.y);
+    if (ix > 0 && iy > 0) {
+      var vCover = iy / Math.max(1, c.h);
+      var aCover = (ix * iy) / Math.max(1, c.w * c.h);
+      if ((vCover >= 0.5 && ix >= 24) || aCover >= 0.45) out.push(c);
+    }
+  }
+  var seen = new Set(out), more = [];
+  for (var j = 0; j < out.length; j++) {
+    var grp = out[j].g && groups[out[j].g];
+    if (!grp) continue;
+    for (var m = 0; m < grp.items.length; m++) {
+      if (!seen.has(grp.items[m])) { seen.add(grp.items[m]); more.push(grp.items[m]); }
+    }
+  }
+  return more.length ? out.concat(more) : out;
+}
+
+/* 矩形框：每次 pointermove 立即跟手（GPU transform，无节流） */
+function updateRectNow(cx, cy) {
+  var x = Math.min(x0, cx), y = Math.min(y0, cy);
+  rectEl.style.display = 'block';
+  rectEl.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+  rectEl.style.width = Math.abs(cx - x0) + 'px';
+  rectEl.style.height = Math.abs(cy - y0) + 'px';
+}
+
+/* 命中块映射 + 提示：50ms 节流（重的是 DOM 重建） */
+function applyMapping(cx, cy) {
+  var hs = hits(x0, y0, cx, cy);
+  rectEl.classList.toggle('ok', hs.length > 0);
+  var shown = hs.length > 200 ? hs.slice(0, 200) : hs;
+  var html = '';
+  for (var i = 0; i < shown.length; i++) {
+    var c = shown[i];
+    html += '<div class="blk" style="left:' + c.x + 'px;top:' + c.y + 'px;width:' + c.w + 'px;height:' + c.h + 'px"></div>';
+  }
+  blocksEl.innerHTML = html;
+  if (window.__mode === 'ocr') { setHint('<b>截图识别</b> · 松手收录'); return; }
+  setHint(hs.length > 0 ? '<b>已框到 ' + hs.length + ' 块</b> · 松手收录' : '拖拽框选文字');
+}
+
+function render(cx, cy, force) {
+  var now = Date.now();
+  updateRectNow(cx, cy);
+  if (!force && now - lastMap < 50) return;
+  lastMap = now;
+  applyMapping(cx, cy);
+}
+
+document.addEventListener('pointerdown', function (e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+  dragging = true; x0 = e.clientX; y0 = e.clientY;
+  render(x0, y0, true);
+});
+document.addEventListener('pointermove', function (e) {
+  if (!dragging) return;
+  e.preventDefault();
+  render(e.clientX, e.clientY, false);
+});
+document.addEventListener('pointerup', function (e) {
+  if (!dragging) return;
+  dragging = false;
+  e.preventDefault();
+  var w = Math.abs(e.clientX - x0), h = Math.abs(e.clientY - y0);
+  if (w < 14 || h < 10) { if (TAPI) TAPI.invoke('box_select_cancel').catch(function(){}); return; }
+  if (!window.__mode) { setHint('<span class="load">文本还在读取，稍等半秒…</span>'); return; }
+  // 界面文字模式：只交命中块（Rust 重组原文，不截图）；截图识别退路：只交选区。
+  var hs = window.__mode === 'ax' ? hits(x0, y0, e.clientX, e.clientY) : [];
+  // 来源窗口可能暴露工具栏文字，选区内却只有图片；按选区而不是整窗决定退路。
+  if (window.__mode === 'ax' && !hs.length) window.__mode = 'ocr';
+  var ox=(window.__origin||{}).x||0, oy=(window.__origin||{}).y||0;
+  var payload={blocks:hs.map(function(c){return {i:c.i,x:c.x+ox,y:c.y+oy,w:c.w,h:c.h,text:c.text};}),
+    rect:{x:Math.min(x0,e.clientX)+ox,y:Math.min(y0,e.clientY)+oy,w:w,h:h}};
+  // WisPal 式 harvest 动画：命中块收拢飞向捕获小窗方向（右下角）
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var animated = false;
+  if (!reduced) {
+    var blkEls = blocksEl.querySelectorAll('.blk');
+    var tx = innerWidth - 70, ty = innerHeight - 60;
+    blkEls.forEach(function (b) {
+      var bx = parseFloat(b.style.left) + 30, by = parseFloat(b.style.top) + 12;
+      b.style.transition = 'transform .34s cubic-bezier(.45,0,.7,.4), opacity .34s ease';
+      b.style.transform = 'translate(' + (tx - bx) + 'px,' + (ty - by) + 'px) scale(.1)';
+      b.style.opacity = '0';
+      animated = true;
+    });
+    if (hs.length || window.__mode === 'ocr') { rectEl.style.transition = 'opacity .3s ease'; rectEl.style.opacity = '0'; }
+  }
+  setHint(window.__mode === 'ocr' ? '<b>正在识别…</b>' : '正在处理…');
+  setTimeout(function () {
+    if (TAPI) TAPI.invoke('box_select_finish', payload).catch(function (err) {
+      setHint('<span style="color:#ff8a8a">处理出错：' + err + '</span>');
+    });
+  }, animated ? 360 : 0);
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && TAPI) TAPI.invoke('box_select_cancel').catch(function(){});
+});
+</script>
+</body>
+</html>

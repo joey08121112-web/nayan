@@ -1,0 +1,3 @@
+引号 "double" 'single' «guillemet» 「中文引号」
+<script>alert("x")</script> & <b>bold</b> &amp; 
+<script src=x>

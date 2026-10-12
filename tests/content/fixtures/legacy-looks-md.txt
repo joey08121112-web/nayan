@@ -1,0 +1,2 @@
+# 像 Markdown 的 legacy quote
+- 但只当 plain/unknown原样保留

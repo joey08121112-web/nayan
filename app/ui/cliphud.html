@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>剪贴板收录</title>
+<style>
+  /* 剪贴板被动收录提示（第四版暖纸样式，与「收进纳言」弹窗同一套）：12 秒无操作自动消失 */
+  :root{--surface:#fffefc;--ink:#1f1e1b;--ink2:#56534d;--ink3:#6b675f;--line:#e6e2da;--line3:#d4cfc4;--quote:#f6f4ef;--hov:#ebe8e1;
+    --serif:'Songti SC','STSong','Noto Serif SC',serif}
+  @media (prefers-color-scheme: dark){:root{--surface:#1d1c19;--ink:#f2efe8;--ink2:#cdc7bb;--ink3:#a39d92;--line:rgba(255,248,235,.11);
+    --line3:rgba(255,248,235,.22);--quote:rgba(255,248,235,.05);--hov:rgba(255,248,235,.07)}}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+  #card{position:fixed;inset:10px;border-radius:20px;padding:14px 16px 12px;
+    background:var(--surface);border:1px solid var(--line);
+    box-shadow:0 24px 60px -20px rgba(40,34,24,.45),0 2px 6px rgba(40,34,24,.08);
+    color:var(--ink);display:flex;flex-direction:column;gap:10px;
+    opacity:0;transform:translateY(10px) scale(.98);
+    transition:opacity .28s ease,transform .32s cubic-bezier(.05,.7,.1,1)}
+  #card.show{opacity:1;transform:none}
+  .head{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink3)}
+  .dot{width:20px;height:20px;border-radius:6px;background:#8d887f;color:#fffefc;font-size:10.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  .src{color:var(--ink3);font-size:12px;margin-left:auto}
+  #prev{flex:1;font-family:var(--serif);font-size:14.5px;line-height:1.7;color:var(--ink);
+    background:var(--quote);border-radius:14px;padding:10px 13px;user-select:text;-webkit-user-select:text;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .row{display:flex;gap:8px;align-items:center}
+  .btn{height:30px;border:1px solid var(--line);background:transparent;color:var(--ink2);
+    border-radius:9px;padding:0 12px;font-size:13px;cursor:pointer;font-family:inherit;
+    transition:border-color .15s ease,transform .18s cubic-bezier(.32,.72,0,1)}
+  .btn:hover{border-color:var(--line3);color:var(--ink)}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{height:32px;background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:500;border-radius:10px}
+  .btn.primary:hover{opacity:.9}
+  .keys{font-size:11.5px;color:var(--ink3);margin-left:auto}
+  .keys b{font-family:"SF Mono",Menlo,monospace;font-weight:400;font-size:10.5px;color:var(--ink2);
+    border:1px solid var(--line3);border-bottom-width:2px;border-radius:5px;padding:0 5px;margin:0 2px}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="card">
+  <div class="head"><span class="dot" aria-hidden="true">剪</span>刚复制了一段，收进纳言？<span class="src">⌘C 复制</span></div>
+  <div id="prev"></div>
+  <div class="row">
+    <button class="btn primary" id="saveBtn">⏎ 直接入箱</button>
+    <button class="btn" id="editBtn">E 编辑</button>
+    <span class="keys"><b>⏎</b>收进 <b>E</b>编辑 <b>Esc</b>忽略</span>
+  </div>
+</div>
+<script>
+var TAPI = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core : null;
+var text = '', requestId = '', hideTimer = null;
+
+window.__clip = function (p) {
+  text = (p && p.text) || '';
+  requestId = (p && p.request_id) || '';
+  document.getElementById('prev').textContent = text;
+  document.getElementById('card').classList.add('show');
+  var b = document.getElementById('saveBtn');
+  b.disabled = false;
+  b.textContent = '⏎ 直接入箱';
+  // 12 秒无操作自动消失
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(dismiss, 12000);
+  setTimeout(function () { document.getElementById('saveBtn').focus(); }, 80);
+};
+
+function save() {
+  if (!text || !requestId || !TAPI) return;
+  var submitted = requestId;
+  clearTimeout(hideTimer);
+  var b = document.getElementById('saveBtn');
+  b.disabled = true; b.textContent = '收入中…';
+  TAPI.invoke('clip_save', { text: text, requestId: submitted }).then(function () {
+    if (requestId === submitted) reset();
+  }).catch(function (e) {
+    if (requestId !== submitted) return;
+    b.disabled = false; b.textContent = '⏎ 直接入箱';
+    document.getElementById('prev').textContent = '✗ 入箱失败：' + e;
+  });
+}
+function edit() {
+  if (!TAPI || !text || !requestId) return;
+  var submitted = requestId;
+  clearTimeout(hideTimer);
+  TAPI.invoke('clip_edit', { text: text, requestId: submitted }).then(function () {
+    if (requestId === submitted) reset();
+  }).catch(function (e) {
+    if (requestId === submitted) document.getElementById('prev').textContent = '✗ 编辑失败：' + e;
+  });
+}
+function dismiss() {
+  document.getElementById('card').classList.remove('show');
+  clearTimeout(hideTimer);
+  if (TAPI && requestId) TAPI.invoke('clip_dismiss', {requestId:requestId}).catch(function () {});
+  text = '';
+  requestId = '';
+}
+function reset() {
+  document.getElementById('card').classList.remove('show');
+  text = '';
+  requestId = '';
+  clearTimeout(hideTimer);
+}
+
+document.getElementById('saveBtn').addEventListener('click', save);
+document.getElementById('editBtn').addEventListener('click', edit);
+document.addEventListener('keydown', function (e) {
+  if (!text) return;
+  if (e.key === 'Enter') { e.preventDefault(); save(); }
+  else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); edit(); }
+  else if (e.key === 'Escape') { e.preventDefault(); dismiss(); }
+});
+</script>
+</body>
+</html>

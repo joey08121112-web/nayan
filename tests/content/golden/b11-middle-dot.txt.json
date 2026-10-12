@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b11",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "extension_dom",
+  "original": {
+    "kind": "text",
+    "text": "- Node.js · v20\n- 另一项 · 说明"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "- Node.js · v20\n- 另一项 · 说明",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "- Node.js · v20\n- 另一项 · 说明"
+  }
+}

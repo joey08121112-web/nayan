@@ -1,0 +1,49 @@
+// P1-B06-NATIVE-PERF-REPAIR-01 / Step 1 — profiling-only build harness.
+// Mechanical adaptation of tests/renderer/nayan-native-smoke/build.mjs:
+// identical product-source copy and patches, separate crate name so the
+// verified nayan-native-verify binary is never overwritten, and this
+// directory's observer.js (profiling instrumentation) is embedded instead.
+// Product sources are copied read-only; nothing in app/ is modified here.
+import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';import {spawn} from 'node:child_process';
+import {createRoot,bindChild,cleanRoot} from '../tauri-asset-smoke/lifecycle.mjs';
+const args=process.argv.slice(2),at=args.indexOf('--out');if(at<0)throw Error('--out required');
+const out=path.resolve(args[at+1]);fs.mkdirSync(out,{recursive:true});
+const repo=process.cwd(),here=path.join(repo,'tests/renderer/nayan-native-performance'),record=createRoot('nayan-native-perf-build-'),crate=record.root;
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const copies=[];
+function copyTree(from,to,rel){fs.mkdirSync(to,{recursive:true});for(const n of fs.readdirSync(from)){const a=path.join(from,n),b=path.join(to,n),r=path.join(rel,n);if(fs.statSync(a).isDirectory())copyTree(a,b,r);else{fs.copyFileSync(a,b);copies.push({file:r,sourceSha:sha(a),copySha:sha(b)});}}}
+for(const d of ['src','icons','capabilities'])copyTree(path.join(repo,'app/src-tauri',d),path.join(crate,d),'app/src-tauri/'+d);
+copyTree(path.join(repo,'app/ui'),path.join(crate,'ui'),'app/ui');
+fs.copyFileSync(path.join(repo,'app/src-tauri/build.rs'),path.join(crate,'build.rs'));
+fs.copyFileSync(path.join(repo,'app/src-tauri/Cargo.lock'),path.join(crate,'Cargo.lock'));
+// Only identity differs from the smoke crate: package/crate name and bundle id.
+let toml=fs.readFileSync(path.join(repo,'app/src-tauri/Cargo.toml'),'utf8').replace('name = "nayan"','name = "nayan-native-perf"');fs.writeFileSync(path.join(crate,'Cargo.toml'),toml);
+let lock=fs.readFileSync(path.join(crate,'Cargo.lock'),'utf8');lock=lock.replace('name = "nayan"\nversion = "0.1.0"','name = "nayan-native-perf"\nversion = "0.1.0"');fs.writeFileSync(path.join(crate,'Cargo.lock'),lock);
+let cfg=JSON.parse(fs.readFileSync(path.join(repo,'app/src-tauri/tauri.conf.json')));cfg.identifier='com.nayan.nativeperf';cfg.productName='NaYan Native Perf';cfg.build.frontendDist='ui';cfg.app.windows=[];cfg.bundle.active=false;delete cfg.bundle.macOS.signingIdentity;fs.writeFileSync(path.join(crate,'tauri.conf.json'),JSON.stringify(cfg,null,2));
+// native_verify.rs is reused verbatim from the smoke harness (same IPC channels/preflight).
+fs.copyFileSync(path.join(repo,'tests/renderer/nayan-native-smoke/native_verify.rs'),path.join(crate,'src','native_verify.rs'));
+fs.copyFileSync(path.join(here,'observer.js'),path.join(crate,'src','observer.js'));
+const fixtureDir=path.join(repo,'docs/implementation-plan-2026-09-23/batches/P1-B06-PERF-01/evidence');
+const manifest=JSON.parse(fs.readFileSync(path.join(fixtureDir,'fixtures-manifest.json')));
+const fixtures=manifest.fixtures.map((m,i)=>{const file=path.join(fixtureDir,`fixture-${i}-${m.label}.txt`),text=fs.readFileSync(file,'utf8');if(sha(file)!==m.sha256||Buffer.byteLength(text)!==m.utf8_bytes)throw Error('Frozen fixture mismatch');return {label:m.label,bytes:m.utf8_bytes,blocks:m.blocks_declared,text};});
+const parts=['# inject-fixture\n\n'];for(let i=1;i<=400;i++)parts.push(`## 节 ${i}\n\n段落 中文 English e\u0301，${i} 号。\n\n\`\`\`ts\nconst v${i} = ${i};\n  indent\n\`\`\`\n\n> 引用 ${i}\n\n- 列表 ${i}\n- 另一项 ${i}\n\n`);
+fs.writeFileSync(path.join(crate,'ui/__native-fixtures.json'),JSON.stringify({fixtures,injection:{text:parts.join('')}}));
+fs.writeFileSync(path.join(out,'fixtures-manifest.json'),JSON.stringify(manifest,null,2));
+const f=path.join(crate,'src/main.rs'),original=fs.readFileSync(f,'utf8');let main=original;
+function replace(a,b){if(main.split(a).length!==2)throw Error('Mechanical anchor not unique: '+a);main=main.replace(a,b);}
+replace('mod test_profile;','mod test_profile;\nmod native_verify;');
+replace('fn main() {','fn main() {\n    if let Err(e) = native_verify::preflight() { eprintln!("{}",e); std::process::exit(78); }');
+replace('let is_test = test_profile.is_some();\n    test_profile::TEST_MODE','let is_test = test_profile.is_some();\n    if !is_test { std::process::exit(78); }\n    test_profile::TEST_MODE');
+replace('            // 测试桥：把真实 handle_api','            native_verify::install(app, test_profile.as_ref().ok_or("native isolated profile required")?)?;\n\n            // 测试桥：把真实 handle_api');
+replace('.invoke_handler(tauri::generate_handler![','.invoke_handler(move |invoke: tauri::ipc::Invoke<tauri::Wry>| {\n            native_verify::record(&invoke.message);\n            let handler: Box<dyn Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool> = Box::new(tauri::generate_handler![\n            native_verify::native_phase, native_verify::native_result, native_verify::native_checkpoint, native_verify::native_seed,');
+replace('            pick_files\n        ])','            pick_files\n        ]); handler(invoke) })');fs.writeFileSync(f,main);
+fs.writeFileSync(path.join(out,'main-original.rs'),original);fs.writeFileSync(path.join(out,'main-test-copy.rs'),main);
+for(const n of ['Cargo.lock','Cargo.toml','tauri.conf.json','src/native_verify.rs','src/observer.js'])fs.copyFileSync(path.join(crate,n),path.join(out,path.basename(n)));
+fs.writeFileSync(path.join(out,'copy-manifest.json'),JSON.stringify({record,copies,patches:['same mechanical patch set as nayan-native-smoke build; crate/package renamed to nayan-native-perf only','profiling observer.js from tests/renderer/nayan-native-performance','Swift OCR helper omitted (no swift dir); AX/OCR disabled by original test mode']},null,2));
+const target=path.join(repo,'app/src-tauri/target');if(fs.lstatSync(target).isSymbolicLink())throw Error('shared build cache alias refused');
+const start=new Date().toISOString(),fd=fs.openSync(path.join(out,'cargo-build.log'),'w');
+const child=spawn('cargo',['build','--offline','--locked'],{cwd:crate,env:{...process.env,CARGO_TARGET_DIR:target}});bindChild(record,child);
+for(const st of [child.stdout,child.stderr])st.on('data',d=>fs.writeSync(fd,d));
+const end=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',(exit,signal)=>resolve({exit,signal}));});fs.closeSync(fd);
+fs.writeFileSync(path.join(out,'build-result.json'),JSON.stringify({start,end:new Date().toISOString(),...end,record,bin:path.join(target,'debug/nayan-native-perf'),binSha:end.exit===0?sha(path.join(target,'debug/nayan-native-perf')):null},null,2));
+if(end.exit!==0||end.signal){console.error('Build failed; retained',crate);process.exit(1);}cleanRoot(record);console.log('PASS profiling build; bin sha',end.exit===0?sha(path.join(target,'debug/nayan-native-perf')).slice(0,16):null);

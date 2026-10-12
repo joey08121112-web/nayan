@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-legacy",
+  "format": "plain",
+  "format_provenance": "legacy_assumed_plain",
+  "acquisition": "legacy_import",
+  "original": {
+    "kind": "text",
+    "text": "# 像 Markdown 的 legacy quote\r\n- 但只当 plain/unknown\r原样保留"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "# 像 Markdown 的 legacy quote\n- 但只当 plain/unknown\n原样保留",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "# 像 Markdown 的 legacy quote\n- 但只当 plain/unknown\n原样保留"
+  }
+}

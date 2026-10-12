@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b14",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "extension_dom",
+  "original": {
+    "kind": "text",
+    "text": "引号 \"double\" 'single' «guillemet» 「中文引号」\n<script>alert(\"x\")</script> & <b>bold</b> &amp; \n<script src=x>"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "引号 \"double\" 'single' «guillemet» 「中文引号」\n<script>alert(\"x\")</script> & <b>bold</b> &amp; \n<script src=x>",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "引号 \"double\" 'single' «guillemet» 「中文引号」\n<script>alert(\"x\")</script> & <b>bold</b> &amp; \n<script src=x>"
+  }
+}

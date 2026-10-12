@@ -1,0 +1,18 @@
+[package]
+name = "nayan-asset-smoke"
+version = "0.1.0"
+edition = "2021"
+description = "实际 Tauri 框架资源/IPC 传输测试（P1-B06-FIVE-STEP-2026-10-01 Step5；非完整 NaYan 原生整链）"
+
+[build-dependencies]
+# 与产品 Cargo.lock 锁定版本一致（tauri-build 2.6.3）
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+# 与产品 Cargo.lock 锁定版本一致（tauri 2.11.5；不经 semver 上浮）
+tauri = { version = "=2.11.5", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+debug = 0

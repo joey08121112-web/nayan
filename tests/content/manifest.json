@@ -1,0 +1,163 @@
+[
+  {
+    "fixture": "b01-paragraph-lines.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-b01",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b02-blank-lines.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-b02",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b03-crlf.txt",
+    "format": "plain",
+    "acquisition": "clipboard",
+    "request_id": "req-b03",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b04-cr.txt",
+    "format": "plain",
+    "acquisition": "clipboard",
+    "request_id": "req-b04",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b05-mixed-newlines.txt",
+    "format": "plain",
+    "acquisition": "clipboard",
+    "request_id": "req-b05",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b06-indentation.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-b06",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b07-fenced-code.md",
+    "format": "markdown",
+    "acquisition": "mcp",
+    "request_id": "req-b07",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b08-nested-lists.md",
+    "format": "markdown",
+    "acquisition": "mcp",
+    "request_id": "req-b08",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b09-ordered-non1.md",
+    "format": "markdown",
+    "acquisition": "mcp",
+    "request_id": "req-b09",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b10-separator.md",
+    "format": "markdown",
+    "acquisition": "mcp",
+    "request_id": "req-b10",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b11-middle-dot.txt",
+    "format": "plain",
+    "acquisition": "extension_dom",
+    "request_id": "req-b11",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b12-cjk-en.txt",
+    "format": "plain",
+    "acquisition": "extension_dom",
+    "request_id": "req-b12",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b13-unicode-combining-emoji.txt",
+    "format": "plain",
+    "acquisition": "extension_dom",
+    "request_id": "req-b13",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "b14-quotes-hostile.txt",
+    "format": "plain",
+    "acquisition": "extension_dom",
+    "request_id": "req-b14",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "ws-only.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-ws",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "empty-body.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-empty",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "legacy-looks-md.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-legacy",
+    "binary": false,
+    "legacy": true
+  },
+  {
+    "fixture": "html-source.html",
+    "format": "html",
+    "acquisition": "extension_dom",
+    "request_id": "req-html",
+    "binary": false,
+    "legacy": false
+  },
+  {
+    "fixture": "rtf-sample.rtf",
+    "format": "plain",
+    "acquisition": "clipboard",
+    "request_id": "req-rtf",
+    "binary": true,
+    "charset_hint": "rtf",
+    "legacy": false
+  },
+  {
+    "fixture": "b12-long-code-line.rs.txt",
+    "format": "plain",
+    "acquisition": "manual",
+    "request_id": "req-b12long",
+    "binary": false,
+    "legacy": false
+  }
+]

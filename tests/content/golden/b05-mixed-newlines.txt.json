@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b05",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "clipboard",
+  "original": {
+    "kind": "text",
+    "text": "LF\nCRLF\r\nCR\r混合\r\n\r结尾"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "LF\nCRLF\nCR\n混合\n\n结尾",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "LF\nCRLF\nCR\n混合\n\n结尾"
+  }
+}

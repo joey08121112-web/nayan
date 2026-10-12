@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b09",
+  "format": "markdown",
+  "format_provenance": "declared",
+  "acquisition": "mcp",
+  "original": {
+    "kind": "text",
+    "text": "3. 第三条\n4. 第四条\n5. 第五条"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "3. 第三条\n4. 第四条\n5. 第五条",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "3. 第三条\n4. 第四条\n5. 第五条"
+  }
+}

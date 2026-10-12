@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b10",
+  "format": "markdown",
+  "format_provenance": "declared",
+  "acquisition": "mcp",
+  "original": {
+    "kind": "text",
+    "text": "上文\n\n---\n\n下文"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "上文\n\n---\n\n下文",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "上文\n\n---\n\n下文"
+  }
+}

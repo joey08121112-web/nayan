@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b02",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "manual",
+  "original": {
+    "kind": "text",
+    "text": "段一\n\n\n\n\n段二"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "段一\n\n\n\n\n段二",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "段一\n\n\n\n\n段二"
+  }
+}

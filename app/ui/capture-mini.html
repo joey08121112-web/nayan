@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>收进收件箱</title>
+<style>
+/* 第四版「收进纳言」弹窗（暖纸）：来源头像 + 归入芯片 → 宋体引文 → 放到哪里 → 等什么 → 底栏 */
+:root{ --paper:#f8f7f4; --surface:#fffefc; --ink:#1f1e1b; --ink2:#56534d; --ink3:#6b675f; --line:#e6e2da; --line3:#d4cfc4; --hov:#ebe8e1;
+  --quote:#f6f4ef; --accent:#3550c4; --ring:rgba(53,80,196,.22); --amber:#9a6412; --amberSoft:#fbf3e4; --amberLine:#efdfbf; --bad:#a2412f; --badSoft:#f4e6e2;
+  --serif:'Songti SC','STSong','Noto Serif SC',serif; }
+@media (prefers-color-scheme: dark){ :root{ --paper:#141311; --surface:#1d1c19; --ink:#f2efe8; --ink2:#cdc7bb; --ink3:#a39d92; --line:rgba(255,248,235,.11);
+  --line3:rgba(255,248,235,.22); --hov:rgba(255,248,235,.07); --quote:rgba(255,248,235,.05); --accent:#8fa3ff; --ring:rgba(143,163,255,.35);
+  --amber:#e0a24a; --amberSoft:rgba(224,162,74,.12); --amberLine:rgba(224,162,74,.3); --bad:#e59a8a; --badSoft:rgba(162,65,47,.2); } }
+* { box-sizing:border-box; margin:0; }
+html,body { height:100%; background:transparent; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC',sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+body { overflow:hidden; font-size:13.5px; }
+.card { height:100%; background:var(--surface); border:1px solid var(--line); border-radius:20px; display:flex; flex-direction:column; gap:12px; padding:18px 20px 16px;
+  animation:pop .24s cubic-bezier(.2,.9,.35,1.1); }
+@keyframes pop { from { transform:scale(.96) translateY(8px); opacity:0; } }
+.card.sucked { animation:suck .45s cubic-bezier(.55,0,.9,.4) forwards; }
+@keyframes suck { to { transform:scale(.04) translate(60px,90px); opacity:0; } }
+/* 来源行（拖移热区）：字母头像 + 来源 · 通道 · 会话；右侧「归入」芯片 */
+.srcrow { display:flex; align-items:center; gap:8px; flex-shrink:0; font-size:12.5px; color:var(--ink3); min-width:0; }
+.srcrow[data-tauri-drag-region] *{ pointer-events:none }
+.srcrow[data-tauri-drag-region] .chip{ pointer-events:auto }
+.appico { flex:0 0 auto; width:20px; height:20px; border-radius:6px; color:#fffefc; font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; background:#8d887f; }
+.appico.s-claude{ background:#a8664a; } .appico.s-zcode{ background:#3a3f4b; } .appico.s-obsidian{ background:#6e5bb8; }
+.appico.s-workbuddy{ background:#2e8277; } .appico.s-chatgpt{ background:#3f7d6b; } .appico.s-antigravity{ background:#4a6fb0; }
+.srcinfo { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.appname { color:var(--ink3); }
+.chtag { color:var(--ink3); }
+.srcline { color:var(--ink3); }
+.chip { height:28px; padding:0 10px; border-radius:14px; border:1px solid var(--line); background:transparent; color:var(--ink2); font:inherit; font-size:12.5px; cursor:pointer; white-space:nowrap; max-width:190px; overflow:hidden; text-overflow:ellipsis; flex-shrink:0; }
+.chip:hover { border-color:var(--line3); color:var(--ink); }
+/* 归入（点芯片才展开）：项目输入 + 常用项目 */
+.cmdrow { display:none; align-items:center; gap:8px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:6px 10px; flex-shrink:0; }
+body.projopen .cmdrow { display:flex; }
+.cmdrow:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--ring); }
+.cmdrow .lab { font-size:12px; color:var(--ink3); flex-shrink:0; }
+.cmdrow input { flex:1; min-width:0; border:0; background:transparent; outline:none; color:var(--ink); font:inherit; font-size:13.5px; }
+.auto { font-size:11px; color:var(--accent); flex-shrink:0; white-space:nowrap; }
+.chips { display:none; gap:6px; flex-wrap:wrap; max-height:58px; overflow-y:auto; flex-shrink:0; margin-top:-4px; }
+body.projopen .chips { display:flex; }
+.chips:empty { display:none !important; }
+.chips button { height:26px; padding:0 10px; border-radius:13px; border:1px solid var(--line); background:transparent; color:var(--ink2); font:inherit; font-size:12px; cursor:pointer; }
+.chips button:hover { border-color:var(--line3); color:var(--ink); }
+/* 宋体引文（P1-T05：pre-wrap 保空行/缩进，不硬折断；长而无空白的行横向滚动） */
+.qwrap { flex:1; min-height:80px; display:flex; flex-direction:column; }
+.bubble { background:var(--quote); border-radius:14px; padding:12px 14px; font-family:var(--serif); font-size:15px; line-height:1.75; color:var(--ink);
+  overflow-y:auto; overflow-x:auto; flex:1; min-height:0; white-space:pre-wrap; word-break:normal; }
+.bubble.open { flex:1; }
+.bubble.rich{ white-space:normal; }
+.bubble.rich p{ margin:0 0 8px; }
+.bubble.rich p:last-child{ margin-bottom:0; }
+.bubble.rich h1,.bubble.rich h2,.bubble.rich h3{ font-size:15px; font-weight:600; margin:8px 0 4px; }
+.bubble.rich h4,.bubble.rich h5,.bubble.rich h6{ font-size:14px; font-weight:600; margin:6px 0 3px; }
+.bubble.rich>*:first-child{ margin-top:0; }
+.bubble.rich ul,.bubble.rich ol{ margin:0 0 8px; padding-left:18px; }
+.bubble.rich li{ margin:0 0 4px; }
+.bubble.rich blockquote{ margin:0 0 8px; padding:1px 0 1px 8px; border-left:2px solid var(--line3); color:var(--ink2); }
+.bubble.rich hr{ border:0; border-top:1px solid var(--line); margin:8px 0; }
+.bubble.rich table{ border-collapse:collapse; margin:0 0 8px; font-size:13px; }
+.bubble.rich th,.bubble.rich td{ border:1px solid var(--line); padding:3px 7px; text-align:left; }
+.bubble.rich th{ background:var(--hov); font-weight:600; }
+.bubble.rich a{ color:var(--accent); }
+.bubble.rich pre{ margin:0 0 8px; padding:8px 10px; background:var(--hov); border-radius:8px; overflow-x:auto; max-width:100%; }
+.bubble.rich pre code{ background:transparent; padding:0; white-space:pre; color:inherit; }
+.bubble.rich code{ font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:12px; background:var(--hov); padding:1px 4px; border-radius:4px; }
+.more { display:none !important; } /* 引文框随窗口铺满、内部滚动，不再需要「显示全文」 */
+.more-unused { border:0; background:none; color:var(--accent); font:inherit; font-size:12px; cursor:pointer; padding:0 2px; text-align:left; flex-shrink:0; margin-top:-6px; }
+.more:empty { display:none; }
+/* 放到哪里：收件箱 + 我的清单（卡片网格） */
+.putlab { font-size:12px; color:var(--ink3); flex-shrink:0; }
+.putrow { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; flex-shrink:0; max-height:190px; overflow-y:auto; }
+.putrow button { display:flex; flex-direction:column; gap:3px; text-align:left; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font:inherit; color:var(--ink); }
+.putrow button:hover { border-color:var(--line3); }
+.putrow button.on { border-color:var(--ink); box-shadow:0 0 0 1px var(--ink); }
+.putrow b { font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; }
+.putrow b i { width:9px; height:9px; border-radius:3px; display:inline-block; }
+.putrow span { font-size:12px; color:var(--ink3); line-height:1.45; }
+.putwait { display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:12px; background:var(--amberSoft); flex-shrink:0; }
+.putwait label { display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border-radius:10px; background:var(--surface); border:1px solid var(--amberLine); }
+.putwait .lab { color:var(--amber); white-space:nowrap; }
+.putwait input { flex:1; min-width:0; border:0; background:transparent; outline:none; color:var(--ink); font:inherit; }
+.putwait .row { display:flex; gap:8px; }
+.putwait button { height:28px; padding:0 10px; border-radius:14px; border:1px solid var(--line); background:transparent; color:var(--ink2); font:inherit; font-size:12.5px; cursor:pointer; }
+/* 想法（可选） */
+.note { width:100%; background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0; padding:4px 2px 6px; color:var(--ink); font:inherit; font-size:13px; outline:none; flex-shrink:0; }
+.note:focus { border-bottom-color:var(--accent); }
+.note::placeholder, .cmdrow input::placeholder, .putwait input::placeholder { color:var(--ink3); opacity:.8; }
+.err { display:none; background:var(--badSoft); color:var(--bad); font-size:12px; border-radius:10px; padding:7px 10px; flex-shrink:0; }
+/* 底栏：提示 + 取消 + 主按钮 */
+.acts { display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+.hint { font-size:12px; color:var(--ink3); flex:1; min-width:0; }
+button { font:inherit; cursor:pointer; transition:transform .2s cubic-bezier(.32,.72,0,1); }
+button:active { transform:scale(.97); }
+button:disabled { opacity:.55; cursor:default; }
+.ghost { height:30px; padding:0 10px; border:0; border-radius:8px; background:transparent; color:var(--ink2); font-size:13.5px; }
+.ghost:hover { background:var(--hov); color:var(--ink); }
+.primary { height:38px; padding:0 18px; border:0; border-radius:12px; background:var(--ink); color:var(--surface); font-size:13.5px; font-weight:500; }
+.primary:hover { opacity:.9; }
+.kbd { font-size:10.5px; border:1px solid currentColor; border-radius:4px; padding:0 4px; opacity:.7; margin-left:4px; }
+.done-tag { color:var(--accent); font-weight:600; }
+::-webkit-scrollbar { width:8px; }
+::-webkit-scrollbar-thumb { background:rgba(120,110,95,.25); border-radius:99px; border:2px solid transparent; background-clip:content-box; }
+
+/* UX-AI-CAPTURE-FIDELITY-01：代码块 chrome（预览端只读——语言标签可见，复制按钮留详情页） */
+.nayan-codebar{ display:flex; align-items:center; gap:8px; margin:10px 0 -6px; padding:0 12px; }
+.nayan-codelang::before{ content:attr(data-lang); font-size:10.5px; font-weight:600; opacity:.8;
+  letter-spacing:.05em; text-transform:lowercase; }
+.nayan-codelang[data-lang='']{ display:none; }
+.nayan-codecopy{ display:none; }
+</style>
+</head>
+<body>
+<!-- 富文本来自来源提供的 HTML；划词入口可能只有纯文本，不猜测结构。 -->
+<div class="card" id="card" role="dialog" aria-label="收进纳言">
+  <div class="srcrow" data-tauri-drag-region>
+    <div class="appico" id="appIco" aria-hidden="true">?</div>
+    <span class="srcinfo"><span class="appname" id="appName">…</span><span class="chtag" id="chTag" style="display:none"></span><span class="srcline" id="srcExtra"></span></span>
+    <button type="button" class="chip" id="projChip" title="收进来的这条归到哪个项目">归入：未归属</button>
+  </div>
+  <div class="cmdrow">
+    <span class="lab">归入</span>
+    <input id="proj" autocomplete="off" placeholder="项目名或路径…" aria-label="归入项目">
+    <span class="auto" id="autoBadge" style="display:none"></span>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="screenPreview" style="display:none;overflow:auto;max-height:120px"><img id="screenImg" alt="框选原图" style="display:block;max-width:100%;height:auto;border-radius:10px"><div id="screenInfo" style="font-size:11.5px;color:var(--ink3);padding:4px 0"></div></div>
+  <div class="qwrap"><div class="bubble" id="bubble"></div></div>
+  <button class="more" id="moreBtn" style="display:none">显示全文</button>
+  <div class="putlab" id="putLab" style="display:none">放到哪里</div>
+  <div class="putrow" id="putRow" style="display:none" role="group" aria-label="放到哪里"></div>
+  <div class="putwait" id="putWait" style="display:none"><label><span class="lab" id="putWaitLab">等什么？</span><input id="putWaitText" placeholder="例如：等同步功能做完 / 11 月再看" aria-label="等什么"></label>
+    <div class="row"><button type="button" data-pw="下周再看">下周再看</button><button type="button" data-pw="下个月再看">下个月再看</button></div></div>
+  <input id="note" class="note" placeholder="记一句想法…（可选）" aria-label="我的想法">
+  <div class="err" id="err"></div>
+  <div class="acts">
+    <span class="hint" id="hint">⏎ 收进 · ⎋ 取消</span>
+    <button class="ghost" id="cancelBtn">取消</button>
+    <button class="primary" id="okBtn">收进收件箱 <span class="kbd">⏎</span></button>
+  </div>
+</div>
+<script src="vendor/markdown-it.umd.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="rich-text.js"></script>
+<script src="rich-source-map.js"></script>
+<script src="title-rule.js"></script>
+<script>
+/* 双运行时数据来源：Tauri 事件注入 capture-data；浏览器/其他方式用 URL 参数。
+   Rust 端 open_capture_window 会 eval window.applyCapture(payload) 直接注入。 */
+var CAP = window.__CAPTURE || {};
+var P = new URLSearchParams(location.search);
+var text = CAP.text || P.get('text') || '';
+var app = CAP.app || P.get('app') || '';
+var ws = CAP.ws || P.get('ws') || '';
+var sr = CAP.sr || P.get('sr') || '';
+var wid = Number(CAP.wid != null ? CAP.wid : P.get('wid')) || 0;
+var channel = CAP.channel || P.get('channel') || '';
+
+var TAPI = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core : null;
+/* P1-T03：请求代次与信封状态。
+   REQ = 当前生效采集的 request_id：applyCapture 换代后，A 的所有迟到异步响应
+   （别名/项目匹配）与迟到保存回调一律失效，不允许污染 B 的窗口。 */
+var REQ = null;
+var ENVELOPE = null;   // Rust 交付的 CapturedContent 信封（原样回传，不做任何改写）
+var SCREEN_IMAGE = null;
+var SAVED = false;     // 本次请求已成功收录 → 再按 ⏎/点击不重复提交
+var MAX_CHARS = 100000; // 与 Rust MAX_CONTENT_CHARS 同值（服务端为权威，此处只做即时反馈）
+/* R2-F01：已应用采集世代（Rust 权威分配、随载荷下发、单调递增）。applyCapture 的
+   最终应用约束：只应用世代更新的载荷；同世代=同稿重放（watchdog/握手重投）仅补交付
+   确认、不动任何窗口状态（R2-F02）；更小世代=晚到旧稿（A 在 B 已应用后才抵达），
+   一律拒绝——旧稿不得覆盖新稿、不得重置编辑与保存状态、不得重新成为可保存稿。
+   新页面 APPLIED_GEN=0：任何正世代都视为新稿，完整建立草稿（重载恢复）。 */
+var APPLIED_GEN = 0;
+/* 错误埋点：页面脚本异常写进 nayan.log（此前收录窗零日志，空白窗无从定位） */
+window.addEventListener('error', function (e) {
+  try { TAPI.invoke('js_log', { msg: '[capture-mini] JS错误: ' + e.message + ' @' + e.lineno }); } catch (_) {}
+});
+try { TAPI.invoke('js_log', { msg: '[capture-mini] 脚本执行，applyCapture=' + typeof window.applyCapture }); } catch (_) {}
+var PROJECTS = [];
+var userEdited = false;   // 用户一旦手动改过项目，自动匹配不再覆盖
+var CHANNEL_LABEL = { ax:'⌥S 划词', cmdc:'⌘C 复制', box:'⌥Z 框选 · 识别', boxax:'⌥Z 框选', boxmd:'⌥Z 框选' };
+
+function el(id){ return document.getElementById(id); }
+function lastSeg(p){ var s=String(p||'').replace(/\/+$/,''); var i=s.lastIndexOf('/'); return i>=0? s.slice(i+1) : s; }
+
+/* ---------- 归属命令行：优先级 = 窗口匹配 > 工作区解析 > 上次使用 ---------- */
+function setProj(v, source){
+  if(!v) return;
+  el('proj').value = v;
+  projSourceSet(source);
+  drawChips();
+  paintProjChip();
+}
+function closeProjEditor(){ document.body.classList.remove('projopen'); }
+function paintProjChip(){
+  var v = el('proj').value.trim() || ws || '';
+  el('projChip').textContent = '归入：' + (v ? lastSeg(v) : '未归属') + ' ▾';
+  el('projChip').title = v ? ('归属项目：' + v + '（点这里修改）') : '还没归属项目，点这里设置';
+}
+el('projChip').onclick = function () {
+  var open = document.body.classList.toggle('projopen');
+  if (open) { el('proj').focus(); el('proj').select(); } else el('note').focus();
+};
+function projSourceSet(source){
+  projSource = source;
+  paintProjChip();
+  var b = el('autoBadge');
+  if(!source){ b.style.display='none'; return; }
+  b.textContent = source==='match' ? '✓ 自动匹配 · 窗口标题'
+                : source==='ws'    ? '自动归属 · 工作区'
+                : '上次使用';
+  b.style.display='';
+}
+function drawChips(){
+  var v = el('proj').value.trim();
+  var list = PROJECTS.filter(function(p){ return !v || p.indexOf(v)>=0; }).slice(0,6);
+  el('chips').innerHTML = list.map(function(p){
+    return '<button type="button" title="'+String(p).replace(/"/g,'&quot;')+'">'+lastSeg(p)+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(el('chips').querySelectorAll('button'), function(b){
+    b.onmousedown = function(ev){
+      ev.preventDefault();
+      el('proj').value = b.title;
+      userEdited = true; projSourceSet(null);
+      drawChips(); document.body.classList.remove('projopen'); el('note').focus();
+    };
+  });
+}
+el('proj').addEventListener('input', function(){
+  userEdited = true; projSourceSet(null); drawChips();
+});
+el('proj').addEventListener('keydown', function(ev){
+  if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); document.body.classList.remove('projopen'); el('note').focus(); }
+});
+function fillProjects(rows){
+  if(!Array.isArray(rows)) return;
+  PROJECTS = rows.map(function(r){ return String(r.name||''); }).filter(Boolean);
+  drawChips();
+}
+function loadProjects(){
+  if (TAPI) TAPI.invoke('api',{method:'GET',path:'/api/projects'}).then(fillProjects).catch(function(){});
+  else fetch('/api/projects').then(function(r){ return r.json(); }).then(fillProjects).catch(function(){});
+}
+
+/* ---------- 原文预览折叠 ---------- */
+function checkMore(){
+  var b = el('bubble');
+  var need = b.scrollHeight > b.clientHeight + 4;
+  el('moreBtn').style.display = need ? 'block' : 'none';
+  if(!need) b.classList.remove('open');
+  el('moreBtn').textContent = b.classList.contains('open') ? '收起' : '显示全文';
+}
+el('moreBtn').onclick = function(){
+  var b = el('bubble');
+  b.classList.toggle('open');
+  this.textContent = b.classList.contains('open') ? '收起' : '显示全文';
+};
+
+/* ---------- 注入入口（Rust 经 ready 握手后 eval 调用） ---------- */
+function codepoints(s){ var n=0; for (var c of String(s)) n++; return n; }
+function applyCapture(d) {
+  if (!d) return;
+  /* R2-F01 世代守卫（最终应用约束，在一切状态变更之前）：
+     gen ≤ 已应用世代 = 过期或重复交付。gen=0 为无世代的浏览器 URL 模式，不参与裁决。 */
+  var g = Number(d.gen) || 0;
+  if (g > 0 && g <= APPLIED_GEN) {
+    if (g === APPLIED_GEN) {
+      /* R2-F02 同稿重放（watchdog/握手重投、上次 ack 可能丢失）：只补交付确认，
+         不清备注、不改项目、不重发 enrich、不重置保存中/已保存状态。 */
+      try { if (TAPI && REQ) TAPI.invoke('capture_delivered_ack', { requestId: REQ }).catch(function () {}); } catch (_) {}
+      try { TAPI.invoke('js_log', { msg: '[capture-mini] 同稿重放 gen=' + g + ' req=' + REQ + '：仅补交付确认，保留编辑与保存状态' }); } catch (_) {}
+    } else {
+      /* 晚到旧稿（如 A 在 B 已应用并确认后才抵达——Rust 准入复核后的残余调度窗口）：
+         拒绝应用。不发 ack（其 request_id 已非 Rust 当前暂存稿，确认无意义），
+         不得覆盖 B 的正文/REQ、不得重置编辑、不得重新成为可保存稿。 */
+      try { TAPI.invoke('js_log', { msg: '[capture-mini] 拒绝过期交付 gen=' + g + ' < 当前 gen=' + APPLIED_GEN + '（req=' + (d.request_id || '') + '）：晚到旧稿不得覆盖已应用的新稿' }); } catch (_) {}
+    }
+    return;
+  }
+  /* 换代在最前：此后本函数内发起的任何异步回调都以旧 REQ 判废（S02） */
+  REQ = d.request_id || null;
+  ENVELOPE = d.content || null;
+  SCREEN_IMAGE = d.screenImage || null;
+  el('screenPreview').style.display=SCREEN_IMAGE?'block':'none';
+  if(SCREEN_IMAGE && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(SCREEN_IMAGE.dataUrl||'')) {
+    el('screenImg').src=SCREEN_IMAGE.dataUrl;
+    el('screenInfo').textContent='原图保留 · '+SCREEN_IMAGE.width+' × '+SCREEN_IMAGE.height+' · 下方为识别文字，可能有误'+(SCREEN_IMAGE.ocrError?'（识别失败，仍可保存原图）':'');
+  } else { el('screenImg').removeAttribute('src'); }
+  SAVED = false;
+  if (g > 0) APPLIED_GEN = g;
+  /* P1-B03-REPAIR-01：交付确认——页面真正收到载荷即回传 request_id；Rust 仅在匹配
+     当前暂存稿时清除（迟到/重复确认不影响新稿）。置于渲染之前：确认语义 =「已收到」，
+     渲染异常不改变已收到的事实（js_log 埋点另有定位）。 */
+  try { if (TAPI && REQ) TAPI.invoke('capture_delivered_ack', { requestId: REQ }).catch(function () {}); } catch (_) {}
+  text = d.text || ''; app = d.app || ''; ws = d.ws || ''; sr = d.sr || '';
+  wid = Number(d.wid) || 0;
+  channel = d.channel || '';
+  var b = el('bubble');
+  /* P1-T06/S05：预览与详情共用 rich-text.js 的同一分派/渲染入口——readerBody 按信封
+     declared format+mode 分派（legacy/无信封/未知格式按 plain 渲染 canonical 口径文本，
+     绝不猜测结构）；声明 markdown/html 走受限 rich 渲染，预览端链接惰性（opener=null，
+     点击不导航不外呼）。失败/停用自动回退 plain 源文本。 */
+  var rb = readerBody(ENVELOPE, text);
+  b.__nayanSourceMap=null; b.__nayanSidecarCache=null;
+  b.__nayanIdentity=Object.freeze({itemId:null,requestId:REQ||null,revision:null});
+  renderReaderBody(b, rb, null);
+  /* P1-B06-FIVE-STEP S04：预览源区间 sidecar——只传真实 draft/request 身份
+     （无信封 request_id 则 null），不动 gen/ack 状态机；每次注入重挂（先清后挂，
+     旧 draft 的 map 不会被新 draft 访问——check 同时校验身份与全文）。 */
+  try{
+    if(window.NaYanSourceSpans && typeof setReaderSidecar==='function'){
+      b.__nayanDecision = rb;
+      setReaderSidecar(b, NaYanSourceSpans.build(rb, b.__nayanIdentity));
+    }
+  }catch(_scE){}
+  try { TAPI.invoke('js_log', { msg: '[capture-mini] 注入完成 req=' + REQ + ' 字符=' + codepoints(text) + ' ws=' + ws + ' sr=' + sr + ' w' + wid + ' 信封=' + (ENVELOPE ? '有' : '无') }); } catch (_) {}
+  /* 第四版来源行：彩色字母头像 + 「来源 · 通道 · 会话」（与主窗头像同配色） */
+  var avk = String(app || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  var AVC = { claude:'s-claude', claudecode:'s-claude', zcode:'s-zcode', obsidian:'s-obsidian', workbuddy:'s-workbuddy', chatgpt:'s-chatgpt', antigravity:'s-antigravity' };
+  el('appIco').className = 'appico ' + (AVC[avk] || '');
+  el('appIco').textContent = (Array.from(app || '?')[0] || '?').toUpperCase();
+  el('appName').textContent = app || '未知来源';
+  var tag = el('chTag');
+  if (CHANNEL_LABEL[channel]) { tag.textContent = ' · ' + CHANNEL_LABEL[channel]; tag.style.display=''; }
+  else tag.style.display='none';
+  var sname = sr ? sr.replace(/^窗口：/,'').trim() : '';
+  el('srcExtra').textContent = sname && sname !== app ? ' · ' + sname : '';
+  if (sr) el('srcExtra').title = sr;
+  /* 这个窗口起过别名的话直接显示别名（详情页 ✎ 改的名在这里生效）。
+     迟到守卫：请求已换代 → 丢弃本次响应（A 的别名不得盖到 B 上）。 */
+  if (TAPI && sr) {
+    var reqAlias = REQ;
+    TAPI.invoke('api', { method:'GET', path:'/api/session-aliases' }).then(function (rows) {
+      if (reqAlias !== REQ) return; /* 迟到且已换代：仅作用于原请求 */
+      var hit = (rows || []).filter(function (r) {
+        return r.app === app && r.session_ref === sr && (r.window_id || 0) === wid;
+      })[0];
+      if (hit && hit.alias) {
+        el('srcExtra').textContent = ' · ' + hit.alias;
+        el('srcExtra').title = '原会话：' + sr.replace(/^窗口：/, '');
+      }
+    }).catch(function () {});
+  }
+  el('note').value = '';
+  el('err').style.display = 'none';
+  if (codepoints(text) > MAX_CHARS) {
+    el('err').style.display = 'block';
+    el('err').textContent = '✗ 内容 ' + codepoints(text) + ' 字符超过上限 ' + MAX_CHARS + '——已拒绝收录（未截断）。可展开全文手动复制，或缩小选区后重新采集。';
+  }
+  PUT = 0; el('putWaitText').value = ''; loadLists();   /* v3：每次采集默认放收件箱；清单可能刚在主窗新建 */
+  var b = el('okBtn');
+  b.disabled = false; b.innerHTML = okLabel();
+  closeProjEditor();
+  paintHint();
+  var card = el('card');
+  card.classList.remove('sucked');
+  card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+  // 归属自动填充（优先级：窗口匹配 > 工作区 > 上次使用；用户改过则不覆盖）
+  userEdited = false;
+  el('proj').value = ''; projSourceSet(null);
+  var lp = null; try{ lp = localStorage.getItem('nayan-last-project'); }catch(e){}
+  if (ws) setProj(ws, 'ws');
+  else if (lp) setProj(lp, 'last');
+  else projSourceSet(null);
+  if (TAPI && sr) {
+    var reqProj = REQ;
+    TAPI.invoke('match_project', { sessionRef: sr, windowId: wid }).then(function (hit) {
+      if (reqProj !== REQ) return; /* 迟到且已换代：A 的项目不得写进 B 的归属 */
+      if (hit && !userEdited) setProj(hit, 'match');
+    }).catch(function () {});
+  }
+  setTimeout(function () { checkMore(); el('note').focus(); }, 60);
+}
+window.applyCapture = applyCapture;
+if (TAPI && TAPI.event) {
+  TAPI.event.listen('capture-data', function (e) { applyCapture(e.payload); });
+}
+/* P1-T03/S01：ready 握手——页面加载完成后主动告知 Rust；Rust 才 eval 交付暂存采集
+   （替代旧的一次性 eval：冷启动时 JS 未就绪会静默丢稿）。 */
+try { if (TAPI) TAPI.invoke('capture_window_ready').catch(function () {}); } catch (e) {}
+applyCapture(CAP.text ? CAP : null);
+loadProjects();
+loadLists();
+
+/* ---------- v3 放到哪里：收件箱 + 我的清单 ---------- */
+var LISTS = [], PUT = 0;
+var PUT_MODE = { none: '不提醒', daily: '每天回顾', date: '到日期提醒' };
+function putList() { for (var i = 0; i < LISTS.length; i++) if (LISTS[i].id === PUT) return LISTS[i]; return null; }
+function paintHint() {
+  if (SAVED) return;
+  var l = putList();
+  el('hint').textContent = channel === 'ax' ? '划词只有纯文本；保留格式请在来源复制后收录'
+    : '⏎ 收进 · ⎋ 取消' + (LISTS.length ? ' · 也可以对 AI 说「记到' + (l ? l.name : (LISTS[0] ? LISTS[0].name : '')) + '」' : '');
+}
+function okLabel() { var l = putList(); return (l ? '放进「' + escH(l.name) + '」' : '收进收件箱') + ' <span class="kbd">⏎</span>'; }
+function escH(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+function drawPut() {
+  var row = el('putRow');
+  if (!LISTS.length) { row.style.display = 'none'; el('putLab').style.display = 'none'; el('putWait').style.display = 'none'; paintHint(); return; }
+  row.style.display = 'grid'; el('putLab').style.display = '';
+  row.innerHTML = [{ id: 0, name: '收件箱', mode: '' }].concat(LISTS).map(function (l) {
+    var desc = l.id ? (PUT_MODE[l.mode] || '') + (l.mode === 'date' ? '，写清等什么' : '') : '先收着，回头再看';
+    return '<button type="button" data-put="' + l.id + '"' + (PUT === l.id ? ' class="on"' : '') + ' aria-pressed="' + (PUT === l.id) + '">' +
+      '<b>' + (l.id ? '<i style="background:' + escH(l.color || '#8d887f') + '"></i>' : '') + escH(l.name) + '</b><span>' + escH(desc) + '</span></button>';
+  }).join('');
+  paintHint();
+  var l = putList();
+  el('putWait').style.display = l && l.mode === 'date' ? 'flex' : 'none';
+  if (l) el('putWaitLab').textContent = '等什么？';
+  var b = el('okBtn'); if (!b.disabled && !SAVED) b.innerHTML = okLabel();
+}
+el('putRow').onclick = function (ev) {
+  var b = ev.target.closest && ev.target.closest('[data-put]'); if (!b) return;
+  PUT = Number(b.getAttribute('data-put')); el('putWaitText').value = ''; drawPut();
+};
+Array.prototype.forEach.call(document.querySelectorAll('[data-pw]'), function (b) {
+  b.onclick = function () { el('putWaitText').value = b.getAttribute('data-pw'); el('note').focus(); };
+});
+function loadLists() {
+  var p = TAPI ? TAPI.invoke('api', { method: 'GET', path: '/api/lists' }) : fetch('/api/lists').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  p.then(function (ls) { LISTS = Array.isArray(ls) ? ls : []; if (PUT && !putList()) PUT = 0; drawPut(); }).catch(function () { LISTS = []; drawPut(); });
+}
+/* 「等什么」里看得出日期才给提醒日（YYYY-MM-DD）；与主窗 parseWaitDate / mcp-server.js 同口径 */
+function parseWaitDate(text) {
+  var t = String(text || '').trim(); if (!t) return null;
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  function addDays(n) { return fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() + n)); }
+  function ymd(y, m, d) { var x = new Date(y, m - 1, d); return (x.getMonth() === m - 1 && x.getDate() === d) ? x : null; }
+  var m = t.match(/(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/);
+  if (m) { var a = ymd(+m[1], +m[2], +m[3]); return a ? fmt(a) : null; }
+  m = t.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/);
+  if (m) { var b2 = ymd(today.getFullYear(), +m[1], +m[2]); if (b2 && b2 < today) b2 = ymd(today.getFullYear() + 1, +m[1], +m[2]); return b2 ? fmt(b2) : null; }
+  m = t.match(/(\d{1,2})\s*月/);
+  if (m && +m[1] >= 1 && +m[1] <= 12) { var c = new Date(today.getFullYear(), +m[1] - 1, 1); if (c < today) c = new Date(today.getFullYear() + 1, +m[1] - 1, 1); return fmt(c); }
+  m = t.match(/(\d+)\s*天[后以]/);
+  if (m) return addDays(+m[1]);
+  if (/明天/.test(t)) return addDays(1);
+  if (/后天/.test(t)) return addDays(2);
+  if (/下(个)?(周|星期|礼拜)|一周后/.test(t)) return addDays(7);
+  if (/下(个)?月/.test(t)) { var e = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate()); if (e.getDate() !== today.getDate()) e.setDate(0); return fmt(e); }
+  return null;
+}
+
+/* ---------- 收录 ---------- */
+function closeWin() { if (TAPI) TAPI.invoke('close_capture').catch(function () {}); }
+function fail(m) {
+  /* R4：失败写入 nayan.log，闭环验证可区分「没点收进」与「收进失败」 */
+  try { TAPI.invoke('js_log', { msg: '[capture-mini] 收录失败 req=' + REQ + ' 原图=' + (SCREEN_IMAGE ? '有' : '无') + '：' + m }); } catch (_) {}
+  var e = el('err');
+  e.style.display = 'block'; e.textContent = '✗ 入箱失败：' + m;
+  var b = el('okBtn');
+  b.disabled = false; b.innerHTML = okLabel();
+}
+function postSuggestion(payload) {
+  if (TAPI) return TAPI.invoke('api', { method: 'POST', path: '/api/suggestions', body: payload });
+  return fetch('/api/suggestions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  }).then(function (r) {
+    return r.json().then(function (d) {
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      return d;
+    });
+  });
+}
+function confirmIt() {
+  if (el('okBtn').disabled) return;
+  if (SAVED) return;                       /* 已成功收录：重复 ⏎/双击不再提交 */
+  /* S03：无信封不盲存——确认窗收到的必须是带 request_id 的显式采集载荷 */
+  if (!REQ || !ENVELOPE) {
+    fail('缺少采集信封（request_id/content）——本次请求缺少可审计身份，拒绝收录');
+    return;
+  }
+  /* S05：超限复核（服务端为权威，此处拦截只为省一次注定失败的请求；绝不截断后提交） */
+  if (codepoints(text) > MAX_CHARS) {
+    fail('内容 ' + codepoints(text) + ' 字符超过上限 ' + MAX_CHARS + '——已拒绝收录（未截断）');
+    return;
+  }
+  var b = el('okBtn');
+  b.disabled = true; b.textContent = '收进中…';
+  var req = REQ;                            /* 保存回调归属本次请求 */
+  var title = NayanTitle.shortTitle(text, SCREEN_IMAGE ? '框选原图' : '未命名');   /* 统一取标题规则（title-rule.js） */
+  var proj = el('proj').value.trim() || ws || '';
+  try { if (el('proj').value.trim()) localStorage.setItem('nayan-last-project', el('proj').value.trim()); } catch (e) {}
+  var pl = putList(), put = {};
+  if (pl) { put.list_id = pl.id; if (pl.mode === 'date') { var w = el('putWaitText').value.trim() || '以后再看'; put.wait_note = w; put.remind_on = parseWaitDate(w); } }
+  postSuggestion(Object.assign({
+    title: title, quote: text,
+    my_note: el('note').value.trim(),
+    source_tool: app || 'hotkey', workspace: proj, session_ref: sr,
+    window_id: wid,
+    request_id: req,                        /* 请求身份：服务端按此幂等（重复提交恰一项） */
+    screen_capture: !!SCREEN_IMAGE,
+    content: ENVELOPE                       /* 信封原样回传（Rust 侧严格复验，任何漂移即拒绝） */
+  }, put)).then(function () {
+    if (req !== REQ) {                      /* 保存期间来了新采集：A 已入库属实，但窗口归 B */
+      try { TAPI.invoke('js_log', { msg: '[capture-mini] req=' + req + ' 已入库，但窗口已被新请求接管，不收起' }); } catch (_) {}
+      return;
+    }
+    SAVED = true;
+    el('hint').innerHTML = '<span class="done-tag">✓ ' + (pl ? '已放进「' + escH(pl.name) + '」' : '已收进' + (proj ? '「' + lastSeg(proj) + '」' : '')) + '</span>';
+    el('card').classList.add('sucked');
+    setTimeout(closeWin, 430);
+  }).catch(function (e) {
+    if (req !== REQ) {                      /* 迟到失败不得把错误状态写到 B 的窗口上 */
+      try { TAPI.invoke('js_log', { msg: '[capture-mini] req=' + req + ' 迟到失败（已换代，不在 UI 显示）：' + e }); } catch (_) {}
+      return;
+    }
+    fail(typeof e === 'string' ? e : (e && e.message) || '未知错误'); /* 草稿保留在窗口里，可重试 */
+  });
+}
+el('okBtn').onclick = confirmIt;
+el('cancelBtn').onclick = closeWin;
+document.addEventListener('keydown', function (ev) {
+  if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing && ev.keyCode !== 229) { ev.preventDefault(); confirmIt(); }   /* 输入法选字的回车不算收进 */
+  if (ev.key === 'Escape') { closeWin(); }
+});
+</script>
+</body>
+</html>

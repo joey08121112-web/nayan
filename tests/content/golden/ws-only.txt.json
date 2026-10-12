@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-ws",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "manual",
+  "original": {
+    "kind": "text",
+    "text": "   \t \n  \r\n "
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "   \t \n  \n ",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "   \t \n  \n "
+  }
+}

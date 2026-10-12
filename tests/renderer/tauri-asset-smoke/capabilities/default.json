@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "asset-smoke 唯一测试窗口的权限：仅 core:default（不注册任何执行外部操作的插件/权限）",
+  "windows": ["smoke-main"],
+  "permissions": ["core:default"]
+}

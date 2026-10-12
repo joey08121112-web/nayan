@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>纳言捕捉 · 引擎测试桩</title>
+<style>
+  body{max-width:760px;margin:40px auto;font:15px/1.8 -apple-system,"PingFang SC",sans-serif;color:#222;padding:0 20px}
+  pre{background:#f4f4f6;border-radius:8px;padding:14px;overflow-x:auto;font-size:13px}
+  .tok{color:#b35900}.tokk{color:#0a6e9c}
+  h1{font-size:20px} .meta{color:#888;font-size:12px}
+</style>
+</head>
+<body>
+<h1>框选引擎测试桩</h1>
+<p class="meta">chrome.* 已被本地桩替换：保存会记录到 <code>window.__lastSave</code>，项目列表返回两条假数据。</p>
+
+<h2>第一节 · 普通段落</h2>
+<p id="p1">这是一个普通段落，用来验证最基本的块命中。文字应该被完整提取，不应该混入相邻段落的内容。</p>
+
+<h2>第二节 · 带链接的段落（测嵌套去重）</h2>
+<p id="p2">这一段中间有一个<a href="#" id="link-in-p">内联链接文本</a>，框选整段时，链接自身也是候选块，但因为它被段落完全包含，应该被去重丢弃，原文只出现一次。</p>
+
+<h2>第三节 · 代码块（测高亮 span 合并）</h2>
+<pre id="code1"><code><span class="tokk">const</span> <span class="tok">anchor</span> = buildAnchor(range);
+<span class="tokk">const</span> ok = resolveAnchor(anchor);
+console.<span class="tok">log</span>(ok ? <span class="tok">'anchored'</span> : <span class="tok">'orphaned'</span>);</code></pre>
+
+<h2>第四节 · 列表</h2>
+<ul id="list1">
+  <li>列表项一：锚点按消息级切分</li>
+  <li>列表项二：上下文哈希兜底</li>
+  <li>列表项三：三级降级策略</li>
+</ul>
+
+<p id="p3">结尾段落。上面所有内容都应可被框选捕获，且顺序保持文档顺序。</p>
+
+<script>
+/* ---- chrome.* 测试桩 ---- */
+(function () {
+  window.__lastSave = null;
+  window.chrome = {
+    runtime: {
+      sendMessage: function (msg, cb) {
+        setTimeout(function () {
+          if (msg && msg.type === 'nayan:save') {
+            window.__lastSave = msg.payload;
+            cb({ ok: true, id: 42 });
+          } else if (msg && msg.type === 'nayan:projects') {
+            cb({ ok: true, list: [{ name: '记录软件', count: 5 }, { name: '灵感池', count: 2 }] });
+          } else cb(null);
+        }, 30);
+      },
+      onMessage: { addListener: function () {} }
+    },
+    storage: {
+      local: {
+        get: function (k, cb) { cb({}); },
+        set: function (o) { window.__bubblePos = o; }
+      }
+    }
+  };
+})();
+</script>
+<script src="../content/box-select.js"></script>
+</body>
+</html>

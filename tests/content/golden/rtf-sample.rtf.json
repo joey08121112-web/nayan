@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "request_id": "req-rtf",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "clipboard",
+  "original": {
+    "kind": "bytes",
+    "bytes": [
+      123,
+      92,
+      114,
+      116,
+      102,
+      49,
+      92,
+      97,
+      110,
+      115,
+      105,
+      32,
+      72,
+      101,
+      108,
+      108,
+      111,
+      32,
+      160,
+      161,
+      32,
+      119,
+      111,
+      114,
+      108,
+      100,
+      32,
+      255,
+      254,
+      125
+    ],
+    "charset_hint": "rtf"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": null,
+  "canonical_unavailable_reason": "二进制 original 无文本 canonical（需按声明的 charset 语义另行解码，本批不猜测）",
+  "plain_projection": {
+    "status": "unavailable",
+    "reason": "二进制 original 无文本投影"
+  }
+}

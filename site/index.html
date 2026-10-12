@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>纳言 NaYan · 值得的话，值得一个去处</title>
+<meta name="description" content="纳言是一个 macOS 本地收件箱，专门接住 AI 说过的好建议：划词、框选、MCP 一键收录，钉板、清单、同题对比帮你把它们做完。免费开源，数据只存在你的电脑。">
+<meta property="og:title" content="纳言 NaYan · 值得的话，值得一个去处">
+<meta property="og:description" content="接住 AI 说过的好建议，一次只看一条，一条条做完。免费开源，本地优先。">
+<meta property="og:image" content="assets/shots/board.jpg">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&family=Noto+Serif+SC:wght@500;600&display=swap">
+<style>
+/* 版式：单栏阅读宽度 + 大块留白；产品截图放在浅陶土底板上，功能区图文左右交替 */
+:root{
+  --bg:#FAF9F5; --surface:#F0EEE6; --surface2:#E8E5DA; --line:#E2DED2;
+  --ink:#141413; --ink2:#3D3D3A; --sub:#6F6D66;
+  --clay:#D97757; --clay-ink:#B4532F; --clay-wash:#F3E3D9;
+  --btn:#141413; --btn-ink:#FAF9F5;
+  --t1:#F3E3D9; --t2:#E2E8DA; --t3:#DDE6EC; --t4:#EFE7D6; --t5:#2B2A27;
+  --serif:"Source Serif 4","Noto Serif SC","Songti SC",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --wrap:1120px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1F1E1C; --surface:#262624; --surface2:#30302D; --line:#393834;
+  --ink:#F4F2EC; --ink2:#D3D0C6; --sub:#A09D94;
+  --clay:#DD8566; --clay-ink:#E9997C; --clay-wash:#3A2A23;
+  --btn:#F4F2EC; --btn-ink:#1F1E1C; --t1:#3A2A23; --t2:#27302A; --t3:#232B33; --t4:#332D22; --t5:#121211; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#1F1E1C; --surface:#262624; --surface2:#30302D; --line:#393834;
+  --ink:#F4F2EC; --ink2:#D3D0C6; --sub:#A09D94;
+  --clay:#DD8566; --clay-ink:#E9997C; --clay-wash:#3A2A23;
+  --btn:#F4F2EC; --btn-ink:#1F1E1C; --t1:#3A2A23; --t2:#27302A; --t3:#232B33; --t4:#332D22; --t5:#121211; color-scheme:dark; }
+
+*{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+@media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+body{ margin:0; background:var(--bg); color:var(--ink); font:16px/1.75 var(--sans); -webkit-font-smoothing:antialiased; }
+img{ max-width:100%; height:auto; display:block; }
+a{ color:inherit; }
+.wrap{ max-width:var(--wrap); margin:0 auto; padding-inline:24px; }
+h1,h2,h3{ font-family:var(--serif); font-weight:500; letter-spacing:-.01em; text-wrap:balance; margin:0; }
+h1{ font-size:clamp(2.6rem,6vw,4.4rem); line-height:1.12; }
+h2{ font-size:clamp(1.9rem,3.6vw,2.7rem); line-height:1.2; }
+h3{ font-size:1.3rem; line-height:1.35; }
+p{ margin:0; }
+.lede{ font-size:1.15rem; color:var(--ink2); max-width:36em; }
+.eyebrow{ font-size:.8rem; letter-spacing:.08em; color:var(--sub); }
+:focus-visible{ outline:2px solid var(--clay); outline-offset:3px; border-radius:6px; }
+
+/* 导航 */
+.nav{ position:sticky; top:env(safe-area-inset-top,0px); z-index:10; background:color-mix(in srgb,var(--bg) 88%,transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid transparent; }
+.nav .wrap{ display:flex; align-items:center; gap:28px; height:64px; }
+.brand{ display:flex; align-items:center; gap:10px; text-decoration:none; font-family:var(--serif); font-size:1.15rem; }
+.brand img{ width:28px; height:28px; border-radius:7px; }
+.nav nav{ display:flex; gap:22px; font-size:.95rem; color:var(--ink2); }
+.nav nav a{ text-decoration:none; }
+.nav nav a:hover{ color:var(--ink); }
+.grow{ flex:1; }
+.btn{ display:inline-flex; align-items:center; gap:8px; height:44px; padding:0 20px; border-radius:12px; font-size:.98rem; text-decoration:none; border:1px solid transparent; cursor:pointer; white-space:nowrap; }
+.btn.dark{ background:var(--btn); color:var(--btn-ink); }
+.btn.dark:hover{ opacity:.88; }
+.btn.line{ border-color:var(--line); color:var(--ink); background:transparent; }
+.btn.line:hover{ background:var(--surface); }
+.btn.sm{ height:36px; padding:0 14px; font-size:.9rem; border-radius:10px; }
+@media (max-width:760px){ .nav nav{ display:none; } }
+
+/* 首屏 */
+.hero{ padding-block:88px 56px; text-align:center; }
+.hero .spark{ width:44px; height:44px; margin:0 auto 26px; color:var(--clay); }
+.hero h1{ max-width:12em; margin-inline:auto; }
+.hero .lede{ margin:24px auto 0; }
+.hero .cta{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin-top:34px; }
+.hero .meta{ margin-top:16px; font-size:.85rem; color:var(--sub); }
+.stage{ margin-top:56px; background:var(--clay-wash); border-radius:24px; padding:clamp(16px,4vw,48px); }
+.stage{ position:relative; }
+.hud{ position:absolute; left:clamp(-8px,-1vw,0px); bottom:clamp(-28px,-2vw,-12px); width:min(320px,62%); background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:14px 16px; box-shadow:0 22px 50px -22px rgba(20,20,19,.4); display:grid; grid-template-columns:28px minmax(0,1fr); gap:4px 12px; text-align:left; font-size:.86rem; }
+.hud .av{ grid-row:span 2; width:28px; height:28px; border-radius:7px; background:#A4614A; color:#fff; display:grid; place-items:center; font-size:.78rem; font-weight:600; }
+.hud b{ font-weight:600; }
+.hud span{ color:var(--sub); font-size:.8rem; }
+.hud kbd{ height:22px; min-width:22px; font-size:.72rem; border-radius:5px; padding:0 5px; }
+.keyhint{ position:absolute; right:clamp(12px,3vw,40px); top:clamp(-18px,-1.4vw,-10px); display:flex; gap:5px; }
+@media (max-width:640px){ .hud,.keyhint{ display:none; } }
+.stage img{ border-radius:12px; box-shadow:0 1px 2px rgba(20,20,19,.06),0 24px 60px -24px rgba(20,20,19,.28); width:100%; height:auto; }
+
+section{ padding-block:96px; }
+.sec-head{ max-width:720px; }
+.sec-head p{ margin-top:16px; }
+.center{ text-align:center; margin-inline:auto; }
+
+/* 流程 */
+.flow{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-top:48px; }
+.flow li{ list-style:none; background:var(--surface); border-radius:16px; padding:24px 22px; }
+.flow ol{ padding:0; margin:0; display:contents; }
+.flow .n{ font-family:var(--serif); color:var(--clay-ink); font-size:1.05rem; }
+.flow h3{ margin:10px 0 8px; }
+.flow p{ color:var(--ink2); font-size:.95rem; }
+@media (max-width:860px){ .flow{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:520px){ .flow{ grid-template-columns:1fr; } }
+
+/* 滚动定格：整块钉在屏幕上，左边换文字，右边换画面；窄屏或没有脚本时退回成上下排列 */
+.scrolly .step{ display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:56px; align-items:center; padding-block:40px; }
+.scrolly .tx h2{ font-size:clamp(1.9rem,2.7vw,2.5rem); margin-top:12px; word-break:keep-all; }
+.scrolly .tx p{ color:var(--ink2); margin-top:16px; max-width:27em; }
+.scrolly .tx ul{ margin:20px 0 0; padding:0; list-style:none; display:grid; gap:10px; color:var(--ink2); font-size:.96rem; }
+.scrolly .tx li{ padding-left:22px; position:relative; }
+.scrolly .tx li::before{ content:""; position:absolute; left:2px; top:.72em; width:8px; height:8px; border-radius:2px; background:var(--clay); transform:rotate(45deg); }
+.scrolly .idx{ font-family:var(--serif); font-size:.95rem; color:var(--clay-ink); display:flex; align-items:center; gap:10px; }
+.scrolly .idx::after{ content:""; width:40px; height:1px; background:currentColor; opacity:.5; }
+.scrolly .im{ background:var(--tint); border-radius:24px; padding:clamp(14px,2.8vw,36px); }
+.scrolly .im img{ border-radius:10px; box-shadow:0 1px 2px rgba(20,20,19,.06),0 28px 60px -28px rgba(20,20,19,.38); }
+.sc-rail{ display:none; }
+@media (max-width:860px){ .scrolly .step{ grid-template-columns:1fr; gap:24px; } }
+@media (min-width:861px){
+  .js .scrolly{ height:calc(var(--n) * 85vh + 15vh); }
+  .js .scrolly .pin{ position:sticky; top:64px; height:calc(100vh - 64px); display:grid; grid-template-columns:minmax(0,4.4fr) minmax(0,7.6fr); grid-template-rows:minmax(0,1fr) auto; column-gap:56px; align-items:center; }
+  .js .scrolly .step{ display:contents; }
+  .js .scrolly .tx{ grid-column:1; grid-row:1; transition:opacity .45s ease, transform .65s cubic-bezier(.2,.7,.2,1); }
+  .js .scrolly .im{ grid-column:2; grid-row:1; transition:opacity .5s ease, transform .75s cubic-bezier(.2,.7,.2,1), background .6s; }
+  .js .scrolly .step:not(.now) .tx, .js .scrolly .step:not(.now) .im{ opacity:0; pointer-events:none; }
+  .js .scrolly .step.next .tx{ transform:translateY(36px); }
+  .js .scrolly .step.past .tx{ transform:translateY(-36px); }
+  .js .scrolly .step.next .im{ transform:translateY(80px) scale(.96); }
+  .js .scrolly .step.past .im{ transform:translateY(-80px) scale(.96); }
+  .js .sc-rail{ grid-column:1 / -1; grid-row:2; display:flex; align-items:center; gap:22px; padding-block:18px 30px; }
+}
+.sc-rail .num{ font-family:var(--serif); font-variant-numeric:tabular-nums; color:var(--sub); min-width:3.2em; }
+.sc-rail .track{ flex:0 0 140px; height:2px; background:var(--line); border-radius:2px; overflow:hidden; }
+.sc-rail .track i{ display:block; height:100%; background:var(--clay); transform-origin:left; transform:scaleX(0); }
+.sc-rail nav{ display:flex; gap:4px; flex-wrap:wrap; }
+.sc-rail button{ font:inherit; font-size:.9rem; color:var(--sub); background:none; border:0; padding:6px 12px; border-radius:99px; cursor:pointer; }
+.sc-rail button:hover{ color:var(--ink); }
+.sc-rail button[aria-current="true"]{ color:var(--ink); background:var(--surface); }
+@media (prefers-reduced-motion: reduce){ .js .scrolly .tx, .js .scrolly .im{ transition:opacity .2s !important; transform:none !important; } }
+
+/* 收录方式 */
+.ways{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:44px; }
+.way{ border:1px solid var(--line); border-radius:16px; padding:26px; display:grid; gap:10px; align-content:start; }
+.way .k{ display:flex; gap:6px; flex-wrap:wrap; }
+kbd{ font-family:var(--sans); font-size:.85rem; min-width:30px; height:30px; padding:0 8px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:var(--surface); border:1px solid var(--line); border-bottom-width:2px; color:var(--ink); }
+.way p{ color:var(--ink2); font-size:.96rem; }
+.way .tag{ font-size:.8rem; color:var(--sub); }
+@media (max-width:700px){ .ways{ grid-template-columns:1fr; } }
+
+/* AI 三档 */
+.tiers{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:44px; }
+.tier{ background:var(--surface); border-radius:16px; padding:26px; display:grid; gap:10px; align-content:start; }
+.tier.on{ background:var(--bg); border:1.5px solid var(--clay); }
+.tier .pill{ justify-self:start; font-size:.78rem; padding:2px 10px; border-radius:99px; background:var(--clay-wash); color:var(--clay-ink); }
+.tier p{ color:var(--ink2); font-size:.95rem; }
+@media (max-width:860px){ .tiers{ grid-template-columns:1fr; } }
+
+/* 引文：隐私 & 名字 */
+.quote{ background:var(--surface); border-radius:24px; padding:clamp(32px,6vw,72px); display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:48px; }
+.quote blockquote{ margin:0; font-family:var(--serif); font-size:clamp(1.6rem,3vw,2.2rem); line-height:1.4; }
+.quote cite{ display:block; margin-top:16px; font-style:normal; font-size:.9rem; color:var(--sub); font-family:var(--sans); }
+.quote .facts{ display:grid; gap:18px; align-content:center; }
+.quote .facts div{ border-top:1px solid var(--line); padding-top:14px; }
+.quote .facts b{ font-weight:600; display:block; }
+.quote .facts span{ color:var(--ink2); font-size:.95rem; }
+@media (max-width:860px){ .quote{ grid-template-columns:1fr; } }
+
+.origin{ max-width:760px; }
+.origin .classic{ font-family:var(--serif); font-size:clamp(1.5rem,3vw,2rem); line-height:1.5; margin-top:28px; }
+.origin .classic small{ display:block; font-family:var(--sans); font-size:.9rem; color:var(--sub); margin-top:10px; }
+.origin p.body{ color:var(--ink2); margin-top:22px; }
+
+/* 开源 / MCP */
+.dev{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:48px; align-items:center; }
+.term{ background:#1F1E1C; color:#E9E6DD; border-radius:16px; padding:22px 24px; font:14px/1.8 var(--mono); overflow-x:auto; }
+.term .c{ color:#8F8B80; }
+.term .p{ color:#DD8566; }
+.copy{ margin-top:12px; }
+@media (max-width:860px){ .dev{ grid-template-columns:1fr; } }
+
+/* 问答 */
+.faq{ max-width:760px; margin:40px auto 0; }
+details{ border-bottom:1px solid var(--line); padding:18px 0; }
+summary{ cursor:pointer; list-style:none; font-family:var(--serif); font-size:1.15rem; display:flex; gap:12px; align-items:center; }
+summary::-webkit-details-marker{ display:none; }
+summary::after{ content:"+"; margin-left:auto; color:var(--sub); font-family:var(--sans); font-size:1.3rem; transition:transform .2s; }
+details[open] summary::after{ transform:rotate(45deg); }
+details p{ color:var(--ink2); margin-top:10px; }
+
+/* 收尾 */
+.final{ text-align:center; }
+.final .cta{ display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:30px; }
+footer{ border-top:1px solid var(--line); padding-block:32px; color:var(--sub); font-size:.88rem; }
+footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add("js")</script>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="">纳言</a>
+    <nav aria-label="页面导航"><a href="#how">怎么用</a><a href="#features">功能</a><a href="#capture">收录方式</a><a href="#ai">AI</a><a href="#privacy">隐私</a><a href="#faq">问答</a></nav>
+    <span class="grow"></span>
+    <a class="btn dark sm" href="https://github.com/joey08121112-web/nayan/releases/download/v0.2.0-preview/NaYan-0.2.0.dmg">下载 Mac 版</a>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <section class="hero" style="padding-bottom:0">
+      <svg class="spark" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 31V9.5A1.5 1.5 0 0 1 15.5 8h17A1.5 1.5 0 0 1 34 9.5V31" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M19 15h10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19 21h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/><path d="M8 33h32" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/></svg>
+      <h1>值得的话，<br>值得一个去处。</h1>
+      <p class="lede">你每天和好几个 AI 来回说话，真正有用的往往只有几句。纳言把这几句接住，放进一个只属于你的收件箱，再陪你把它们一条条做完。</p>
+      <div class="cta">
+        <a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.2.0-preview/NaYan-0.2.0.dmg">下载 Mac 版</a>
+        <a class="btn line" href="#how">看看怎么用</a>
+      </div>
+      <p class="meta">免费 · macOS 13 或更新 · Apple 芯片 · 数据只存在你的电脑</p>
+      <div class="stage"><img src="assets/shots/board.jpg" width="2880" height="1800" alt="纳言的钉板：上方是正在照着做的两张卡片，下方是收件箱"><div class="keyhint" aria-hidden="true"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><div class="hud" aria-hidden="true"><span class="av">C</span><b>收进纳言</b><span>配图统一转 WebP，加 lazy 加载 · 来自 Claude Code · 个人博客</span></div></div>
+    </section>
+
+    <section id="how">
+      <div class="sec-head center" style="text-align:center">
+        <p class="eyebrow">一条话的四站</p>
+        <h2 style="margin-top:10px">从听到一句好建议，到把它做完</h2>
+      </div>
+      <div class="flow"><ol>
+        <li><span class="n">1</span><h3>接住</h3><p>在任何 App 里选中那段话，按一下快捷键，它就进了收件箱，来源、项目、窗口一并记下。</p></li>
+        <li><span class="n">2</span><h3>收件箱</h3><p>新来的话先排队。想看的时候一次只看一条，没有红点催你。</p></li>
+        <li><span class="n">3</span><h3>整理</h3><p>钉到钉板马上做，放进清单以后再看，或者直接归档。几家 AI 说法不一，就放在一起逐条对比。</p></li>
+        <li><span class="n">4</span><h3>做完</h3><p>长回答拆成能勾选的步骤，命令一键复制。做完归档，随时能搜回来。</p></li>
+      </ol></div>
+    </section>
+
+    <section class="scrolly" id="features" style="--n:5;padding-block:0" aria-label="功能介绍">
+      <div class="pin">
+        <div class="step now" data-label="钉板">
+          <div class="tx"><p class="idx">钉板</p><h2>今天要做的，<br>钉在最顺手的地方</h2><p>打开纳言先看到钉板：正在照着做的几件事，每件都带着步骤和进度。收件箱在它下面排队。</p><ul><li>说一句「9 点开会，下午 3 点去医院」，就能排成带时间的清单</li><li>⌘⏎ 一下钉上去，不用 AI 也能拆</li></ul></div>
+          <div class="im" style="--tint:var(--t1)"><img src="assets/shots/board.jpg" width="2880" height="1800" loading="eager" alt="钉板：正在照着做的卡片和收件箱"></div>
+        </div>
+        <div class="step next" data-label="阅读">
+          <div class="tx"><p class="idx">阅读</p><h2>原文还在，<br>步骤可勾</h2><p>每一条都保留 AI 回答的原始排版，下面是拆好的执行步骤。点「回到来源」能跳回当初那个窗口。</p><ul><li>J / K 上下翻，E 归档，P 钉住</li><li>可以写自己的想法、挂上附件</li></ul></div>
+          <div class="im" style="--tint:var(--t2)"><img src="assets/shots/reader.jpg" width="2880" height="1800" loading="eager" alt="阅读页：AI 原文和四个执行步骤"></div>
+        </div>
+        <div class="step next" data-label="同题对比">
+          <div class="tx"><p class="idx">同题对比</p><h2>一个问题问三家，<br>逐条挑</h2><p>把几家 AI 的回答放进一组，按段落并排。好的点「采纳」，不要的划掉，最后汇成你自己的结论。</p></div>
+          <div class="im" style="--tint:var(--t3)"><img src="assets/shots/compare.jpg" width="2880" height="1800" loading="lazy" alt="同题对比：三家的回答并排，右侧是采纳的结论"></div>
+        </div>
+        <div class="step next" data-label="搜索">
+          <div class="tx"><p class="idx">搜索</p><h2>几个月前收的那句，<br>还找得到</h2><p>⌘F 打开搜索。多个关键词同时匹配，标题优先，命中处高亮。框选截图里识别出的文字也能搜到。</p></div>
+          <div class="im" style="--tint:var(--t4)"><img src="assets/shots/search.jpg" width="2880" height="1800" loading="lazy" alt="搜索 NAS 的结果列表"></div>
+        </div>
+        <div class="step next" data-label="深色">
+          <div class="tx"><p class="idx">深色</p><h2>夜里也看得舒服</h2><p>跟随系统切换深浅色。暖纸一样的配色，在深色下换成低亮度的墨色。</p></div>
+          <div class="im" style="--tint:var(--t5)"><img src="assets/shots/board-dark.jpg" width="2880" height="1800" loading="lazy" alt="深色模式下的钉板"></div>
+        </div>
+        <div class="sc-rail" aria-hidden="false"><span class="num" id="scNum">1 / 5</span><span class="track"><i id="scBar"></i></span><nav id="scNav" aria-label="跳到"><button type="button" data-k="0" aria-current="true">钉板</button><button type="button" data-k="1">阅读</button><button type="button" data-k="2">同题对比</button><button type="button" data-k="3">搜索</button><button type="button" data-k="4">深色</button></nav></div>
+      </div>
+    </section>
+
+    <section id="capture" style="padding-top:0">
+      <div class="sec-head">
+        <p class="eyebrow">收录方式</p>
+        <h2 style="margin-top:10px">那句话在哪，就从哪收</h2>
+        <p class="lede">快捷键都能在设置里改，被别的 App 占用时会提示你。</p>
+      </div>
+      <div class="ways">
+        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><h3>划词</h3><p>在终端、编辑器、浏览器里选中文字，按快捷键。角落弹出小窗，顺手记一句想法，回车收进来。</p></div>
+        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>X</kbd></div><h3>框选</h3><p>回答太长不想一点点选，就框一块。能读到界面文字的直接读，读不到的截图识别，原图一起保存。</p></div>
+        <div class="way"><div class="k"><kbd>⌘</kbd><kbd>C</kbd></div><h3>剪贴板</h3><p>在你指定的几个 App 里复制，角落浮出一张小卡，回车收下，Esc 忽略。默认关闭。</p><span class="tag">需要在设置里打开</span></div>
+        <div class="way"><div class="k"><kbd>MCP</kbd><kbd>扩展</kbd></div><h3>让 AI 自己记</h3><p>在 Claude Code、Codex 这类支持 MCP 的工具里说「把这几条记到纳言」，它会拆好逐条写进来。网页上的 AI 对话用浏览器扩展收。</p></div>
+      </div>
+    </section>
+
+    <section id="ai" style="padding-top:0">
+      <div class="sec-head">
+        <p class="eyebrow">AI 来源</p>
+        <h2 style="margin-top:10px">AI 是加分项，不是门票</h2>
+        <p class="lede">起标题、拆步骤、对比、排清单，每一样都有不靠 AI 的做法。想让它更聪明一点，再选一档。</p>
+      </div>
+      <div class="tiers">
+        <div class="tier on"><span class="pill">默认</span><h3>不用 AI</h3><p>标题取第一句，步骤按行拆，对比按段落并排。什么都不往外发。</p></div>
+        <div class="tier"><h3>自己的 Key</h3><p>填你自己的 API Key，支持 DeepSeek、智谱、OpenAI 兼容接口和本机 Ollama。每个功能单独开关，第一次发送前会告诉你发给谁。</p></div>
+        <div class="tier"><h3>纳言订阅</h3><p>不用自己申请 Key，打开就能用。还在准备中。</p></div>
+      </div>
+    </section>
+
+    <section id="privacy" style="padding-top:0">
+      <div class="quote">
+        <div>
+          <blockquote>你收进来的话，首先应该只属于你。</blockquote>
+          <cite>纳言的隐私原则</cite>
+        </div>
+        <div class="facts">
+          <div><b>只存在本机</b><span>所有内容在你 Mac 上的一个 SQLite 文件里，没有账号，没有云端。</span></div>
+          <div><b>断网照常用</b><span>收录、整理、搜索都不需要网络。</span></div>
+          <div><b>删了还能找回</b><span>删除的条目在「最近删除」里放 30 天，可以恢复。</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding-top:0">
+      <div class="origin">
+        <p class="eyebrow">为什么叫纳言</p>
+        <p class="classic">「命汝作纳言，夙夜出纳朕命，惟允。」<small>《尚书 · 舜典》</small></p>
+        <p class="body">纳言是中国古代的一个官职，管的是言语的出入：把下面的话如实带上去，把上面的话准确传下来。纳是接住，言是那些值得留下的话。</p>
+      </div>
+    </section>
+
+    <section id="dev" style="padding-top:0">
+      <div class="dev">
+        <div>
+          <p class="eyebrow">开源 · MIT</p>
+          <h2 style="margin-top:10px">代码公开，接口也开放</h2>
+          <p class="lede" style="margin-top:16px">纳言用 Tauri 写成，代码以 MIT 协议开源。自带一个零依赖的 MCP 服务，接进你常用的 AI 编程工具只要一行命令。</p>
+        </div>
+        <div>
+          <pre class="term" id="mcpCmd"><span class="c"># 接进 Claude Code</span>
+<span class="p">$</span> claude mcp add --scope user suggestion-inbox -- node /path/to/nayan/mcp-server.js
+
+<span class="c"># 然后在对话里说</span>
+把这条建议记到纳言</pre>
+          <button class="btn line sm copy" id="copyBtn" type="button">复制命令</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" style="padding-top:0">
+      <h2 class="center" style="text-align:center">常见问题</h2>
+      <div class="faq">
+        <details><summary>要花钱吗？</summary><p>纳言免费，代码开源。以后会有可选的「纳言订阅」，只是省去自己配 AI Key 的麻烦，不订阅也能用全部功能。</p></details>
+        <details><summary>没有 AI Key 能用吗？</summary><p>能。默认就是不用 AI，所有功能都有不靠 AI 的做法。</p></details>
+        <details><summary>支持哪些电脑？</summary><p>目前是 macOS 13 或更新、Apple 芯片的 Mac。</p></details>
+        <details><summary>第一次打开，提示「无法验证」或打不开？</summary><p>预览版还没有经过苹果公证，第一次打开会被系统拦下。点「完成」后，打开「系统设置 › 隐私与安全性」，拉到底部点「仍要打开」，输入密码即可，之后就能正常打开。也可以在终端运行 <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code>。</p></details>
+        <details><summary>需要哪些系统权限？</summary><p>划词需要「辅助功能」，框选需要「屏幕录制」。不给的话对应的收录方式用不了，其他功能照常。</p></details>
+        <details><summary>数据存在哪里？怎么备份？</summary><p>在 ~/Library/Application Support/com.nayan.app/inbox.db。拷走这个文件就是完整备份。</p></details>
+      </div>
+    </section>
+
+    <section class="final" style="padding-top:0">
+      <h2>别再让好建议滚过屏幕。</h2>
+      <div class="cta"><a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.2.0-preview/NaYan-0.2.0.dmg">下载 Mac 版</a><a class="btn line" href="#how">先看看怎么用</a></div>
+      <p class="meta" style="margin-top:14px;color:var(--sub);font-size:.85rem">v0.2.0 预览版 · 尚未经过苹果公证，第一次打开见下方「常见问题」</p>
+    </section>
+  </div>
+</main>
+
+<footer><div class="wrap"><span>© 2026 纳言 NaYan</span><span>本地优先 · 一次只看一条</span><span class="grow"></span><a href="https://github.com/joey08121112-web/nayan" style="color:inherit">源码（GitHub）</a><span>MIT License</span></div></footer>
+
+<script>
+(function(){
+  // 滚动定格：按这一段滚过的比例决定当前是第几屏
+  var sc=document.querySelector('.scrolly'); if(!sc) return;
+  var steps=[].slice.call(sc.querySelectorAll('.step')), n=steps.length, bar=document.getElementById('scBar'), num=document.getElementById('scNum');
+  var btns=[].slice.call(document.querySelectorAll('#scNav button')), last=-1, top=64;
+  function span(){ return Math.max(1, sc.offsetHeight-(innerHeight-top)); }
+  function upd(){
+    var p=Math.min(1,Math.max(0,(top-sc.getBoundingClientRect().top)/span())), i=Math.min(n-1,Math.floor(p*n));
+    bar.style.transform='scaleX('+(0.08+0.92*p)+')';
+    if(i===last) return; last=i;
+    steps.forEach(function(s,k){ s.classList.toggle('now',k===i); s.classList.toggle('past',k<i); s.classList.toggle('next',k>i); });
+    btns.forEach(function(b,k){ b.setAttribute('aria-current',k===i?'true':'false'); });
+    num.textContent=(i+1)+' / '+n;
+  }
+  var ticking=false;
+  addEventListener('scroll',function(){ if(!ticking){ ticking=true; requestAnimationFrame(function(){ ticking=false; upd(); }); } },{passive:true});
+  addEventListener('resize',upd); upd();
+  btns.forEach(function(b,k){ b.addEventListener('click',function(){ scrollTo({ top: sc.getBoundingClientRect().top+scrollY-top+(k+0.5)/n*span(), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth' }); }); });
+})();
+(function(){
+  var b=document.getElementById('copyBtn'); if(!b) return;
+  var cmd='claude mcp add --scope user suggestion-inbox -- node /path/to/nayan/mcp-server.js';
+  b.addEventListener('click',function(){
+    var done=function(){ b.textContent='已复制'; setTimeout(function(){ b.textContent='复制命令'; },1600); };
+    try{ navigator.clipboard.writeText(cmd).then(done,function(){ sel(); }); }catch(e){ sel(); }
+    function sel(){ var r=document.createRange(); r.selectNodeContents(document.getElementById('mcpCmd')); var s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent='已选中，按 ⌘C 复制'; }
+  });
+})();
+</script>
+</body>
+</html>

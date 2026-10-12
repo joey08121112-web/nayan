@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "request_id": "req-b12",
+  "format": "plain",
+  "format_provenance": "declared",
+  "acquisition": "extension_dom",
+  "original": {
+    "kind": "text",
+    "text": "这是中文 with English words 混排，标点：，。！？；code `x=1` end"
+  },
+  "fidelity": {
+    "truncated": false
+  },
+  "canonical": "这是中文 with English words 混排，标点：，。！？；code `x=1` end",
+  "canonical_unavailable_reason": null,
+  "plain_projection": {
+    "status": "available",
+    "text": "这是中文 with English words 混排，标点：，。！？；code `x=1` end"
+  }
+}
