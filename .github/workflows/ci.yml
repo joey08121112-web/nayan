@@ -17,6 +17,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # 渲染器测试用 Chrome for Testing：系统 Chrome 新版无头模式约 30 秒自行退出，
+      # 跑得慢一点的套件会中途断掉（本地与 CI 都复现过）。版本与本地 tests/renderer/cdp.mjs 一致。
+      - name: 装 Chrome for Testing
+        # 装到 cdp.mjs 默认查找的位置（~/.cache/puppeteer），装完确认可执行文件在。
+        run: |
+          npx --yes @puppeteer/browsers@2 install chrome@150.0.7871.24 --path "$HOME/.cache/puppeteer"
+          test -x "$HOME/.cache/puppeteer/chrome/mac_arm-150.0.7871.24/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
       - name: Rust 测试
         working-directory: app/src-tauri
         run: cargo test --locked

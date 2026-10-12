@@ -182,6 +182,8 @@ for (const t of selected) {
   if (verdict === 'red') anyRed = true;
   rows.push({ name: t.name, pass, fail, ms: r.ms, base: baseCell, verdict, note: [why.join('；'), note].filter(Boolean).join('；') });
   console.log(`${verdict === 'red' ? RED + '✗' + OFF : GREEN + '✓' + OFF} ${sec(r.ms)}`);
+  // 红了就把输出末尾打出来：CI 上没有别的地方能看到失败原因。
+  if (verdict === 'red') console.log(DIM + r.out.split('\n').slice(-40).join('\n') + OFF);
 }
 
 // 仓库干净检查（信息行，不参与红绿）
