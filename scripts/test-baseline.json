@@ -1,6 +1,6 @@
 {
   "_comment": "R9-B2 测试基线（对齐 HANDOFF-CODEX-04 §0.2，2026-10-11 实测复核）。pass=null 表示该测试无计数、以标记行/退出码判定。envelope-goldens 不在 §0.2 清单内，按 2026-10-11 实测记 20。 2026-10-11 合并 R9 A 线后：cargo 132、real-app-v4 68，新增 box-overlay 7、trash-external 19。 R10/C4：cargo 133、trash-external 26，2026-10-11 全套 24 绿。 R11（2026-10-12）：trash-external 31。",
-  "cargo": { "pass": 136, "fail": 0, "note": "另有 4 ignored 属正常；R11 A 线新增首次引导、权限真值表、录制空闲超时 3 项" },
+  "cargo": { "pass": 152, "fail": 0, "note": "另有 6 ignored 属正常（真实模型实测 real_ai_probe / real_ai_tidy_probe / real_ai_clean_raw 等）；R11 A 线新增首次引导、权限真值表、录制空闲超时 3 项；R12 新增 AI 整理 14 项与 v4→v5 迁移 2 项" },
   "dom": { "pass": 130 },
   "helpers": { "pass": 64 },
   "rich-dom": { "pass": 44 },
@@ -23,5 +23,5 @@
   "sync-ingestion": { "pass": 10 },
   "envelope-goldens": { "pass": 20 },
   "box-overlay": { "pass": 7 },
-  "trash-external": { "pass": 31, "note": "R10/C4 新增 7 项真实进程 v3→v4 热升级过滤检查；R11 新增 5 项 MCP 单条/批量与 sync 重试恢复最近删除" }
+  "trash-external": { "pass": 38, "note": "R10/C4 新增 7 项真实进程 v3→v4 热升级过滤检查；R11 新增 5 项 MCP 单条/批量与 sync 重试恢复最近删除；R12 新增 v5 库的 7 项兼容检查" }
 }

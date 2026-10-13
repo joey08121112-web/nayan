@@ -16,6 +16,7 @@
 //     steps 允许无 result（v0-4）。legacy 通过后仍只做 quote-only INSERT（既有兼容边界）。
 //   * v3（2026-10-11）：v2 + suggestions 四列（list_id/wait_note/remind_on/compare_group_id）+ lists/compare_groups/compare_points 三表。
 //   * v4（R9）：v3 + deleted_at TEXT 与非唯一完整索引；外部服务只读验证，不做迁移。
+//   * v5（R12）：v4 + ai_extras TEXT（阅读页「AI 整理」的结果；外部服务不读不写）。
 //   * 其他版本：拒绝。
 
 // 列规格：[名称, 声明类型(大写比较), NOT NULL, 主键序号(0=非主键)]
@@ -105,6 +106,7 @@ const COMPARE_POINTS = [
   ['verdict', 'TEXT', true, 0],
 ];
 const SUG_V4 = [...SUG_V3, ['deleted_at', 'TEXT', false, 0]];
+const SUG_V5 = [...SUG_V4, ['ai_extras', 'TEXT', false, 0]];
 const V3_TABLES = [...KNOWN_TABLES, 'lists', 'compare_groups', 'compare_points'];
 
 function tableInfo(db, table) {
@@ -296,8 +298,8 @@ AND json_valid(content_envelope) AND json_extract(content_envelope, '$.request_i
 
 /// 只读 schema 兼容门控：任何持久写入/服务就绪之前调用。
 export function checkSchemaCompat(db, uv) {
-  if (uv !== 0 && uv !== 2 && uv !== 3 && uv !== 4) {
-    return { ok: false, reason: '主库 schema 版本 ' + uv + ' 与本服务不兼容（支持 0/legacy、2、3 与 4）——请先启动纳言 App（Rust 权威迁移）或升级 App。' };
+  if (uv !== 0 && uv !== 2 && uv !== 3 && uv !== 4 && uv !== 5) {
+    return { ok: false, reason: '主库 schema 版本 ' + uv + ' 与本服务不兼容（支持 0/legacy、2、3、4 与 5）——请先启动纳言 App（Rust 权威迁移）或升级 App。' };
   }
   if (!tableExists(db, 'suggestions')) {
     return { ok: false, reason: '主库无 suggestions 表——请先启动纳言 App 初始化（本服务不建表）。' };
@@ -317,7 +319,7 @@ export function checkSchemaCompat(db, uv) {
     for (const t of V3_TABLES) {
       if (!tableExists(db, t)) return { ok: false, reason: '缺表 ' + t + '（user_version=' + uv + ' 形态校验失败）' };
     }
-    sugSpec = uv === 4 ? SUG_V4 : SUG_V3;
+    sugSpec = uv === 5 ? SUG_V5 : uv === 4 ? SUG_V4 : SUG_V3;
     stepsSpec = STEPS_V2;
   } else if (uv === 2) {
     sugSpec = SUG_V2;
@@ -337,7 +339,7 @@ export function checkSchemaCompat(db, uv) {
     stepsSpec = tableExists(db, 'steps') && tableInfo(db, 'steps').some(c => c.name === 'result') ? STEPS_V2 : STEPS_CORE;
   }
   // 未知列（与 Rust no_unknown_columns 同口径：以 v2 全集为允许上限）
-  const allowed = (uv === 4 ? SUG_V4 : uv === 3 ? SUG_V3 : SUG_V2).map(s => s[0]);
+  const allowed = (uv === 5 ? SUG_V5 : uv === 4 ? SUG_V4 : uv === 3 ? SUG_V3 : SUG_V2).map(s => s[0]);
   for (const n of sugNames) {
     if (!allowed.includes(n)) {
       return { ok: false, reason: 'suggestions 存在未知列 ' + n + '——拒绝（不猜测修库）。' };
@@ -351,7 +353,7 @@ export function checkSchemaCompat(db, uv) {
   if (err) {
     return { ok: false, reason: err + (uv >= 2 ? '（user_version=' + uv + ' 形态校验失败）' : '（历史形态校验失败——请先启动纳言 App 完成权威迁移）') };
   }
-  if (uv === 4) {
+  if (uv >= 4) {
     const index = db.prepare('PRAGMA index_list(suggestions)').all().find(i => i.name === 'idx_suggestions_deleted_at');
     const cols = db.prepare('PRAGMA index_info(idx_suggestions_deleted_at)').all().map(i => i.name);
     if (!index || index.unique !== 0 || index.partial !== 0 || cols.join(',') !== 'deleted_at') {

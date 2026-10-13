@@ -64,10 +64,10 @@ function corsHeaders(req) {
   return origin.startsWith('chrome-extension://') ? { 'Access-Control-Allow-Origin': origin } : {};
 }
 
-let hasTrash = db.prepare('PRAGMA user_version').get().user_version === 4;
+let hasTrash = db.prepare('PRAGMA user_version').get().user_version >= 4;
 function activeWhere() {
   // 旧库由 App 升级；未检测到 v4 时，每次列表/项目计数查询前重读版本。
-  if (!hasTrash) hasTrash = db.prepare('PRAGMA user_version').get().user_version === 4;
+  if (!hasTrash) hasTrash = db.prepare('PRAGMA user_version').get().user_version >= 4;
   return hasTrash ? 'deleted_at IS NULL' : '1=1';
 }
 

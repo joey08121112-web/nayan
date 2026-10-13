@@ -87,8 +87,8 @@ function mcpRound(dbPath, addArgs) {
     const r = await mcpRound(db);
     const c = new DatabaseSync(db); const rows = c.prepare('SELECT COUNT(*) n FROM suggestions').get().n;
     const uv = c.prepare('PRAGMA user_version').get().user_version; c.close();
-    // R9：Rust 当前版本为 v4（最近删除），Rust 建库即 v4
-    rec('A MCP@v4 全流程', r.exit === 0 && rows >= 1 && uv === 4, `exit=${r.exit} rows=${rows} uv=${uv}`);
+    // R12：Rust 当前版本为 v5（AI 整理结果列），Rust 建库即 v5
+    rec('A MCP@v5 全流程', r.exit === 0 && rows >= 1 && uv === 5, `exit=${r.exit} rows=${rows} uv=${uv}`);
   }
 }
 

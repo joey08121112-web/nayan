@@ -31,7 +31,9 @@ pub const SCHEMA_VERSION_V2: u32 = 2;
 pub const SCHEMA_VERSION_V3: u32 = 3;
 /// v4：软删除；时间为 UTC，保留原条目与所有关联内容。
 pub const SCHEMA_VERSION_V4: u32 = 4;
-pub const SCHEMA_VERSION_CURRENT: u32 = SCHEMA_VERSION_V4;
+/// v5（2026-10-13，R12）：阅读页「AI 整理」的结果另存一列 ai_extras（JSON：要点 / 整理后的正文 / 改标题前的旧标题），原文列从不改写。
+pub const SCHEMA_VERSION_V5: u32 = 5;
+pub const SCHEMA_VERSION_CURRENT: u32 = SCHEMA_VERSION_V5;
 
 const V1_SUGGESTIONS_DDL: &str = r#"
 CREATE TABLE IF NOT EXISTS suggestions (
@@ -398,11 +400,21 @@ pub fn validate_current_v2(conn: &Connection) -> Result<(), String> {
 
 /// v3 当前形态实际校验：七表齐全、suggestions 为 v2 列 + 四个 v3 列、三张新表结构精确。
 pub fn validate_current_v3(conn: &Connection) -> Result<(), String> {
-    validate_list_schema(conn, false)
+    validate_list_schema(conn, false, false)
 }
 
 pub fn validate_current_v4(conn: &Connection) -> Result<(), String> {
-    validate_list_schema(conn, true)?;
+    validate_list_schema(conn, true, false)?;
+    validate_trash_index(conn)
+}
+
+/// v5 = v4 + suggestions.ai_extras TEXT（可空）
+pub fn validate_current_v5(conn: &Connection) -> Result<(), String> {
+    validate_list_schema(conn, true, true)?;
+    validate_trash_index(conn)
+}
+
+fn validate_trash_index(conn: &Connection) -> Result<(), String> {
     let indexes: Vec<(String, i64, i64)> = conn.prepare("PRAGMA index_list(suggestions)")
         .map_err(|e| e.to_string())?.query_map([], |r| Ok((r.get(1)?, r.get(2)?, r.get(4)?)))
         .map_err(|e| e.to_string())?.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
@@ -418,7 +430,7 @@ pub fn validate_current_v4(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_list_schema(conn: &Connection, trash: bool) -> Result<(), String> {
+fn validate_list_schema(conn: &Connection, trash: bool, ai: bool) -> Result<(), String> {
     for t in KNOWN_TABLES {
         if !table_exists(conn, t)? {
             return Err(format!("malformed v3：缺表 {}", t));
@@ -431,6 +443,10 @@ fn validate_list_schema(conn: &Connection, trash: bool) -> Result<(), String> {
         names.push("deleted_at");
         sug.push(("deleted_at", "TEXT", false, 0));
     }
+    if ai {
+        names.push("ai_extras");
+        sug.push(("ai_extras", "TEXT", false, 0));
+    }
     no_unknown_columns_in(conn, &names)?;
     validate_table_structure(conn, "suggestions", &sug)?;
     validate_table_structure(conn, "steps", STEPS_V2_SPECS)?;
@@ -440,6 +456,11 @@ fn validate_list_schema(conn: &Connection, trash: bool) -> Result<(), String> {
     validate_table_structure(conn, "compare_groups", COMPARE_GROUPS_SPECS)?;
     validate_table_structure(conn, "compare_points", COMPARE_POINTS_SPECS)?;
     Ok(())
+}
+
+fn apply_v5(conn: &Connection) -> Result<(), String> {
+    conn.execute_batch("ALTER TABLE suggestions ADD COLUMN ai_extras TEXT;")
+        .map_err(|e| format!("加 suggestions.ai_extras 失败：{}", e))
 }
 
 fn apply_v4(conn: &Connection) -> Result<(), String> {
@@ -541,28 +562,38 @@ fn rollback_quietly(conn: &Connection) {
 
 // ---------- 迁移 ----------
 
+/// 已版本化的旧库（v2/v3/v4）各自的形态校验
+fn validator_for(v: u32) -> fn(&Connection) -> Result<(), String> {
+    match v {
+        SCHEMA_VERSION_V2 => validate_current_v2,
+        SCHEMA_VERSION_V3 => validate_current_v3,
+        _ => validate_current_v4,
+    }
+}
+
 /// 事务内迁移：全部步骤成功才 COMMIT 并写 user_version；任一步失败（含 COMMIT 失败）
 /// 整体回滚，不留悬挂事务。
 pub fn migrate(conn: &Connection) -> Result<u32, String> {
     let v = user_version(conn)?;
     if v == SCHEMA_VERSION_CURRENT {
         // F01：幂等路径也必须实际校验形态——畸形 v3 不放行
-        return validate_current_v4(conn).map(|_| v).map_err(|e| {
-            format!("{}：user_version=4 但形态校验失败——拒绝（不猜测修库）", e)
+        return validate_current_v5(conn).map(|_| v).map_err(|e| {
+            format!("{}：user_version=5 但形态校验失败——拒绝（不猜测修库）", e)
         });
     }
-    if v == SCHEMA_VERSION_V2 || v == SCHEMA_VERSION_V3 {
-        let validate = if v == SCHEMA_VERSION_V2 { validate_current_v2 } else { validate_current_v3 };
+    if v == SCHEMA_VERSION_V2 || v == SCHEMA_VERSION_V3 || v == SCHEMA_VERSION_V4 {
+        let validate = validator_for(v);
         validate(conn).map_err(|e| {
             format!("{}：user_version={} 但形态校验失败——拒绝（不猜测修库）", e, v)
         })?;
         conn.execute_batch("BEGIN").map_err(|e| e.to_string())?;
         let r = (|| -> Result<u32, String> {
             if v == SCHEMA_VERSION_V2 { apply_v3(conn)?; }
-            apply_v4(conn)?;
+            if v < SCHEMA_VERSION_V4 { apply_v4(conn)?; }
+            apply_v5(conn)?;
             conn.execute_batch(&format!("PRAGMA user_version = {};", SCHEMA_VERSION_CURRENT))
                 .map_err(|e| format!("写 user_version 失败：{}", e))?;
-            validate_current_v4(conn)?;
+            validate_current_v5(conn)?;
             Ok(SCHEMA_VERSION_CURRENT)
         })();
         return match r {
@@ -619,10 +650,11 @@ pub fn migrate(conn: &Connection) -> Result<u32, String> {
         validate_current_v2(conn)?;
         apply_v3(conn)?;
         apply_v4(conn)?;
+        apply_v5(conn)?;
         conn.execute_batch(&format!("PRAGMA user_version = {};", SCHEMA_VERSION_CURRENT))
             .map_err(|e| format!("写 user_version 失败：{}", e))?;
         // 提交前完整校验目标形态，杜绝「成功标记的畸形 schema」
-        validate_current_v4(conn)?;
+        validate_current_v5(conn)?;
         Ok(SCHEMA_VERSION_CURRENT)
     })();
     match result {
@@ -654,8 +686,8 @@ pub fn open_and_migrate(path: &Path) -> Result<Connection, String> {
         .map_err(|e| e.to_string())?;
     let v = user_version(&conn)?;
     if v == SCHEMA_VERSION_CURRENT {
-        validate_current_v4(&conn).map_err(|e| {
-            format!("{}：user_version=4 但形态校验失败——拒绝打开（不猜测修库）", e)
+        validate_current_v5(&conn).map_err(|e| {
+            format!("{}：user_version=5 但形态校验失败——拒绝打开（不猜测修库）", e)
         })?;
         let _ = conn.execute_batch("PRAGMA journal_mode = WAL;");
         return Ok(conn);
@@ -663,9 +695,9 @@ pub fn open_and_migrate(path: &Path) -> Result<Connection, String> {
     if v > SCHEMA_VERSION_CURRENT {
         return Err(format!("数据库 schema 版本 {} 高于本程序支持的 {}（未来版本）——拒绝打开，请升级 App", v, SCHEMA_VERSION_CURRENT));
     }
-    if v == SCHEMA_VERSION_V2 || v == SCHEMA_VERSION_V3 {
-        // v2 → v3 升级同样先过快照门控（快照+校验+manifest 失败则不执行任何 DDL）
-        let validate = if v == SCHEMA_VERSION_V2 { validate_current_v2 } else { validate_current_v3 };
+    if v == SCHEMA_VERSION_V2 || v == SCHEMA_VERSION_V3 || v == SCHEMA_VERSION_V4 {
+        // v2/v3/v4 → 当前版本的升级同样先过快照门控（快照+校验+manifest 失败则不执行任何 DDL）
+        let validate = validator_for(v);
         validate(&conn).map_err(|e| {
             format!("{}：user_version={} 但形态校验失败——拒绝打开（不猜测修库）", e, v)
         })?;
@@ -946,10 +978,12 @@ pub fn restore_with_protection(backup: &Path, dest: &Path) -> Result<Option<Path
     let bak = open_readonly(backup)?;
     verify_integrity_and_fk(&bak)?;
     let bver = user_version(&bak)?;
-    if bver != 0 && bver != SCHEMA_VERSION_V2 && bver != SCHEMA_VERSION_V3 && bver != SCHEMA_VERSION_CURRENT {
+    if bver != 0 && bver != SCHEMA_VERSION_V2 && bver != SCHEMA_VERSION_V3 && bver != SCHEMA_VERSION_V4 && bver != SCHEMA_VERSION_CURRENT {
         return Err(format!("备份 schema 版本 {} 不受支持——拒绝恢复", bver));
     }
     if bver == SCHEMA_VERSION_CURRENT {
+        validate_current_v5(&bak)?;
+    } else if bver == SCHEMA_VERSION_V4 {
         validate_current_v4(&bak)?;
     } else if bver == SCHEMA_VERSION_V3 {
         validate_current_v3(&bak)?;
@@ -1306,7 +1340,7 @@ mod tests {
         let mut after_cmp = after.clone();
         // v3（2026-10-11）：另加四个清单/对比列（默认 NULL/空串），并预置三个清单——单列预期后剥离
         strip_added_columns(&mut after_cmp, &["window_id=Integer(0)", "content_envelope=Null",
-            "list_id=Null", "wait_note=Text(\"\")", "remind_on=Null", "compare_group_id=Null", "deleted_at=Null"]);
+            "list_id=Null", "wait_note=Text(\"\")", "remind_on=Null", "compare_group_id=Null", "deleted_at=Null", "ai_extras=Null"]);
         let preset: Vec<&str> = after_cmp.split('\n').filter(|l| l.starts_with("[lists]")).collect();
         assert_eq!(preset.len(), 3, "v3 预置三个清单");
         assert!(preset[0].contains("name=Text(\"后期\") mode=Text(\"date\")") && preset[1].contains("name=Text(\"资料\") mode=Text(\"none\")") && preset[2].contains("name=Text(\"每天回顾\") mode=Text(\"daily\")"), "预置清单名与提醒方式");
@@ -1841,7 +1875,7 @@ mod tests {
         }
         let conn = open_and_migrate(&p).unwrap();
         assert_eq!(user_version(&conn).unwrap(), SCHEMA_VERSION_CURRENT);
-        validate_current_v4(&conn).unwrap();
+        validate_current_v5(&conn).unwrap();
         let n: i64 = conn.query_row("SELECT COUNT(*) FROM suggestions WHERE list_id IS NULL AND wait_note='' AND remind_on IS NULL", [], |r| r.get(0)).unwrap();
         assert_eq!(n, 2, "既有两行保留且新列为默认值");
         let names: Vec<String> = conn.prepare("SELECT name||':'||mode FROM lists ORDER BY ord").unwrap()
@@ -2026,8 +2060,8 @@ mod v4_tests {
         std::fs::create_dir_all(&d).unwrap();let p=d.join("inbox.db");v3(&p);
         {let c=Connection::open(&p).unwrap();c.execute_batch("INSERT INTO suggestions(title,quote,list_id,wait_note,remind_on) VALUES ('迁移样本甲','原文 · 🐱',1,'等测试','2030-01-01'),('迁移样本乙','第二条',NULL,'',NULL); INSERT INTO steps(suggestion_id,content,result) VALUES (1,'步骤','结果'); INSERT INTO attachments(suggestion_id,path,name) VALUES (1,'/tmp/test-only.md','测试附件');").unwrap();}
         let before=tests::dump_all_tables(&p);
-        let c=open_and_migrate(&p).unwrap();assert_eq!(user_version(&c).unwrap(),4);validate_current_v4(&c).unwrap();
-        let after=tests::dump_all_tables(&p);let mut cmp=after.clone();tests::strip_added_columns(&mut cmp,&["deleted_at=Null"]);assert_eq!(cmp,before);
+        let c=open_and_migrate(&p).unwrap();assert_eq!(user_version(&c).unwrap(),5);validate_current_v5(&c).unwrap();
+        let after=tests::dump_all_tables(&p);let mut cmp=after.clone();tests::strip_added_columns(&mut cmp,&["deleted_at=Null","ai_extras=Null"]);assert_eq!(cmp,before);
         let files:Vec<_>=std::fs::read_dir(&d).unwrap().map(|e|e.unwrap().path()).collect();
         let snap=files.iter().find(|p|p.extension().is_some_and(|e|e=="snapshot")).unwrap();
         let manifest=files.iter().find(|p|p.to_string_lossy().contains("manifest")).unwrap();
@@ -2035,7 +2069,7 @@ mod v4_tests {
         assert_eq!(m["source_user_version"],3);assert_eq!(m["snapshot_row_counts"]["suggestions"],2);assert_eq!(m["quote_pk_covered"],2);
         let backup=open_readonly(snap).unwrap();assert_eq!(user_version(&backup).unwrap(),3);validate_current_v3(&backup).unwrap();
         println!("R9 migration demo: snapshot={} manifest={} suggestions=2→2 steps=1→1 attachments=1→1",snap.display(),manifest.display());
-        drop(c);let c=open_and_migrate(&p).unwrap();validate_current_v4(&c).unwrap();
+        drop(c);let c=open_and_migrate(&p).unwrap();validate_current_v5(&c).unwrap();
         assert_eq!(std::fs::read_dir(&d).unwrap().filter(|e|e.as_ref().unwrap().path().extension().is_some_and(|x|x=="snapshot")).count(),1);
         if keep.is_none(){let _=std::fs::remove_dir_all(d);}
     }
@@ -2053,5 +2087,29 @@ mod v4_tests {
         let d=std::env::temp_dir().join(unique_suffix("nayan-v4gate"));std::fs::create_dir_all(&d).unwrap();let p=d.join("bad.db");v3(&p);
         {let c=Connection::open(&p).unwrap();c.execute_batch("INSERT INTO suggestions(title,quote) VALUES ('读取失败',X'CAFE');").unwrap();}
         assert!(open_and_migrate(&p).is_err());let c=Connection::open(&p).unwrap();assert_eq!(user_version(&c).unwrap(),3);assert!(!column_exists(&c,"suggestions","deleted_at").unwrap());let _=std::fs::remove_dir_all(d);
+    }
+    fn v4(path: &Path) {
+        v3(path);
+        let c=Connection::open(path).unwrap();apply_v4(&c).unwrap();c.execute_batch("PRAGMA user_version=4;").unwrap();validate_current_v4(&c).unwrap();
+    }
+    #[test]
+    fn v4_to_v5_snapshot_keeps_rows_and_adds_ai_extras() {
+        let d=std::env::temp_dir().join(unique_suffix("nayan-v4v5"));std::fs::create_dir_all(&d).unwrap();let p=d.join("inbox.db");v4(&p);
+        {let c=Connection::open(&p).unwrap();c.execute_batch("INSERT INTO suggestions(title,quote,deleted_at) VALUES ('留着','原文',NULL),('删过的','原文二','2030-01-01T00:00:00Z');").unwrap();}
+        let before=tests::dump_all_tables(&p);
+        let c=open_and_migrate(&p).unwrap();assert_eq!(user_version(&c).unwrap(),5);validate_current_v5(&c).unwrap();
+        let after=tests::dump_all_tables(&p);let mut cmp=after.clone();tests::strip_added_columns(&mut cmp,&["ai_extras=Null"]);assert_eq!(cmp,before);
+        let snaps=std::fs::read_dir(&d).unwrap().filter(|e|e.as_ref().unwrap().path().extension().is_some_and(|x|x=="snapshot")).count();
+        assert_eq!(snaps,1,"v4 → v5 先留快照");
+        let _=std::fs::remove_dir_all(d);
+    }
+    #[test]
+    fn malformed_v5_rejected_without_persistent_change() {
+        for bad in ["PRAGMA user_version=5;", "ALTER TABLE suggestions ADD COLUMN ai_extras INTEGER; PRAGMA user_version=5;"] {
+            let d=std::env::temp_dir().join(unique_suffix("nayan-badv5"));std::fs::create_dir_all(&d).unwrap();let p=d.join("bad.db");v4(&p);
+            {let c=Connection::open(&p).unwrap();c.execute_batch(bad).unwrap();}
+            let before=std::fs::read(&p).unwrap();assert!(open_and_migrate(&p).unwrap_err().contains("user_version=5"));assert_eq!(std::fs::read(&p).unwrap(),before);
+            let _=std::fs::remove_dir_all(d);
+        }
     }
 }

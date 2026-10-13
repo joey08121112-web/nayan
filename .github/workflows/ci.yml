@@ -17,8 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # 渲染器测试用 Chrome for Testing：系统 Chrome 新版无头模式约 30 秒自行退出，
-      # 跑得慢一点的套件会中途断掉（本地与 CI 都复现过）。版本与本地 tests/renderer/cdp.mjs 一致。
+      # 渲染器测试用 Chrome for Testing，与本地 tests/renderer/cdp.mjs 用同一个版本，结果可以对照。
+      # （CI 上真正卡住的原因是 Chrome 停发动画帧，已在 cdp.mjs 用启动参数修复。）
       - name: 装 Chrome for Testing
         # 装到 cdp.mjs 默认查找的位置（~/.cache/puppeteer），装完确认可执行文件在。
         run: |

@@ -358,7 +358,7 @@ try {
   check('TR2','撤销恢复正文和原状态',(await item(trashA.id))?.quote==='回收站独有关键词 R9ONLY'&&!(await api('GET','/api/suggestions?trash=1')).some(x=>x.id===trashA.id));
   await cdp.eval(`openItem(${trashA.id})`); await sleep(300);
   const next=await cdp.eval(`adjId(${trashA.id},1)||adjId(${trashA.id},-1)`);
-  await click('.dmenu summary'); await click('[data-act="del"]'); await sleep(400);
+  await click('details.dmenu:not(.aidm) > summary'); await click('[data-act="del"]'); await sleep(400);
   check('TR3','阅读页删除后移到下一条并可撤销',!await item(trashA.id)&&await cdp.eval(`state.sel===${next} && !!gid('trashUndo')`));
   await cdp.eval(`state.view={t:'archive'}; renderAll(false)`); await sleep(120);
   check('TR4','归档底部显示最近删除、期限和删除时间',await cdp.eval(`!!gid('recentlyDeleted') && gid('recentlyDeleted').textContent.includes('30 天后自动清空') && gid('recentlyDeleted').textContent.includes('删除于')`));

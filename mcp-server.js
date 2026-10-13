@@ -233,10 +233,10 @@ function oversizeError(size, isText) {
 
 // ── v3（2026-10-11）：我的清单 —— 对 AI 说「记到后期」直接入清单 ─────────────
 const HAS_LISTS = UV >= 3;
-let hasTrash = UV === 4;
+let hasTrash = UV >= 4;
 function activeFilter() {
   // App 可在本进程运行期间把旧库升到 v4；升级前每次列表查询重新检测。
-  if (!hasTrash) hasTrash = db.prepare('PRAGMA user_version').get().user_version === 4;
+  if (!hasTrash) hasTrash = db.prepare('PRAGMA user_version').get().user_version >= 4;
   return hasTrash ? ' AND deleted_at IS NULL' : '';
 }
 /// 幂等命中的行若在「最近删除」里，先恢复它（与 Rust create_with_content 同语义），返回是否恢复。

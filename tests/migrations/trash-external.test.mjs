@@ -28,34 +28,36 @@ for(const [name,sql] of [
   R.rec(name+'：Rust / JS 都拒绝且数据库字节不变',!js.ok&&!rust&&before.equals(fs.readFileSync(db)),JSON.stringify(js));
 }
 
-for(const version of [2,3,4]) {
+for(const version of [2,3,4,5]) {
   const db=rustInit(path.join(root,'v'+version+'.db'));
+  // R12：Rust 建库为 v5（多一列 ai_extras）；更早的版本先去掉它
+  if(version<5)edit(db,'ALTER TABLE suggestions DROP COLUMN ai_extras; PRAGMA user_version=4;');
   if(version<4)edit(db,'DROP INDEX idx_suggestions_deleted_at; ALTER TABLE suggestions DROP COLUMN deleted_at; PRAGMA user_version='+version+';');
   if(version===2)edit(db,'ALTER TABLE suggestions DROP COLUMN compare_group_id; ALTER TABLE suggestions DROP COLUMN remind_on; ALTER TABLE suggestions DROP COLUMN wait_note; ALTER TABLE suggestions DROP COLUMN list_id; DROP TABLE lists; DROP TABLE compare_groups; DROP TABLE compare_points;');
   R.rec('v'+version+' 合法旧/新库 JS 兼容',gate(db).ok,'schema gate');
-  if(version===4)edit(db,"INSERT INTO suggestions(title,workspace,status,deleted_at) VALUES ('隐藏测试条目','/fake/trash','inbox','2030-01-01T00:00:00Z'),('可见测试条目','/fake/live','inbox',NULL);");
+  if(version>=4)edit(db,"INSERT INTO suggestions(title,workspace,status,deleted_at) VALUES ('隐藏测试条目','/fake/trash','inbox','2030-01-01T00:00:00Z'),('可见测试条目','/fake/live','inbox',NULL);");
   const cli=new McpClient(db);let sync;
   try {
     await cli.initialize('r9-test');
     const add=toolText(await cli.tool('add_suggestion',{title:'MCP 新条目',quote:'正文',...(version>=3?{list:'后期',wait:'2030-01-01 再看'}:{})}));
     R.rec('v'+version+' MCP 保持写入/清单兼容',!add.startsWith('ERROR')&&add.includes('id='),add);
     const text=toolText(await cli.tool('list_suggestions',{}));
-    if(version===4)R.rec('MCP 默认列表隐藏回收站',text.includes('可见测试条目')&&!text.includes('隐藏测试条目'),text);
+    if(version>=4)R.rec('v'+version+' MCP 默认列表隐藏回收站',text.includes('可见测试条目')&&!text.includes('隐藏测试条目'),text);
     const port=await freePort();sync=await startSync(db,port);
     const rows=await fetch('http://127.0.0.1:'+port+'/api/suggestions').then(r=>r.json());
     R.rec('v'+version+' sync 可读',Array.isArray(rows)&&rows.some(r=>r.title==='MCP 新条目'),JSON.stringify(rows.map(r=>r.title)));
-    if(version===4){
-      R.rec('sync 默认列表隐藏回收站',rows.some(r=>r.title==='可见测试条目')&&!rows.some(r=>r.title==='隐藏测试条目'),'GET /api/suggestions');
+    if(version>=4){
+      R.rec('v'+version+' sync 默认列表隐藏回收站',rows.some(r=>r.title==='可见测试条目')&&!rows.some(r=>r.title==='隐藏测试条目'),'GET /api/suggestions');
       const projects=await fetch('http://127.0.0.1:'+port+'/api/projects').then(r=>r.json());
-      R.rec('sync 项目计数隐藏回收站',!projects.some(r=>r.name==='/fake/trash'),'GET /api/projects');
-      const c=new DatabaseSync(db);R.rec('外部服务没有迁移或清理回收站',c.prepare('PRAGMA user_version').get().user_version===4&&c.prepare('SELECT COUNT(*) n FROM suggestions WHERE deleted_at IS NOT NULL').get().n===1,'v4 / trash 1');c.close();
+      R.rec('v'+version+' sync 项目计数隐藏回收站',!projects.some(r=>r.name==='/fake/trash'),'GET /api/projects');
+      const c=new DatabaseSync(db);R.rec('v'+version+' 外部服务没有迁移或清理回收站',c.prepare('PRAGMA user_version').get().user_version===version&&c.prepare('SELECT COUNT(*) n FROM suggestions WHERE deleted_at IS NOT NULL').get().n===1,'v'+version+' / trash 1');c.close();
     }
   }finally{cli.kill();if(sync)sync.p.kill('SIGTERM');}
 }
-// R10/C4：服务在 v3 启动并查询过，随后由 Rust 权威迁移到 v4；不重启进程。
+// R10/C4：服务在 v3 启动并查询过，随后由 Rust 权威迁移到当前版本（R12 起为 v5）；不重启进程。
 {
   const db=rustInit(path.join(root,'live-upgrade.db'));
-  edit(db,"DROP INDEX idx_suggestions_deleted_at; ALTER TABLE suggestions DROP COLUMN deleted_at; PRAGMA user_version=3; INSERT INTO suggestions(title,workspace,status) VALUES ('升级后应隐藏','/fake/upgrade-trash','inbox'),('升级后仍可见','/fake/upgrade-live','inbox');");
+  edit(db,"ALTER TABLE suggestions DROP COLUMN ai_extras; DROP INDEX idx_suggestions_deleted_at; ALTER TABLE suggestions DROP COLUMN deleted_at; PRAGMA user_version=3; INSERT INTO suggestions(title,workspace,status) VALUES ('升级后应隐藏','/fake/upgrade-trash','inbox'),('升级后仍可见','/fake/upgrade-live','inbox');");
   const cli=new McpClient(db);let sync;
   try {
     await cli.initialize('r10-upgrade-test');
@@ -78,7 +80,7 @@ for(const version of [2,3,4]) {
     const projects=await fetch(base+'/api/projects').then(r=>r.json());
     R.rec('热升级后 sync 项目计数隐藏回收站',projects.some(r=>r.name==='/fake/upgrade-live'&&r.count===1)&&!projects.some(r=>r.name==='/fake/upgrade-trash'),JSON.stringify(projects));
     const c=new DatabaseSync(db);
-    R.rec('热升级后服务未重启、未清理回收站',cli.p.pid===pids[0]&&sync.p.pid===pids[1]&&cli.p.exitCode===null&&sync.p.exitCode===null&&c.prepare('PRAGMA user_version').get().user_version===4&&c.prepare('SELECT COUNT(*) n FROM suggestions WHERE deleted_at IS NOT NULL').get().n===1,'原进程 / v4 / trash 1');
+    R.rec('热升级后服务未重启、未清理回收站',cli.p.pid===pids[0]&&sync.p.pid===pids[1]&&cli.p.exitCode===null&&sync.p.exitCode===null&&c.prepare('PRAGMA user_version').get().user_version===5&&c.prepare('SELECT COUNT(*) n FROM suggestions WHERE deleted_at IS NOT NULL').get().n===1,'原进程 / v5 / trash 1');
     c.close();
   }finally{cli.kill();if(sync)sync.p.kill('SIGTERM');}
 }

@@ -433,7 +433,7 @@ for (const shape of ['v0-4', 'v0-5', 'v1']) {
   c.close();
   rec('M18 批内第二条 INSERT RAISE(ABORT)：整批回滚零行+显式错误；解除后同实例成功（事务未悬挂）',
     !!schemaWithTrigger && toolText(failBatch).startsWith('ERROR') && toolText(failBatch).includes('回滚')
-      && !okBatch.error && rows.length === 2 && rows[0].title === 'M18 第一条' && rows[1].title === 'M18 第二条' && uv === 4, // R9：Rust 建库为 v4
+      && !okBatch.error && rows.length === 2 && rows[0].title === 'M18 第一条' && rows[1].title === 'M18 第二条' && uv === 5, // R12：Rust 建库为 v5
     'fail=' + toolText(failBatch).slice(0, 70) + ' okRows=' + JSON.stringify(rows) + ' uv=' + uv);
 }
 

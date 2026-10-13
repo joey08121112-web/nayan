@@ -1007,7 +1007,12 @@ body.view-home .bwrap{ padding-bottom:160px; }
   padding:2px 2px 10px; margin:0 -2px; scrollbar-width:none; }
 .brail::-webkit-scrollbar{ display:none; }
 .bcard{ flex:0 0 82%; scroll-snap-align:start; background:var(--panel); border:1px solid var(--line2); border-radius:20px; padding:18px 22px 12px;
-  display:flex; flex-direction:column; min-width:0; box-shadow:0 1px 2px rgba(60,50,30,.04),0 10px 26px -16px rgba(60,50,30,.22); }
+  display:flex; flex-direction:column; min-width:0; box-shadow:0 1px 2px rgba(60,50,30,.04),0 10px 26px -16px rgba(60,50,30,.22);
+  cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease; }
+/* 整张卡片点开原文（勾步骤、底栏按钮除外）；悬停时边框加深提示能点 */
+.bcard:hover{ border-color:var(--line3); box-shadow:0 1px 2px rgba(60,50,30,.05),0 14px 30px -16px rgba(60,50,30,.3); }
+body.dark .bcard:hover{ box-shadow:none; }
+.bcard .bstep, .bcard .bcf .lk{ cursor:pointer; }
 body.dark .bcard{ box-shadow:none; }
 .bcard.solo{ flex-basis:100%; }
 .bch{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--sub); min-width:0; }
@@ -1150,6 +1155,56 @@ body.view-reader #aibody.rich table{ font-size:14px; }
 body.view-reader .detail:has(.quiet){ padding-bottom:0; }
 .dfield.is-hidden{ display:none; }
 .dfield{ margin-top:18px; }
+/* R12 · AI 整理：顶栏按钮 + 菜单、标题说明、要点块、整理后/原文切换。凡是会叫 AI 的地方都用 ✦ 和墨水蓝浅底 */
+.tb.ai{ border-color:var(--accentLine); background:var(--accentSoft); color:var(--accentInk); font-weight:500; display:inline-flex; align-items:center; gap:5px; }
+.tb.ai:hover{ border-color:var(--accent); }
+.tb.ai .caret{ font-size:9px; opacity:.7; }
+.tb.ai.busy{ opacity:.7; pointer-events:none; }
+details.aidm > summary.tb{ display:inline-flex; align-items:center; }
+.aimenu{ width:300px; top:38px; }
+.aimenu .mi{ align-items:flex-start; padding:8px 10px; white-space:normal; gap:10px; }
+.aimenu .mi > span{ margin-left:0; font-size:inherit; color:inherit; text-align:left; }
+.aimenu .mi .ic{ width:18px; flex:0 0 18px; margin:0; color:var(--accent); font-size:14px; line-height:20px; text-align:center; }
+.aimenu .mi b{ display:block; font-weight:500; font-size:13.5px; }
+.aimenu .mi small{ display:block; font-size:12px; color:var(--sub); line-height:1.45; }
+.aimenu .mi kbd{ margin-left:auto; align-self:center; font:inherit; font-size:11px; color:var(--sub); border:1px solid var(--kbdLine); border-radius:5px; padding:0 5px; line-height:18px; }
+.aimenu .mi:disabled{ opacity:.5; }
+.aimenu .msep{ height:1px; background:var(--line2); margin:6px 4px; flex-shrink:0; }
+.aimenu .mfoot{ font-size:11.5px; color:var(--sub); padding:4px 10px 6px; line-height:1.5; text-align:left; white-space:normal; }
+.aimenu .mfoot button{ padding:0; font-size:11.5px; color:var(--accent); font-weight:400; }
+.badge.ai{ background:var(--accentSoft); color:var(--accentInk); }
+.tnote{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--sub); margin:-6px 0 18px; }
+body.view-reader .dtitle + .tnote{ margin:-20px 0 26px; }
+.tnote .lk{ height:22px; padding:0 6px; font-size:12px; color:var(--accent); }
+.aipoints{ background:var(--panel); border:1px solid var(--accentLine); border-radius:14px; padding:12px 16px; margin:0 0 30px; }
+.aipoints.rule{ border-color:var(--line2); }
+.aipoints .phead{ display:flex; align-items:center; gap:8px; font-size:12.5px; flex-wrap:wrap; white-space:nowrap; }
+.aipoints .phead .t{ font-weight:600; color:var(--ink); }
+.aipoints .phead .grow{ flex:1; }
+.aipoints .phead .lk{ height:24px; padding:0 7px; font-size:12px; color:var(--sub); }
+.aipoints ol{ margin:6px 0 0; padding-left:20px; color:var(--prose); font-size:15px; line-height:1.7; }
+.aipoints li{ margin:2px 0; padding-left:2px; }
+.aipoints.collapsed ol{ display:none; }
+.aiseg{ display:inline-flex; background:var(--field); border-radius:8px; padding:2px; margin-right:4px; }
+.aiseg button{ height:22px; padding:0 9px; border-radius:6px; font-size:11.5px; font-weight:400; color:var(--sub); }
+.aiseg button.on{ background:var(--panel); color:var(--ink); font-weight:500; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+#aiclean{ display:none; }
+.aiquote.showclean #aiclean{ display:block; }
+.aiquote.showclean #aibody, .aiquote.showclean #togglerich, .aiquote.showclean #cporig{ display:none !important; }
+.aiquote:not(.showclean) [data-act="aiundo"][data-kind="clean"]{ display:none; }
+body.view-reader #aiclean{ padding:0; color:var(--prose); }
+body.view-reader #aiclean p, body.view-reader #aiclean li, body.view-reader #aiclean blockquote{ font-size:17px; line-height:1.85; }
+body.view-reader #aiclean p{ margin:0 0 18px; }
+body.view-reader #aiclean ul, body.view-reader #aiclean ol{ margin:0 0 18px; padding-left:1.4em; }
+body.view-reader #aiclean li{ margin-bottom:8px; padding-left:4px; }
+body.view-reader #aiclean h1, body.view-reader #aiclean h2{ font-size:20px; font-weight:600; margin:26px 0 12px; }
+body.view-reader #aiclean h3, body.view-reader #aiclean h4{ font-size:18px; font-weight:600; margin:22px 0 10px; }
+body.view-reader #aiclean pre{ font-size:13.5px; line-height:1.6; background:var(--codebg); border:0; border-radius:12px; padding:14px 16px; margin:0 0 18px; }
+.adds .add.ai{ border-style:solid; border-color:var(--accentLine); color:var(--accentInk); }
+.chip.planchip.dim{ border-color:var(--line2); background:transparent; color:var(--faint); font-weight:400; }
+.chip.planchip.dim kbd{ display:none; }
+.ss-ta{ width:100%; min-height:64px; resize:vertical; font:inherit; font-size:13px; line-height:1.5; padding:8px 10px; border-radius:9px; border:1px solid var(--line2); background:var(--panel); color:var(--ink); }
+.ss-ta:focus{ outline:none; box-shadow:0 0 0 3.5px var(--ring); }
 .attwrap:has(.attempty){ display:none; }
 .attwrap .attadd{ display:none; }
 /* 执行步骤：白卡 + 圆形勾 + 下一步 + 进度；执行结果 / 复制 / 删除 / 加一步只在悬停（或已有结果）时出现 */
@@ -1322,12 +1377,12 @@ body.focus-read #focusExit{ top:12px; right:auto; left:50%; transform:translateX
 <section class="detail" id="detail"></section>
 <datalist id="projOptions"></datalist>
 <div class="bdock" id="bdock"><div class="bcomposer"><label for="boardQuick" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">记一条</label>
-  <textarea id="boardQuick" rows="2" placeholder="记一条想法，或粘贴一段 AI 的回答…" autocomplete="off"></textarea>
+  <textarea id="boardQuick" rows="2" placeholder="记一条想法、粘贴 AI 的回答，或写今天的安排：9 点写周报，3 点开会…" autocomplete="off"></textarea>
   <div class="waitrow" id="boardWait" hidden><label><span class="lq" id="boardWaitLabel">等什么？</span><input type="text" id="boardWaitText" placeholder="例如：等同步功能做完 / 11 月再看" aria-label="等什么"></label>
     <button type="button" class="chip" data-bwait="下周再看">下周再看</button><button type="button" class="chip" data-bwait="下个月再看">下个月再看</button></div>
   <div class="crow"><button type="button" class="chip" id="boardProj" aria-haspopup="menu" title="收进来的这条归到哪个项目">归入：未归属</button>
     <button type="button" class="chip" id="boardPut" aria-haspopup="menu" title="收进收件箱，或直接放进你的清单" hidden>放到：收件箱 ▾</button>
-    <button type="button" class="chip planchip" id="boardPlan" title="把这段计划排成一张可勾选的清单，钉在钉板上" hidden>排成清单 <kbd>⌘⏎</kbd></button>
+    <button type="button" class="chip planchip dim" id="boardPlan" title="写上几点做什么，排成一张可勾选的清单，钉在钉板上"><span id="boardPlanLabel">排成日程</span> <kbd>⌘⏎</kbd></button>
     <span class="grow"></span><span class="bhk"><span id="boardHotkeys">⌥S 划词</span> · <button type="button" class="bhkbtn" id="screenCapture" title="框选屏幕：保存原图并识别文字">⌥Z 框选</button></span>
     <button type="button" class="bsend" id="boardSend" aria-label="收进去"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
   <div class="menu" id="boardProjMenu" role="menu" aria-label="归入项目" hidden></div>
@@ -2102,6 +2157,83 @@ function startProjEdit(it, chip){
 function grpOf(st){ return (st==='todo'||st==='doing')?'todo':((st==='done'||st==='dropped')?'done':'inbox'); }
 function readingOrder(){ return visibleItems().slice().sort(function(a,b){ return b.id-a.id; }); }
 function adjId(id,dir){ var l=readingOrder(); for(var i=0;i<l.length;i++){ if(l[i].id===id) return l[i+dir]?l[i+dir].id:0; } return 0; }
+/* ---------- R12 · 阅读页「AI 整理」：只对当前这一条、只做点的那一项 ---------- */
+var AI_TIDY=[['points','≡','理成要点','3–7 条，放在原文上面'],['clean','¶','清理排版','去掉乱码框和重复的读屏文字，补回分段'],
+  ['split','☐','拆成步骤','可勾选；钉住后在钉板上打勾'],['retitle','T','重起标题','20 字以内，说清楚是关于什么']];
+var AI_PROVIDER_NAME={ glm:'智谱 GLM', deepseek:'DeepSeek', openai:'OpenAI', ollama:'本机 Ollama', custom:'自定义接口' };
+function aiOf(it){ return (it && it.ai && typeof it.ai==='object')?it.ai:{}; }
+function aiCleanOf(it){ var c=aiOf(it).clean; return (c && typeof c.text==='string' && c.text)?c:null; }
+function aiCleanShown(it){ return !!aiCleanOf(it) && (state.cleanView||{})[it.id]!=='orig'; }
+/* 这一项会不会真的叫 AI（没接、或「用 AI 的地方」关着，就按规则做） */
+function tidyUsesAi(kind){ return kind==='retitle'?aiReady():aiOn(kind); }
+function aiMenuHTML(it){
+  var ai=aiOf(it), hasSteps=(it.steps||[]).length>0, a=state.ai||{};
+  var items=AI_TIDY.map(function(x,i){
+    var sub=x[3], dis=false;
+    if(x[0]==='split' && hasSteps){ sub='已经拆过了；要重拆先删掉现有步骤'; dis=true; }
+    else if(x[0]==='points' && ai.points) sub='已经理过，再点重新整理';
+    else if(x[0]==='clean' && ai.clean) sub='已经清理过，再点重新整理';
+    if(!dis && !tidyUsesAi(x[0])) sub+=(aiReady()?'（这一项没开 AI，按规则做）':'');
+    return '<button type="button" class="mi" role="menuitem" data-act="tidy" data-kind="'+x[0]+'"'+(dis?' disabled':'')+'><span class="ic" aria-hidden="true">'+x[1]+'</span><span><b>'+x[2]+'</b><small>'+esc(sub)+'</small></span><kbd>'+(i+1)+'</kbd></button>';
+  }).join('');
+  var foot=aiReady()
+    ?'用 '+esc(AI_PROVIDER_NAME[a.provider]||a.provider||'AI')+(a.model?' · '+esc(a.model):'')+'，原文会发给 '+esc(a.host||'你填的接口')+(a.provider==='ollama'?'（不出这台电脑）':'')+'　<button type="button" data-act="aiset">设置</button>'
+    :'还没接 AI，现在按规则整理。<button type="button" data-act="aiset">去设置接上 AI</button>，结果会准很多。';
+  return '<details class="dmenu aidm" id="aiMenu"><summary class="tb ai" aria-label="AI 整理这一条" title="AI 整理这一条（A）">✦ AI 整理<span class="caret" aria-hidden="true">▾</span></summary>'+
+    '<div class="menu dmenu-pop aimenu" role="menu" aria-label="AI 整理这一条">'+items+'<div class="msep" role="separator"></div><div class="mfoot">'+foot+'</div></div></details>';
+}
+function aiTitleNoteHTML(it){
+  var t=aiOf(it).title; if(!t || typeof t.prev!=='string') return '';
+  return '<div class="tnote">'+(t.src==='ai'?'<span class="badge ai">✦ AI 起的标题</span>':'<span class="badge">按规则 · 取第一句</span>')+
+    '<span>原来是「'+esc(t.prev)+'」</span><button type="button" class="lk" data-act="aiundo" data-kind="title">撤销</button></div>';
+}
+function aiPointsHTML(it){
+  var p=aiOf(it).points; if(!p || !Array.isArray(p.items) || !p.items.length) return '';
+  var isAi=p.src==='ai', col=!!(state.ptsCollapsed||{})[it.id];
+  return '<div class="aipoints'+(isAi?'':' rule')+(col?' collapsed':'')+'"><div class="phead"><span class="t">'+(isAi?'✦ 要点':'要点')+'</span>'+
+    '<span class="badge'+(isAi?' ai':'')+'">'+(isAi?'AI 整理':'按规则 · 没用 AI')+'</span>'+(col?'<span>'+p.items.length+' 条</span>':'')+'<span class="grow"></span>'+
+    '<button type="button" class="lk" data-act="tidy" data-kind="points">重新整理</button><button type="button" class="lk" data-act="aiundo" data-kind="points">删掉</button>'+
+    '<button type="button" class="lk" data-act="ptoggle" aria-expanded="'+(!col)+'">'+(col?'展开':'收起')+'</button></div>'+
+    '<ol>'+p.items.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('')+'</ol></div>';
+}
+function aiSegHTML(it){
+  var c=aiCleanOf(it); if(!c) return '';
+  var on=aiCleanShown(it);
+  return '<span class="aiseg" role="group" aria-label="看整理后还是原文" title="'+(c.src==='ai'?'AI 清理过排版，原文留着':'按规则清理过排版（没用 AI），原文留着')+'">'+
+    '<button type="button" data-act="cview" data-v="clean" class="'+(on?'on':'')+'" aria-pressed="'+on+'">'+(c.src==='ai'?'✦ ':'')+'整理后</button>'+
+    '<button type="button" data-act="cview" data-v="orig" class="'+(on?'':'on')+'" aria-pressed="'+(!on)+'">原文</button></span>'+
+    '<button type="button" class="cp-morph" data-act="aiundo" data-kind="clean" title="删掉整理版，只留原文"><span class="l1">撤销整理</span><span class="l2">✓</span></button>';
+}
+/* 整理后的正文按 Markdown 渲染（同一套受限渲染：markdown-it 不透传 HTML + DOMPurify 白名单）；渲染不了就按纯文本 */
+function fillAiClean(it){
+  var el=gid('aiclean'), c=aiCleanOf(it); if(!el || !c) return;
+  var html=null;
+  try{ var md=markdownToHtml(c.text); html=md!=null?sanitizeRichHtml(md):null; }catch(e){ html=null; }
+  if(html!=null){ el.innerHTML=html; try{ wireRichLinks(el, openExternal); wireCodeChrome(el); }catch(e){} }
+  else { el.classList.remove('rich'); el.style.whiteSpace='pre-wrap'; el.textContent=c.text; }
+}
+var tidyBusy=false;
+function runTidy(it, kind){
+  var dm=gid('aiMenu'); if(dm) dm.open=false;
+  if(kind==='split'){ var sb=document.querySelector('#detail [data-act="aisplit"]'); if(sb) sb.click(); else toast('已经拆过步骤了'); return; }
+  if(tidyBusy) return;
+  var name=(AI_TIDY.filter(function(x){ return x[0]===kind; })[0]||[kind,'',kind])[2];
+  var useAi=tidyUsesAi(kind);
+  var go=function(ok){
+    tidyBusy=true;
+    var sum=document.querySelector('#aiMenu > summary'); if(sum){ sum.classList.add('busy'); sum.firstChild.textContent=ok?'✦ 整理中…':'✦ 整理中'; }
+    api('POST','/api/ai/tidy/'+it.id,{ kind:kind }).then(function(r){
+      tidyBusy=false;
+      if(kind==='clean'){ state.cleanView=state.cleanView||{}; delete state.cleanView[it.id]; }
+      if(kind==='points'){ state.ptsCollapsed=state.ptsCollapsed||{}; delete state.ptsCollapsed[it.id]; }
+      if(r && r.src==='rule') toast(ok && r.reason?('AI 的结果没采用（'+r.reason+'），先按规则'+name):('已按规则'+name+'（没用 AI）'));
+      else toast('✦ 已'+name);
+      return load(false);
+    }).catch(function(e){ tidyBusy=false; if(sum){ sum.classList.remove('busy'); sum.firstChild.textContent='✦ AI 整理'; } toast(name+'没成功：'+e.message); });
+  };
+  if(!useAi){ go(false); return; }
+  aiConsent(kind==='retitle'?'title':kind, name).then(function(ok){ go(ok); });
+}
 function entryHTML(it){
   /* 第四版阅读页：铺满的顶栏（‹ ↑ ↓ 位置｜钉住 回到来源 ···）→ 680 阅读栏（字母头像 · 来源 · 项目 · 时间 → 宋体大标题 → 原文
      → 拆过才有的执行步骤 → ＋拆成步骤 ＋我的想法 ＋附件）→ 铺满的底栏（键位｜看完了，归档 · 下一条）。
@@ -2122,6 +2254,7 @@ function entryHTML(it){
       '<button type="button" class="iconb" data-nav="prev" aria-label="上一条" title="上一条（K）"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg></button>'+
       '<button type="button" class="iconb" data-nav="next" aria-label="下一条" title="下一条（J）"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>'+
       (pos>=0?'<span class="pos" data-tauri-drag-region>'+(pos+1)+' / '+ord.length+'</span>':'')+'<span class="grow" data-tauri-drag-region></span>'+
+      aiMenuHTML(it)+
       '<button type="button" class="tb'+(g==='todo'?' on':'')+'" data-nav="pin" aria-pressed="'+(g==='todo'?'true':'false')+'">'+(g==='todo'?'已钉住':'钉住')+'</button>'+
       (src.win?'<button type="button" class="tb" data-act="jumps" title="回到来源窗口">回到来源</button>':
         (src.url?'<a class="tb" href="'+escQ(src.url)+'" target="_blank">回到来源</a>':''))+
@@ -2142,15 +2275,16 @@ function entryHTML(it){
       (src.win?'<span class="sep" id="sesSep" hidden></span><span id="sesSlot"></span>':'')+
     '</div>'+
     '<h1 class="dtitle" id="dtitle" contenteditable spellcheck="false">'+esc(it.title)+'</h1>'+
+    aiTitleNoteHTML(it)+aiPointsHTML(it)+
     /* P1-T06：aiquote 骨架常驻（html 信封行 quote 兼容视图为空串，#aibody 必须存在以承接 rich 渲染）。
        quote 为空时整块先隐藏，信封内容到达后再揭示。P1-T07：复制双操作常驻。 */
-    '<div class="aiquote" id="aiquote"'+(it.quote?'':' style="display:none"')+'><div class="aihead">'+
-      '<span class="fgrow"></span>'+
+    '<div class="aiquote'+(aiCleanShown(it)?' showclean':'')+'" id="aiquote"'+(it.quote||aiCleanOf(it)?'':' style="display:none"')+'><div class="aihead">'+
+      '<span class="fgrow"></span>'+aiSegHTML(it)+
       '<button class="cp-morph" data-act="togglerich" id="togglerich" style="display:none"><span class="l1">源码</span><span class="l2">排版</span></button>'+
       '<button class="cp-morph" data-act="copyquote" id="cpresp"><span class="l1">⧉ 复制回答</span><span class="l2">✓ 已复制</span></button>'+
       '<button class="cp-morph" data-act="copyorig" id="cporig"><span class="l1">⧉ 原文</span><span class="l2">✓ 已复制</span></button>'+
       '</div>'+
-      '<div class="aibody" id="aibody"></div></div>'+
+      '<div class="aibody" id="aibody"></div>'+(aiCleanOf(it)?'<div class="aibody rich" id="aiclean"></div>':'')+'</div>'+
     (it.quote?'':'<div class="noquote" id="noquote">没有原文</div>')+
     (hasSteps?stepsBlock(it):'')+
     '<div class="attwrap">'+attBlock(it)+'</div>'+
@@ -2159,12 +2293,12 @@ function entryHTML(it){
     '<div class="dblock dfield'+(hasUM?'':' is-hidden')+'" id="fUser"><div class="dlabel">我的话 · 当时问 AI 的上下文</div>'+
       '<textarea class="dta" id="d-usermsg" placeholder="你发给 AI 的话 / 背景（可选）…">'+esc(it.user_msg||'')+'</textarea></div>'+
     '<div class="adds">'+
-      (hasSteps?'':'<button type="button" class="add" data-act="aisplit">＋ 拆成步骤</button>')+
+      (hasSteps?'':(aiOn('split')?'<button type="button" class="add ai" data-act="aisplit">＋ ✦ 拆成步骤</button>':'<button type="button" class="add" data-act="aisplit">＋ 拆成步骤</button>'))+
       (hasNote?'':'<button type="button" class="add" data-reveal="fNote">＋ 我的想法</button>')+
       '<button type="button" class="add" data-act="attadd">＋ 附件</button>'+
     '</div></div>'+
     (state.moveTarget?laterBarHTML():'')+
-    '<div class="dfoot">'+(g==='done'?'':moveMenuHTML(it))+'<span class="keys"><span><kbd>J</kbd><kbd>K</kbd>上下条</span><span><kbd>P</kbd>钉住</span>'+
+    '<div class="dfoot">'+(g==='done'?'':moveMenuHTML(it))+'<span class="keys"><span><kbd>J</kbd><kbd>K</kbd>上下条</span><span><kbd>P</kbd>钉住</span><span><kbd>A</kbd>AI 整理</span>'+
       (g!=='done' && state.lists.length?'<span><kbd>M</kbd>移到清单</span>':'')+'<span><kbd>E</kbd>归档</span></span><span class="grow"></span>'+
       (g!=='done' && state.lists.length?'<button type="button" class="sec2" data-nav="move" aria-haspopup="menu">移到清单<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>':'')+
       (g==='done'?'<button type="button" class="cta" data-nav="reopen">移回收件箱</button>'
@@ -2426,9 +2560,32 @@ function bindEntry(it){
       if(el.value!==(it[pair[1]]||'')) refresh(api('PATCH','/api/suggestions/'+it.id,(pair[1]==='user_msg'?{user_msg:el.value}:{my_note:el.value})));
     });
   });
+  fillAiClean(it);
   Array.prototype.forEach.call(box.querySelectorAll('[data-act]'),function(btn){
     btn.onclick=function(ev){
       var act=btn.getAttribute('data-act');
+      /* R12 · AI 整理 */
+      if(act==='tidy'){ runTidy(it, btn.getAttribute('data-kind')); return; }
+      if(act==='aiset'){ var dm0=gid('aiMenu'); if(dm0) dm0.open=false; ssCat='ai'; openSettings(); return; }
+      if(act==='aiundo'){
+        var uk=btn.getAttribute('data-kind');
+        refresh(api('POST','/api/ai/undo/'+it.id,{ kind:uk }).then(function(){ toast(uk==='title'?'标题换回来了':(uk==='clean'?'已删掉整理版，只留原文':'已删掉要点')); }));
+        return;
+      }
+      if(act==='ptoggle'){ state.ptsCollapsed=state.ptsCollapsed||{}; state.ptsCollapsed[it.id]=!state.ptsCollapsed[it.id]; renderDetail(); return; }
+      if(act==='cview'){
+        state.cleanView=state.cleanView||{}; state.cleanView[it.id]=btn.getAttribute('data-v');
+        var q=gid('aiquote'), on=state.cleanView[it.id]!=='orig';
+        if(q) q.classList.toggle('showclean', on);
+        Array.prototype.forEach.call(box.querySelectorAll('[data-act="cview"]'),function(b){ var me=(b.getAttribute('data-v')==='clean')===on; b.classList.toggle('on',me); b.setAttribute('aria-pressed',String(me)); });
+        if(!on){ var qb=gid('aibody'); if(q && qb && !qb.__nayanDecision && !it.quote) q.style.display=''; }
+        return;
+      }
+      if(act==='copyquote' && aiCleanShown(it) && gid('aiquote') && gid('aiquote').classList.contains('showclean')){
+        copyTextOut(aiCleanOf(it).text).then(function(){ btn.classList.add('ok'); setTimeout(function(){ btn.classList.remove('ok'); },1100); })
+          .catch(function(e){ toast('复制失败：'+((e&&e.message)||String(e))); });
+        return;
+      }
       if(act==='copyquote'||act==='copyorig'){
         /* P1-T07：Copy Response / Copy Original——先过统一资格复核（槽代次/身份/
            decision 对象同一性/元素在文档/当前选择），再按合同分派载荷；失败给
@@ -2560,8 +2717,10 @@ function bindEntry(it){
           if(!ok){ localSplit(''); return; }
           // ⑮ 按钮 label 沉降 + 流光 shimmer，拆完步骤逐条弹入
           btn.disabled=true; btn.classList.add('busy'); aiBusy=true;
-          api('POST','/api/ai/split/'+it.id).then(function(){
-            aiBusy=false; state.fx.stepsIn=true; load(false);
+          api('POST','/api/ai/split/'+it.id).then(function(r){
+            aiBusy=false;
+            if(r && r.no_steps){ btn.disabled=false; btn.classList.remove('busy'); toast('这一条没有要动手做的步骤，就不拆了'); return; }
+            state.fx.stepsIn=true; load(false);
           }).catch(function(e){
             aiBusy=false; btn.disabled=false; btn.classList.remove('busy');
             localSplit('AI 拆步没成功（'+e.message+'），先按行拆开');
@@ -2694,7 +2853,8 @@ function captureHTML(){
     '<div class="hint">MCP：已接入的工具里对 AI 说一句话即可入库 · 网页 AI：装浏览器扩展，自动附带原对话链接。</div>';
 }
 var AI_FEAT=[['split','拆成步骤','阅读页「＋ 拆成步骤」','按行拆'],['compare','同题对比拆要点','摘原文、标出几家都说到的','按段落拆'],
-  ['plan','排成清单','「记一条」里写的计划','按时间点拆'],['title','收录时起短标题','收进来以后再改，不耽误收录','取第一句']];
+  ['plan','排成清单','「记一条」里写的计划','按时间点拆'],['title','收录时起短标题','收进来以后再改，不耽误收录','取第一句'],
+  ['points','理成要点','阅读页「AI 整理」','每段取第一句'],['clean','清理排版','阅读页「AI 整理」，原文留着','只去乱码框和重复']];
 function aiHTML(){
   /* 设置 › AI：三档「AI 来源」——不用 AI（默认）/ 自己的 Key（含本机 Ollama）/ 纳言订阅（即将推出）；每个用 AI 的地方单独开关 */
   return '<h2 class="ss-cat-title">AI 来源</h2>'+
@@ -2727,6 +2887,9 @@ function aiHTML(){
     AI_FEAT.map(function(f){ return '<div class="ss-row"><div class="grow"><b>'+f[1]+'</b><div class="hint">'+f[2]+'；关掉就'+f[3]+'</div></div>'+
       '<label class="sw"><input type="checkbox" data-feat="'+f[0]+'"><span class="sl"></span></label></div>'; }).join('')+
     '</div>'+
+    '<label class="flabel" for="s-aiextra">给 AI 的补充要求 <span class="hint">可选，最多 300 字</span></label>'+
+    '<textarea class="ss-ta" id="s-aiextra" maxlength="300" placeholder="例如：要点用简体中文，技术名词保留英文"></textarea>'+
+    '<div class="hint" style="margin:6px 0 4px">会接在纳言的整理规矩后面一起发给 AI。规矩本身（只用原文、不添内容、命令和数字原样保留）和输出格式改不掉。</div>'+
     '<div class="aiprivacy" id="aiPrivacy"></div>'+
     '</div>';
 }
@@ -2944,6 +3107,11 @@ function bindAI(){
       api('POST','/api/settings',{ ai_source:v }).then(function(r){ setAiState(r); paintAiSettings(); toast(v==='own'?'已切到「自己的 Key」':'已切到「不用 AI」：所有功能走不靠 AI 的做法'); }).catch(function(e){ toast(e.message); });
     };
   });
+  var exEl=gid('s-aiextra');
+  if(exEl) exEl.onblur=function(){
+    var v=exEl.value.trim(); if(state.ai && v===(state.ai.extra||'')) return;
+    api('POST','/api/settings',{ ai_extra:v }).then(function(r){ setAiState(r); paintAiSettings(); toast(v?'已保存补充要求':'已清空补充要求'); }).catch(function(e){ toast(e.message); });
+  };
   Array.prototype.forEach.call(document.querySelectorAll('#aiFeats [data-feat]'),function(c){
     c.onchange=function(){
       var f=c.getAttribute('data-feat'), on=c.checked, body={ ai_features:{} }; body.ai_features[f]=on;
@@ -3006,12 +3174,16 @@ function loadSettings(){
 /* ---------- AI 来源：页面侧缓存 + 是否可用 + 第一次使用的提示 ---------- */
 function setAiState(s){
   if(!s || s.ai_source==null) return;
-  state.ai={ source:s.ai_source, features:s.ai_features||{}, consent:s.ai_consent||[], host:s.ai_host||'', provider:s.provider||'', hasKey:!!s.has_key };
+  state.ai={ source:s.ai_source, features:s.ai_features||{}, consent:s.ai_consent||[], host:s.ai_host||'', provider:s.provider||'', hasKey:!!s.has_key,
+    model:s.model||(state.ai&&state.ai.model)||'', extra:s.ai_extra!=null?s.ai_extra:((state.ai&&state.ai.extra)||'') };
+  if(typeof paintPlanChip==='function' && gid('boardPlan')) paintPlanChip();
 }
 function aiOn(f){
   var a=state.ai; if(!a || a.source!=='own' || !a.features[f]) return false;
   return a.hasKey || a.provider==='ollama';
 }
+/* AI 来源接好了（不看单个功能开关）：阅读页「重起标题」是用户当场点的，只看这个 */
+function aiReady(){ var a=state.ai; return !!a && a.source==='own' && (a.hasKey || a.provider==='ollama'); }
 function paintAiSettings(){
   var a=state.ai; if(!a || !gid('segSource')) return;
   var onBtn=null;
@@ -3019,16 +3191,17 @@ function paintAiSettings(){
   if(onBtn){ var sl=gid('segSrcSlider'); moveSeg('segSrcSlider', null, onBtn, !(sl && sl.style.left)); }
   gid('aiOwn').hidden=a.source!=='own';
   Array.prototype.forEach.call(document.querySelectorAll('#aiFeats [data-feat]'),function(c){ c.checked=!!a.features[c.getAttribute('data-feat')]; });
+  var ex=gid('s-aiextra'); if(ex && document.activeElement!==ex) ex.value=a.extra||'';
   var kh=gid('keyHint'); if(kh) kh.textContent=a.provider==='ollama'?'本机 Ollama 可以不填':'只存在这台电脑';
-  var on=AI_FEAT.filter(function(f){ return a.features[f[0]]; }).map(function(f){ return '「'+f[1]+'」'; });
+  var on=AI_FEAT.filter(function(f){ return a.features[f[0]]; }).map(function(f){ return '「'+f[1]+'」'; }).concat(['「重起标题」（阅读页点了才发）']);
   gid('aiPrivacy').innerHTML=a.source!=='own'?'':('<span aria-hidden="true">⚠︎</span><span>'+(on.length?on.join('')+'会把<b>那一条的原文</b>发给 '+esc(a.host||'你填的接口')+(a.provider==='ollama'?'（本机，不出这台电脑）':'')+'。':'')+
     '关掉的功能完全在本机处理。纳言订阅上线后，内容经纳言的服务器转发，不保存。</span>');
 }
 /* 第一次用某个 AI 功能：告诉用户原文会发给谁；同意过的功能不再问。resolve(true)=用 AI，false=这次不用 */
-function aiConsent(f){
+function aiConsent(f, label){
   var a=state.ai; if(!a) return Promise.resolve(false);
   if(a.consent.indexOf(f)>=0) return Promise.resolve(true);
-  var name=(AI_FEAT.filter(function(x){ return x[0]===f; })[0]||[f,f])[1];
+  var name=label||(AI_FEAT.filter(function(x){ return x[0]===f; })[0]||[f,f])[1];
   return new Promise(function(res){
     var v=document.createElement('div'); v.className='aiconsent-veil';
     v.innerHTML='<div class="aiconsent" role="dialog" aria-label="第一次用 AI"><h3>第一次用 AI '+esc(name)+'</h3>'+
@@ -3857,7 +4030,7 @@ window.addEventListener('blur', ctxClose);
 window.addEventListener('resize', ctxClose);
 document.querySelector('.sidebar').addEventListener('scroll', ctxClose, true);
 
-/* 钉板：钉住的横向滑动卡片 + 收件箱；默认只放原文摘要与「回到来源」，步骤/进度仅在拆过步骤后出现 */
+/* 钉板：钉住的横向滑动卡片 + 收件箱；点卡片任何空白处看原文；默认只放原文摘要与「回到来源」，步骤/进度仅在拆过步骤后出现 */
 var BOARD_C=2*Math.PI*17;
 /* R7：步骤文字开头的时间拆成时间列；今天写的计划里，过了点还没勾的标琥珀（只提示，不弹窗） */
 function stepTimeOf(it, s){
@@ -3890,7 +4063,7 @@ function boardCard(it, solo){
     var sm=sumOf(it,200);
     if(sm) h+='<div class="bcsum">'+esc(sm)+'</div>';
   }
-  h+='<div class="bcf"><button type="button" class="lk" data-bact="open" data-id="'+it.id+'">看原文</button>'+
+  h+='<div class="bcf">'+
     (src.any?'<button type="button" class="lk" data-bact="jump" data-id="'+it.id+'">回到来源</button>':'')+'<span class="grow"></span>'+
     '<button type="button" class="lk" data-bact="done" data-id="'+it.id+'">做完了，归档</button></div></article>';
   return h;
@@ -3984,6 +4157,10 @@ function renderBoard(){
       renderBoard(); return; }
     var pid=t.closest('[data-pickid]');
     if(pid){ var k=pid.getAttribute('data-pickid'); if(state.pick.ids[k]) delete state.pick.ids[k]; else state.pick.ids[k]=1; renderBoard(); return; }
+    // 露出半张的那张卡：点哪儿都先滑过来，不直接打开或勾步骤
+    var card=rail&&t.closest('.bcard'), cards=rail?rail.querySelectorAll('.bcard'):[];
+    var ci=card?Array.prototype.indexOf.call(cards, card):-1;
+    if(ci>=0 && ci!==railIdx()){ railGo(ci); return; }
     var rvd=t.closest('[data-rvdone]');
     if(rvd){ refresh(api('POST','/api/lists/'+rvd.getAttribute('data-rvdone')+'/reviewed',{})); return; }
     var bs=t.closest('[data-bstep]');
@@ -3993,7 +4170,9 @@ function renderBoard(){
       refresh(api('PATCH','/api/steps/'+step.id,{done:!step.done}));
       return;
     }
-    var ba=t.closest('[data-bact]'); if(!ba) return;
+    var ba=t.closest('[data-bact]');
+    if(!ba){   // 点卡片空白处：打开原文（拖选了文字就不算点）
+      var sel=window.getSelection&&String(window.getSelection()); if(card && !sel) openItem(Number(card.getAttribute('data-id'))); return; }
     var it=findItem(Number(ba.getAttribute('data-id'))); if(!it) return;
     var act=ba.getAttribute('data-bact');
     if(act==='open') openItem(it.id);
@@ -4248,10 +4427,17 @@ var boardComposing=false;
 gid('boardQuick').addEventListener('compositionstart',function(){ boardComposing=true; });
 gid('boardQuick').addEventListener('compositionend',function(){ boardComposing=false; paintPlanChip(); });
 gid('boardQuick').addEventListener('input',function(ev){ fitBoardQuick(); if(!boardComposing && !ev.isComposing) paintPlanChip(); });
-gid('boardPlan').onclick=function(){ if(planOfQuick()) openPlanSheet(); };
+gid('boardPlan').onclick=function(){
+  if(planOfQuick()){ openPlanSheet(); return; }
+  toast('写上几点做什么就能排，比如「9 点写周报，下午 3 点开会」'); gid('boardQuick').focus();
+};
 /* ---------- R7 · 说一句计划，排成清单（没配 AI 时按时间点拆，plan-rule.js） ---------- */
 function planOfQuick(){ return NayanPlan.parsePlan(gid('boardQuick').value); }
-function paintPlanChip(){ gid('boardPlan').hidden=!planOfQuick(); }
+/* R12：「排成日程」一直在；写出两个以上时间点才变蓝、⌘⏎ 可用；接了 AI 的标 ✦ */
+function paintPlanChip(){
+  gid('boardPlan').classList.toggle('dim', !planOfQuick());
+  var l=gid('boardPlanLabel'); if(l) l.textContent=(aiOn('plan')?'✦ ':'')+'排成日程';
+}
 function openPlanSheet(){
   var t=gid('boardQuick').value.trim(), steps=NayanPlan.parsePlan(t); if(!steps) return;
   state.plan={ open:true, title:NayanPlan.planTitle(), steps:steps.map(function(x){ return { time:x.time, text:x.text }; }), text:t, src:'rule', edited:false };
@@ -4350,6 +4536,10 @@ window.addEventListener('keydown',function(ev){
   if(gid('settingsScreen').classList.contains('open')) return;
   var it=findItem(state.sel); if(!it) return;
   var k=ev.key.toLowerCase();
+  var aim=gid('aiMenu');
+  if(k==='escape' && aim && aim.open){ ev.preventDefault(); aim.open=false; aim.querySelector('summary').focus(); return; }
+  if(aim && aim.open && /^[1-4]$/.test(k)){ ev.preventDefault(); var mb0=aim.querySelectorAll('[data-act="tidy"]')[Number(k)-1]; if(mb0 && !mb0.disabled) mb0.click(); return; }
+  if(k==='a' && aim){ ev.preventDefault(); aim.open=!aim.open; if(aim.open){ var f0=aim.querySelector('[data-act="tidy"]:not([disabled])'); if(f0) f0.focus(); } return; }
   if(k==='j'){ ev.preventDefault(); readNav(it,'next'); }
   else if(k==='k'){ ev.preventDefault(); readNav(it,'prev'); }
   else if(k==='p'){ ev.preventDefault(); patchStatus(it, grpOf(it.status)==='todo'?'inbox':'todo'); }
