@@ -131,6 +131,17 @@ pub fn parse_keycode(k: &str) -> Option<u32> {
     })
 }
 
+/// 只拦截单独 Command 的系统常用组合；附加修饰键仍由用户选择。
+pub fn system_combo_name(kc: u32, mask: u64) -> Option<&'static str> {
+    if mask != F_CMD { return None; }
+    Some(match kc {
+        8 => "复制", 9 => "粘贴", 7 => "剪切", 6 => "撤销", 0 => "全选",
+        1 => "保存", 12 => "退出", 13 => "关窗", 4 => "隐藏", 46 => "最小化",
+        3 => "查找", 35 => "打印", 17 => "新标签", 45 => "新建", 31 => "打开",
+        _ => return None,
+    })
+}
+
 // ---------- 安装 ----------
 pub fn install(app: AppHandle, hotkeys: Vec<(String, u32)>) -> Result<(), String> {
     let _ = APP.set(app);
@@ -140,6 +151,9 @@ pub fn install(app: AppHandle, hotkeys: Vec<(String, u32)>) -> Result<(), String
         for (cfg_str, action) in &hotkeys {
             let (kc, mask) =
                 parse_shortcut(cfg_str).ok_or_else(|| format!("无法解析热键配置：{}", cfg_str))?;
+            if let Some(name) = system_combo_name(kc, mask) {
+                crate::log_line(&format!("[热键] 警告：已保存快捷键 {} 与系统{}冲突，保持原配置", cfg_str, name));
+            }
             b.push(Binding { keycode: kc, mask, action: *action });
         }
     }
@@ -291,6 +305,37 @@ unsafe extern "C" fn tap_callback(
 #[cfg(test)]
 mod capture_tests {
     use super::*;
+
+    #[test]
+    fn system_combos_have_correct_names_and_require_exact_command_modifier() {
+        for (key, name) in [("c", "复制"), ("v", "粘贴"), ("x", "剪切"), ("z", "撤销"),
+            ("a", "全选"), ("s", "保存"), ("q", "退出"), ("w", "关窗"),
+            ("h", "隐藏"), ("m", "最小化"), ("f", "查找"), ("p", "打印"),
+            ("t", "新标签"), ("n", "新建"), ("o", "打开")] {
+            let kc = parse_keycode(key).unwrap();
+            assert_eq!(system_combo_name(kc, F_CMD), Some(name));
+            for mask in [0, F_ALT, F_CTRL, F_CMD | F_SHIFT, F_CMD | F_CTRL, F_CMD | F_ALT] {
+                assert_eq!(system_combo_name(kc, mask), None);
+            }
+        }
+        assert_eq!(system_combo_name(parse_keycode("f5").unwrap(), F_CMD), None);
+    }
+
+    #[test]
+    fn recording_keeps_modified_shortcuts_and_rejects_all_single_keys() {
+        for key in ["a", "0", "f5", "f12"] {
+            assert_eq!(combo_string(parse_keycode(key).unwrap(), 0), None);
+        }
+        for (combo, mask) in [("alt+s", F_ALT), ("ctrl+alt+x", F_CTRL | F_ALT),
+            ("cmd+shift+c", F_CMD | F_SHIFT), ("ctrl+cmd+c", F_CTRL | F_CMD)] {
+            let (kc, parsed) = parse_shortcut(combo).unwrap();
+            assert_eq!(parsed, mask);
+            let recorded = combo_string(kc, parsed).unwrap();
+            assert_eq!(parse_shortcut(&recorded), Some((kc, mask)));
+            assert_eq!(system_combo_name(kc, mask), None);
+        }
+    }
+
     #[test]
     fn idle_recording_expires_without_a_key_and_next_key_is_not_consumed() {
         start_capture_for(1, Duration::from_millis(20));

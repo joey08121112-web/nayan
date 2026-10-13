@@ -2789,6 +2789,10 @@ fn hotkey_take(state: State<'_, AppState>, slot: u32) -> Value {
                 Some(v) => v,
                 None => return json!({ "state": "error", "error": "无法识别的组合" }),
             };
+            if let Some(name) = carbon_hotkeys::system_combo_name(kc, mask) {
+                let key = carbon_hotkeys::keycode_name(kc).unwrap_or("").to_uppercase();
+                return json!({ "state": "error", "error": format!("⌘{} 是系统的{}，换一个吧", key, name) });
+            }
             if let Some(other) = carbon_hotkeys::conflict_with(kc, mask, slot) {
                 let name = if other == 1 { "划词捕获" } else { "框选捕获" };
                 return json!({ "state": "error", "error": format!("与{}快捷键冲突，请换一个", name) });
@@ -3486,7 +3490,7 @@ fn build_capture_payload(
     let acquisition = match channel {
         "ax" => AcquisitionKind::AxSelection,
         "box" => AcquisitionKind::RegionOcr,
-        "boxax" | "boxmd" => AcquisitionKind::AxSelection,
+        "boxax" | "boxmd" | "axmd" => AcquisitionKind::AxSelection,
         "cmdc" | "clip" => AcquisitionKind::Clipboard,
         _ => AcquisitionKind::Manual,
     };
@@ -3504,7 +3508,7 @@ fn build_capture_payload(
         CapturedContent::new(
             &request_id,
             // boxmd：框选按界面结构还原出的 Markdown，如实声明格式（阅读视图按 Markdown 渲染）
-            if channel == "boxmd" { DeclaredFormat::Markdown } else { DeclaredFormat::Plain },
+            if channel == "boxmd" || channel == "axmd" { DeclaredFormat::Markdown } else { DeclaredFormat::Plain },
             FormatProvenance::Declared,
             acquisition,
             Original::Text { text: text.to_string() },
@@ -3675,6 +3679,20 @@ fn gather_capture() -> Result<CaptureSource, String> {
             match ax_capture::read_selected_text(pid) {
                 Ok(t) if !t.trim().is_empty() => {
                     log_line(&format!("[划词] AX 命中 {} 字符", t.chars().count()));
+                    if ax_capture::ax_selection_degraded(&t) {
+                        log_line("[划词] AX 文本被压平 → 读界面结构还原");
+                        let blocks = ax_capture::harvest_text_blocks(pid);
+                        if let Some(sel) = ax_capture::slice_blocks_for_selection(&blocks, &t) {
+                            if !sel.is_empty() && sel.iter().filter(|r| r.web).count() * 2 > sel.len() {
+                                let md = ax_capture::compose_markdown(sel);
+                                if !md.trim().is_empty() {
+                                    return Ok(build_source(md, None, app_name, title, wid, "axmd"));
+                                }
+                            }
+                        }
+                        log_line("[划词] 结构对不上 → 用清理过的纯文本");
+                        return Ok(build_source(ax_capture::tidy_ax_selection(&t), None, app_name, title, wid, "ax"));
+                    }
                     return Ok(build_source(t, None, app_name, title, wid, "ax"));
                 }
                 Ok(_) => log_line("[划词] AX 可用但无选区 → ⌘C 兜底"),
@@ -5705,6 +5723,7 @@ mod p1t03_tests {
             ("box", AcquisitionKind::RegionOcr),
             ("boxax", AcquisitionKind::AxSelection),
             ("boxmd", AcquisitionKind::AxSelection),
+            ("axmd", AcquisitionKind::AxSelection),
             ("cmdc", AcquisitionKind::Clipboard),
             ("clip", AcquisitionKind::Clipboard),
             ("unknown", AcquisitionKind::Manual),
@@ -5715,7 +5734,7 @@ mod p1t03_tests {
             let env: CapturedContent = serde_json::from_value(payload["content"].clone()).unwrap();
             assert_eq!(env.request_id(), req, "信封身份与载荷一致");
             assert_eq!(env.acquisition(), expect, "通道 {} 映射", channel);
-            let fmt = if channel == "boxmd" { DeclaredFormat::Markdown } else { DeclaredFormat::Plain };
+            let fmt = if channel == "boxmd" || channel == "axmd" { DeclaredFormat::Markdown } else { DeclaredFormat::Plain };
             assert_eq!(env.format(), fmt, "通道 {} 格式声明", channel);
             assert_eq!(env.format_provenance(), FormatProvenance::Declared);
             match env.original() {

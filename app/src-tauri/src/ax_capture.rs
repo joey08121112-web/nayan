@@ -248,6 +248,77 @@ pub fn read_selected_text(pid: i32) -> Result<String, String> {
     }
 }
 
+// 短的单段选区本来就没有换行；从 200 字起才尝试较慢的结构走查。
+const AX_FLAT_SELECTION_MIN_CHARS: usize = 200;
+
+/// 只按文字识别疑似丢失结构的 AX 选区，不按来源应用分叉。
+pub fn ax_selection_degraded(t: &str) -> bool {
+    t.contains('\u{fffc}')
+        || (!t.contains(['\n', '\r']) && t.chars().count() >= AX_FLAT_SELECTION_MIN_CHARS)
+}
+
+/// 删除对象占位符；只有紧邻它的完整片段原样重复时才合并。
+/// 不把任意后缀/前缀的局部重叠当作重复标题，也不猜换行。
+pub fn tidy_ax_selection(t: &str) -> String {
+    let mut parts = t.split('\u{fffc}');
+    let mut previous = parts.next().unwrap_or_default();
+    let mut out = previous.to_string();
+    for tail in parts {
+        let title = previous.rsplit(['\n', '\r', '。', '！', '？', '；', '：', '!', '?', ';', ':'])
+            .next().unwrap_or_default().trim_start();
+        let overlap = if title.chars().filter(|c| !c.is_whitespace()).count() >= 2 && tail.starts_with(title) {
+            title.len()
+        } else { 0 };
+        out.push_str(&tail[overlap..]);
+        previous = tail;
+    }
+    out
+}
+
+/// 按树序定位唯一的选区首尾；保留原始字符位置以裁剪 UTF-8 文本和样式块。
+/// 首尾锚点不唯一或顺序反转时拒绝猜测，调用方回退纯文本。
+pub fn slice_blocks_for_selection(blocks: &[RichBlock], selected: &str) -> Option<Vec<RichBlock>> {
+    let selected: Vec<char> = tidy_ax_selection(selected).chars()
+        .filter(|c| !c.is_whitespace() && *c != '\u{fffc}').collect();
+    if selected.is_empty() { return None; }
+    let mut ordered: Vec<&RichBlock> = blocks.iter().collect();
+    ordered.sort_by_key(|r| r.order);
+    let mut text = Vec::new();
+    let mut positions = Vec::new();
+    for (block, r) in ordered.iter().enumerate() {
+        for (byte, c) in r.b.text.char_indices() {
+            if !c.is_whitespace() && c != '\u{fffc}' {
+                text.push(c);
+                positions.push((block, byte, byte + c.len_utf8()));
+            }
+        }
+    }
+    fn unique(haystack: &[char], needle: &[char]) -> Option<usize> {
+        let mut hits = haystack.windows(needle.len()).enumerate()
+            .filter(|(_, chunk)| *chunk == needle).map(|(i, _)| i);
+        let first = hits.next()?;
+        if hits.next().is_some() { None } else { Some(first) }
+    }
+    let (start, end) = if selected.len() < 60 {
+        let start = unique(&text, &selected)?;
+        (start, start + selected.len())
+    } else {
+        let start = unique(&text, &selected[..30])?;
+        let tail = unique(&text, &selected[selected.len() - 30..])?;
+        if tail < start + 30 { return None; }
+        (start, tail + 30)
+    };
+    let (first, first_byte, _) = positions[start];
+    let (last, _, last_byte) = positions[end - 1];
+    let mut sliced: Vec<RichBlock> = ordered[first..=last].iter().map(|r| (*r).clone()).collect();
+    for (i, r) in sliced.iter_mut().enumerate() {
+        let from = if i == 0 { first_byte } else { 0 };
+        let to = if first + i == last { last_byte } else { r.b.text.len() };
+        r.b.text = r.b.text[from..to].to_string();
+    }
+    Some(sliced)
+}
+
 // ---------- 兜底：模拟 ⌘C + 剪贴板 ----------
 
 fn pasteboard_change_count() -> i64 {
@@ -827,6 +898,11 @@ fn harvest_once(pid: i32, warmup_ms: u64) -> Vec<RichBlock> {
     }
 }
 
+/// 已完成首次建树后的即时走查；R07 技术验证用于量测实际滚动位移。
+pub fn harvest_text_blocks_now(pid: i32) -> Vec<RichBlock> {
+    harvest_once(pid, 0)
+}
+
 // ---------- 框选：界面结构 → Markdown ----------
 
 fn md_inline(r: &RichBlock) -> String {
@@ -1196,6 +1272,98 @@ pub fn compose_text(mut blocks: Vec<TextBlock>) -> String {
         out.push(p.text);
     }
     out.join("\n")
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::*;
+
+    fn r(order: u32, text: &str) -> RichBlock {
+        RichBlock { b: TextBlock { text: text.into(), ..Default::default() },
+            order, block: order, web: true, ..Default::default() }
+    }
+
+    #[test]
+    fn degraded_uses_characters_and_preserves_short_and_multiline_selections() {
+        assert!(ax_selection_degraded("短句\u{fffc}"));
+        assert!(ax_selection_degraded(&"字".repeat(250)));
+        assert!(ax_selection_degraded(&"字".repeat(200)));
+        assert!(!ax_selection_degraded(&"字".repeat(199)));
+        assert!(!ax_selection_degraded(&"字".repeat(50)));
+        for sep in ['\n', '\r'] {
+            assert!(!ax_selection_degraded(&format!("{}{}", "字".repeat(250), sep)));
+        }
+        assert!(!ax_selection_degraded(""));
+    }
+
+    #[test]
+    fn tidy_complete_title_without_erasing_partial_overlap_or_whitespace() {
+        assert_eq!(tidy_ax_selection("已运行 2 个命令\u{fffc}已运行 2 个命令清理"), "已运行 2 个命令清理");
+        assert_eq!(tidy_ax_selection("正文：已运行 2 个命令\u{fffc}已运行 2 个命令清理"), "正文：已运行 2 个命令清理");
+        assert_eq!(tidy_ax_selection("甲a\u{fffc}abc"), "甲aabc");
+        assert_eq!(tidy_ax_selection("海\u{fffc}海边"), "海海边");
+        assert_eq!(tidy_ax_selection("上文 \u{fffc} 下文"), "上文  下文");
+        assert_eq!(tidy_ax_selection("\u{fffc}"), "");
+        assert_eq!(tidy_ax_selection("前\u{fffc}后"), "前后");
+        assert_eq!(tidy_ax_selection("• 项目。• 项目。\n`代码`"), "• 项目。• 项目。\n`代码`");
+    }
+
+    #[test]
+    fn slices_first_and_last_blocks_in_tree_order_with_unicode_offsets() {
+        let blocks = vec![r(4, "结束🦀后文"), r(1, "不选"), r(3, "中 间"), r(2, "前文起点")];
+        let sel = slice_blocks_for_selection(&blocks, "起点 中间 结束🦀").unwrap();
+        assert_eq!(sel.iter().map(|b| b.b.text.as_str()).collect::<Vec<_>>(), ["起点", "中 间", "结束🦀"]);
+        assert_eq!(sel.iter().map(|b| b.order).collect::<Vec<_>>(), [2, 3, 4]);
+    }
+
+    #[test]
+    fn slices_one_block_without_expanding_to_whole_paragraph() {
+        let sel = slice_blocks_for_selection(&[r(1, "前缀单块片段后缀")], "单块片段").unwrap();
+        assert_eq!(sel.len(), 1);
+        assert_eq!(sel[0].b.text, "单块片段");
+        assert!(slice_blocks_for_selection(&[r(1, "其他")], "单块片段").is_none());
+        assert!(slice_blocks_for_selection(&[], "单块片段").is_none());
+        assert!(slice_blocks_for_selection(&[r(1, "其他")], " \u{fffc}\n").is_none());
+    }
+
+    #[test]
+    fn short_selection_must_be_unique() {
+        assert!(slice_blocks_for_selection(&[r(1, "重复片段"), r(2, "重复片段")], "重复片段").is_none());
+    }
+
+    #[test]
+    fn long_selection_uses_unique_anchors_and_tolerates_extra_control_title_in_middle() {
+        let head = "开头锚点".repeat(8);
+        let tail = "末尾锚点".repeat(8);
+        let blocks = vec![r(1, &format!("前缀{}", head)), r(2, "已运行 2 个命令清理"), r(3, &format!("{}后缀", tail))];
+        let selected = format!("{}已运行 2 个命令\u{fffc}已运行 2 个命令清理{}", head, tail);
+        let sel = slice_blocks_for_selection(&blocks, &selected).unwrap();
+        assert_eq!(sel[0].b.text, head);
+        assert_eq!(sel[1].b.text, "已运行 2 个命令清理");
+        assert_eq!(sel[2].b.text, tail);
+    }
+
+    #[test]
+    fn long_selection_rejects_duplicate_start_duplicate_end_and_reverse_order() {
+        let head = "甲".repeat(30);
+        let tail = "乙".repeat(30);
+        let selected = format!("{}中间{}", head, tail);
+        for blocks in [vec![r(1, &head), r(2, &head), r(3, &tail)],
+            vec![r(1, &head), r(2, &tail), r(3, &tail)], vec![r(1, &tail), r(2, &head)]] {
+            assert!(slice_blocks_for_selection(&blocks, &selected).is_none());
+        }
+    }
+
+    #[test]
+    fn sliced_markdown_keeps_paragraph_list_and_inline_code_structure() {
+        let mut list = r(2, "第二项"); list.kind = BlockKind::ListItem; list.list = 7; list.list_depth = 1;
+        let mut code = r(3, "脚本路径"); code.inline = 4;
+        let blocks = [r(1, "前缀第一段"), list, code, r(4, "末段后缀")];
+        let sel = slice_blocks_for_selection(&blocks, "第一段第二项脚本路径末段").unwrap();
+        assert_eq!(sel[1].kind, BlockKind::ListItem);
+        assert_eq!(sel[2].inline, 4);
+        assert_eq!(compose_markdown(sel), "第一段\n\n- 第二项\n\n`脚本路径`\n\n末段");
+    }
 }
 
 #[cfg(test)]
