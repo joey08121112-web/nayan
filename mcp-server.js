@@ -66,7 +66,7 @@ function mapTool(name) {
   if (n.indexOf('opencode') >= 0) return 'opencode';
   if (n.indexOf('zcode') >= 0 || n.indexOf('z-code') >= 0) return 'zcode';
   if (n.indexOf('antigravity') >= 0 || n.indexOf('gravity') >= 0) return 'antigravity';
-  if (n.indexOf('zed') >= 0) return 'zed';
+  if (/\bzed\b/.test(n)) return 'zed';
   if (n.indexOf('dsh') >= 0 || n.indexOf('deepseek') >= 0) return 'dsh';
   return (n.slice(0, 40)) || 'mcp';
 }

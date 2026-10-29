@@ -1728,14 +1728,12 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
                 clipboard_watch::CLIP_WATCH_ON.store(on, std::sync::atomic::Ordering::Relaxed);
                 log_line(&format!("[设置] 剪贴板监听 = {}", on));
             }
-            if let Ok(text) = serde_json::to_string_pretty(cfg) {
-                if fs::write(&*cfg_path, text).is_ok() {
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        let _ = fs::set_permissions(&*cfg_path, fs::Permissions::from_mode(0o600));
-                    }
-                }
+            let text = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+            fs::write(&*cfg_path, text).map_err(|e| format!("保存设置失败：{}", e))?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&*cfg_path, fs::Permissions::from_mode(0o600));
             }
             Ok(json!({
                 "ok": true,
