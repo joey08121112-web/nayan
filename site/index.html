@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="assets/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&family=Noto+Serif+SC:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&family=Noto+Serif+SC:wght@500;600&display=swap" media="print" onload="this.media='all'">
 <style>
 /* 版式：单栏阅读宽度 + 大块留白；产品截图放在浅陶土底板上，功能区图文左右交替 */
 :root{
@@ -206,7 +206,7 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
     <a class="brand" href="#top"><img src="assets/icon.png" alt="">纳言</a>
     <nav aria-label="页面导航"><a href="#how">怎么用</a><a href="#features">功能</a><a href="#capture">收录方式</a><a href="#ai">AI</a><a href="#privacy">隐私</a><a href="#faq">问答</a></nav>
     <span class="grow"></span>
-    <a class="btn dark sm" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.0-preview/NaYan-0.3.0.dmg">下载 Mac 版</a>
+    <a class="btn dark sm" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.1-preview/NaYan-0.3.1.dmg">下载 Mac 版</a>
   </div>
 </header>
 
@@ -217,7 +217,7 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
       <h1>值得的话，<br>值得一个去处。</h1>
       <p class="lede">你每天和好几个 AI 来回说话，真正有用的往往只有几句。纳言把这几句接住，放进一个只属于你的收件箱，再陪你把它们一条条做完。</p>
       <div class="cta">
-        <a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.0-preview/NaYan-0.3.0.dmg">下载 Mac 版</a>
+        <a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.1-preview/NaYan-0.3.1.dmg">下载 Mac 版</a>
         <a class="btn line" href="#how">看看怎么用</a>
       </div>
       <p class="meta">免费 · macOS 13 或更新 · Apple 芯片 · 数据只存在你的电脑</p>
@@ -244,7 +244,7 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
           <div class="im" style="--tint:var(--t1)"><img src="assets/shots/board.jpg" width="2880" height="1800" loading="eager" alt="钉板：正在照着做的卡片和收件箱"></div>
         </div>
         <div class="step next" data-label="阅读">
-          <div class="tx"><p class="idx">阅读</p><h2>原文还在，<br>步骤可勾</h2><p>每一条都保留 AI 回答的原始排版，下面是拆好的执行步骤。点「回到来源」能跳回当初那个窗口。</p><ul><li>J / K 上下翻，E 归档，P 钉住</li><li>可以写自己的想法、挂上附件</li></ul></div>
+          <div class="tx"><p class="idx">阅读</p><h2>原文还在，<br>步骤可勾</h2><p>每一条都保留 AI 回答的原始排版，下面是拆好的执行步骤。点「✦ AI 整理」可以提炼要点、清理排版或重起标题，原文永远不改；点「回到来源」能跳回当初那个窗口。</p><ul><li>J / K 上下翻，E 归档，P 钉住，A 打开 AI 整理</li><li>可以写自己的想法、挂上附件</li></ul></div>
           <div class="im" style="--tint:var(--t2)"><img src="assets/shots/reader.jpg" width="2880" height="1800" loading="eager" alt="阅读页：AI 原文和四个执行步骤"></div>
         </div>
         <div class="step next" data-label="同题对比">
@@ -270,7 +270,7 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
         <p class="lede">快捷键都能在设置里改，被别的 App 占用时会提示你。</p>
       </div>
       <div class="ways">
-        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><h3>划词</h3><p>在终端、编辑器、浏览器里选中文字，按快捷键。角落弹出小窗，顺手记一句想法，回车收进来。</p></div>
+        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><h3>划词</h3><p>在终端、编辑器、浏览器里选中文字，按快捷键，自动保留段落、列表、表格和代码结构。角落弹出小窗，顺手记一句想法，回车收进来。</p></div>
         <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>X</kbd></div><h3>框选</h3><p>回答太长不想一点点选，就框一块。能读到界面文字的直接读，读不到的截图识别，原图一起保存。</p></div>
         <div class="way"><div class="k"><kbd>⌘</kbd><kbd>C</kbd></div><h3>剪贴板</h3><p>在你指定的几个 App 里复制，角落浮出一张小卡，回车收下，Esc 忽略。默认关闭。</p><span class="tag">需要在设置里打开</span></div>
         <div class="way"><div class="k"><kbd>MCP</kbd><kbd>扩展</kbd></div><h3>让 AI 自己记</h3><p>在 Claude Code、Codex 这类支持 MCP 的工具里说「把这几条记到纳言」，它会拆好逐条写进来。网页上的 AI 对话用浏览器扩展收。</p></div>
@@ -281,11 +281,11 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
       <div class="sec-head">
         <p class="eyebrow">AI 来源</p>
         <h2 style="margin-top:10px">AI 是加分项，不是门票</h2>
-        <p class="lede">起标题、拆步骤、对比、排清单，每一样都有不靠 AI 的做法。想让它更聪明一点，再选一档。</p>
+        <p class="lede">理要点、清排版、起标题、拆步骤、同题对比、排清单，每一样都有不靠 AI 的做法。想让它更聪明一点，再选一档。</p>
       </div>
       <div class="tiers">
-        <div class="tier on"><span class="pill">默认</span><h3>不用 AI</h3><p>标题取第一句，步骤按行拆，对比按段落并排。什么都不往外发。</p></div>
-        <div class="tier"><h3>自己的 Key</h3><p>填你自己的 API Key，支持 DeepSeek、智谱、OpenAI 兼容接口和本机 Ollama。每个功能单独开关，第一次发送前会告诉你发给谁。</p></div>
+        <div class="tier on"><span class="pill">默认</span><h3>不用 AI</h3><p>要点取每段首句，清理排版只去乱码框与紧邻重复，标题取第一句，步骤按行拆。什么都不往外发。</p></div>
+        <div class="tier"><h3>自己的 Key</h3><p>填你自己的 API Key，支持 DeepSeek、智谱、OpenAI 兼容接口和本机 Ollama，还能写一段「给 AI 的补充要求」。每个功能单独开关，第一次发送前会告诉你发给谁。</p></div>
         <div class="tier"><h3>纳言订阅</h3><p>不用自己申请 Key，打开就能用。还在准备中。</p></div>
       </div>
     </section>
@@ -345,8 +345,8 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
 
     <section class="final" style="padding-top:0">
       <h2>别再让好建议滚过屏幕。</h2>
-      <div class="cta"><a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.0-preview/NaYan-0.3.0.dmg">下载 Mac 版</a><a class="btn line" href="#how">先看看怎么用</a></div>
-      <p class="meta" style="margin-top:14px;color:var(--sub);font-size:.85rem">v0.3.0 预览版 · 尚未经过苹果公证，第一次打开见下方「常见问题」</p>
+      <div class="cta"><a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.1-preview/NaYan-0.3.1.dmg">下载 Mac 版</a><a class="btn line" href="#how">先看看怎么用</a></div>
+      <p class="meta" style="margin-top:14px;color:var(--sub);font-size:.85rem">v0.3.1 预览版 · 尚未经过苹果公证，第一次打开见下方「常见问题」</p>
     </section>
   </div>
 </main>

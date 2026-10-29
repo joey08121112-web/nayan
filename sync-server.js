@@ -112,7 +112,7 @@ const server = createServer(async function (req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/suggestions') {
       const status = url.searchParams.get('status');
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+      const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 200));
       const active = activeWhere();
       const rows = status
         ? db.prepare('SELECT * FROM suggestions WHERE ' + active + ' AND status = ? ORDER BY id DESC LIMIT ?').all(status, limit)

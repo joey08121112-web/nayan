@@ -2,7 +2,7 @@
 
 > English summary: NaYan keeps everything on your Mac. It makes no network requests on its own — the only outbound traffic goes to an AI provider you explicitly configure, and only when you use an AI feature. No analytics, no crash reporting, no update checks, no accounts, no cloud sync.
 
-对应版本：0.3.0。
+对应版本：0.3.1。
 
 ## 你的数据都在这台电脑上
 
@@ -22,7 +22,7 @@
 
 **默认情况下（不配置 AI），纳言不发出任何网络请求。**
 
-唯一会联网的情形：你在「设置 › AI」选择「自己的 Key」，并使用 AI 功能（拆成步骤 / 同题对比拆要点 / 排成清单 / 起短标题）时，纳言会把**当时那条内容**直接发给你选定的服务商，结果直接返回本机。源码内置的可选地址：
+唯一会联网的情形：你在「设置 › AI」选择「自己的 Key」，并主动使用已开启的 AI 功能——包括**拆成步骤、同题对比拆要点、排成清单、起短标题，以及阅读页「✦ AI 整理」（理成要点 / 清理排版 / 重起标题）**——时，纳言会把**当时那条内容的标题与正文**（若你在设置里填写了「给 AI 的补充要求」，也会随系统提示词一并附上）直接发给你选定的服务商，结果直接返回本机。源码内置的可选地址：
 
 | 服务商 | 请求地址 |
 | --- | --- |
@@ -33,7 +33,7 @@
 | 自定义 | 你自己填写的 OpenAI 兼容 base_url |
 
 - API Key 只保存在本机 `config.json`，不会出现在任何请求目的地之外的地方。
-- 每个 AI 功能第一次使用前，界面会明确提示这段内容将发给哪家服务商，可以拒绝。
+- 各项 AI 功能在「设置 › AI」里均有独立开关（关闭时自动走本机规则处理，不发网络请求）；每个 AI 功能第一次使用前，界面都会明确提示这段内容将发给哪家服务商，可以随时拒绝。
 - 「纳言订阅」尚未推出。在它推出之前，纳言没有官方服务器。
 
 ## 只在本机回环地址上的通信

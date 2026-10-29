@@ -252,9 +252,13 @@ pub fn read_selected_text(pid: i32) -> Result<String, String> {
 const AX_FLAT_SELECTION_MIN_CHARS: usize = 200;
 
 /// 只按文字识别疑似丢失结构的 AX 选区，不按来源应用分叉。
+/// 列表符号贴在正文中间（Chromium 把「标题 + 列表」压成「…在哪层• 第 1 层…」）
+/// 说明列表被压平，不论长短都走结构还原。
 pub fn ax_selection_degraded(t: &str) -> bool {
+    let flat = !t.contains(['\n', '\r']);
     t.contains('\u{fffc}')
-        || (!t.contains(['\n', '\r']) && t.chars().count() >= AX_FLAT_SELECTION_MIN_CHARS)
+        || (flat && t.chars().count() >= AX_FLAT_SELECTION_MIN_CHARS)
+        || (flat && t.trim_start().chars().skip(1).any(|c| matches!(c, '•' | '◦' | '▪')))
 }
 
 /// 删除对象占位符；只有紧邻它的完整片段原样重复时才合并。
@@ -1297,9 +1301,18 @@ mod selection_tests {
     }
 
     #[test]
+    fn degraded_when_list_bullets_are_glued_mid_text() {
+        assert!(ax_selection_degraded("“由外而内”的三层，随时清楚当前位置• 第 1 层 · 这是什么• 第 2 层 · 结构"));
+        assert!(ax_selection_degraded("步骤◦ 一◦ 二"));
+        assert!(!ax_selection_degraded("• 只有一项"));
+        assert!(!ax_selection_degraded("标题\n• 第 1 层\n• 第 2 层"));
+        assert!(!ax_selection_degraded("ZCode · ⌥S 划词"));
+    }
+
+    #[test]
     fn tidy_complete_title_without_erasing_partial_overlap_or_whitespace() {
-        assert_eq!(tidy_ax_selection("已运行 2 个命令\u{fffc}已运行 2 个命令清理"), "已运行 2 个命令清理");
-        assert_eq!(tidy_ax_selection("正文：已运行 2 个命令\u{fffc}已运行 2 个命令清理"), "正文：已运行 2 个命令清理");
+        assert_eq!(tidy_ax_selection("已执行 2 条指令\u{fffc}已执行 2 条指令清理"), "已执行 2 条指令清理");
+        assert_eq!(tidy_ax_selection("正文：已执行 2 条指令\u{fffc}已执行 2 条指令清理"), "正文：已执行 2 条指令清理");
         assert_eq!(tidy_ax_selection("甲a\u{fffc}abc"), "甲aabc");
         assert_eq!(tidy_ax_selection("海\u{fffc}海边"), "海海边");
         assert_eq!(tidy_ax_selection("上文 \u{fffc} 下文"), "上文  下文");
@@ -1335,11 +1348,11 @@ mod selection_tests {
     fn long_selection_uses_unique_anchors_and_tolerates_extra_control_title_in_middle() {
         let head = "开头锚点".repeat(8);
         let tail = "末尾锚点".repeat(8);
-        let blocks = vec![r(1, &format!("前缀{}", head)), r(2, "已运行 2 个命令清理"), r(3, &format!("{}后缀", tail))];
-        let selected = format!("{}已运行 2 个命令\u{fffc}已运行 2 个命令清理{}", head, tail);
+        let blocks = vec![r(1, &format!("前缀{}", head)), r(2, "已执行 2 条指令清理"), r(3, &format!("{}后缀", tail))];
+        let selected = format!("{}已执行 2 条指令\u{fffc}已执行 2 条指令清理{}", head, tail);
         let sel = slice_blocks_for_selection(&blocks, &selected).unwrap();
         assert_eq!(sel[0].b.text, head);
-        assert_eq!(sel[1].b.text, "已运行 2 个命令清理");
+        assert_eq!(sel[1].b.text, "已执行 2 条指令清理");
         assert_eq!(sel[2].b.text, tail);
     }
 

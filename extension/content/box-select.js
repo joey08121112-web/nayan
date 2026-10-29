@@ -720,9 +720,8 @@
     card.innerHTML = ''
       + '<div class="cdone">'
       + '<div class="ok">✓ 已入箱 <em>#' + id + '</em></div>'
-      + '<div class="sub">来源已记录，稍后可在卡片里「在来源中查看」跳回本页</div>'
+      + '<div class="sub">来源已记录，稍后可在纳言桌面端卡片里「回到来源」跳回本页</div>'
       + '<div class="row">'
-      + '<a href="http://localhost:8787" target="_blank" rel="noreferrer">打开收件箱 ↗</a>'
       + '<button class="cbtn again">继续框选</button>'
       + '<button class="cbtn primary cclose">完成</button>'
       + '</div></div>';

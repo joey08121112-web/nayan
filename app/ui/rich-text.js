@@ -51,15 +51,24 @@ function richRuntime(){
    误伤 start/colspan 等纯数值排版属性——经 ADD_URI_SAFE_ATTR 豁免（无 URL 语义）。 */
 function sanitizeRichHtml(html,returnFragment){
   if(typeof DOMPurify!=='function'||DOMPurify.isSupported!==true) return null;
+  var strongSpans=[],codeLines=[];
+  function rememberStructure(node){
+    if(node.nodeName!=='SPAN') return;
+    if(node.getAttribute('data-streamdown')==='strong') strongSpans.push(node);
+    var parent=node.parentNode;
+    if(parent&&parent.nodeName==='CODE'&&parent.parentNode&&parent.parentNode.nodeName==='PRE'
+        &&node.style&&node.style.display==='block') codeLines.push(node);
+  }
   function languageOnly(node,data){
     if(data.attrName==='class' && /^(?:CODE|PRE)$/.test(node.nodeName) &&
         /^language-[a-zA-Z0-9+#._-]{1,64}$/.test(data.attrValue)) data.forceKeepAttr=true;
   }
+  DOMPurify.addHook('uponSanitizeElement',rememberStructure);
   DOMPurify.addHook('uponSanitizeAttribute',languageOnly);
-  try{ return DOMPurify.sanitize(html,{
+  try{ var clean=DOMPurify.sanitize(html,{
     /* The async caller consumes children only; the sanitizer-owned BODY is never mounted.
        Returning it avoids an intermediate fragment extraction/reparenting pass. */
-    RETURN_DOM:!!returnFragment,
+    RETURN_DOM:true,
     ALLOWED_TAGS:RICH_ALLOWED_TAGS,
     ALLOWED_ATTR:RICH_ALLOWED_ATTR,
     ALLOW_DATA_ATTR:false,
@@ -70,7 +79,26 @@ function sanitizeRichHtml(html,returnFragment){
       'img','picture','video','audio','source','track','form','input','button','textarea',
       'select','option','link','meta','base','area','map','template','slot','title','head','body','html'],
     FORBID_ATTR:['style','src','srcset','xlink:href','formaction','background','poster','ping','usemap']
-  }); }finally{ DOMPurify.removeHook('uponSanitizeAttribute',languageOnly); }
+  });
+    // 部分代码高亮器用块级 span 排每一行，HTML 源中没有换行字符。
+    // 在清洗后补回行边界；已有换行不重复添加，仍不保留任何来源样式。
+    codeLines.forEach(function(node){
+      if(clean.contains(node)&&node.previousSibling&&!/[\r\n][ \t]*$/.test(node.previousSibling.textContent))
+        node.parentNode.insertBefore(clean.ownerDocument.createTextNode('\n'),node);
+    });
+    // Streamdown 的加粗是 span + 语义声明。只在清洗后用固定安全标签还原，
+    // 原 HTML 不改写；class/style/data-* 与事件属性仍全部剥除，不透传来源 CSS。
+    strongSpans.forEach(function(node){
+      if(!clean.contains(node)) return;
+      var strong=clean.ownerDocument.createElement('strong');
+      while(node.firstChild) strong.appendChild(node.firstChild);
+      node.parentNode.replaceChild(strong,node);
+    });
+    return returnFragment?clean:clean.innerHTML;
+  }finally{
+    DOMPurify.removeHook('uponSanitizeAttribute',languageOnly);
+    DOMPurify.removeHook('uponSanitizeElement',rememberStructure);
+  }
 }
 
 /* S02：markdown → HTML。html:false = 内嵌 HTML 转义为字面文本（绝不透传）；

@@ -38,10 +38,57 @@ function check(caseName, name, ok, detail = '') {
 }
 const md = (text) => ({ format: 'markdown', provenance: 'declared', mode: 'markdown', renderable: true, text });
 const EXPECT_DIR = path.join(REPO, 'docs/implementation-plan-2026-09-23/batches/P1-B06-FIVE-STEP-2026-10-01/steps/01/manual-expectations');
+// 开源导出仓库不含 docs/implementation-plan-* 批次目录，内联同源合成夹具兜底以确保公开仓 test-all.mjs 可独立运行。
+const FALLBACK_FIXTURES = {
+  'fx1-basic.json': {
+    name: 'fx1-basic-atx-fence',
+    source: '# 甲\n开头段落。\n## 乙\n```js\ncode 壹\n  缩进\n```',
+    identitySample: { itemId: 101, requestId: 'req-fx1', revision: null },
+    expectations: [
+      { kind: 'section', level: 1, titleText: '甲', start: 0, end: 36, available: true, expectedSlice: '# 甲\n开头段落。\n## 乙\n```js\ncode 壹\n  缩进\n```' },
+      { kind: 'section', level: 2, titleText: '乙', start: 10, end: 36, available: true, expectedSlice: '## 乙\n```js\ncode 壹\n  缩进\n```' },
+      { kind: 'code-block', lang: 'js', start: 15, end: 36, available: true, expectedSlice: '```js\ncode 壹\n  缩进\n```' },
+      { kind: 'code-payload', forBlock: 1, start: 21, end: 32, available: true, expectedSlice: 'code 壹\n  缩进' },
+    ],
+  },
+  'fx2-setext-duplicate.json': {
+    name: 'fx2-setext-duplicate-container-fence',
+    source: '主题\n===\n## 甲\n正文一。\n## 甲\n> 引用行\n> ```py\n> x=1\n> ```\n- 列表项\n尾段。\n',
+    identitySample: { itemId: 202, requestId: 'req-fx2', revision: null },
+    expectations: [
+      { kind: 'section', level: 1, titleText: '主题', start: 0, end: 58, available: true, expectedSlice: '主题\n===\n## 甲\n正文一。\n## 甲\n> 引用行\n> ```py\n> x=1\n> ```\n- 列表项\n尾段。\n' },
+      { kind: 'section', level: 2, titleText: '甲', start: 7, end: 17, available: true, expectedSlice: '## 甲\n正文一。\n' },
+      { kind: 'section', level: 2, titleText: '甲', start: 17, end: 58, available: true, expectedSlice: '## 甲\n> 引用行\n> ```py\n> x=1\n> ```\n- 列表项\n尾段。\n' },
+      { kind: 'code-block', lang: 'py', start: 28, end: 47, available: true, expectedSlice: '> ```py\n> x=1\n> ```' },
+      { kind: 'code-payload', forBlock: 1, available: false, reason: '行前缀使内文非连续源切片' },
+    ],
+  },
+  'fx3-emoji-indent.json': {
+    name: 'fx3-emoji-blank-indent-eof',
+    source: '# 标题 🚀\n中段。  \n\n    ind 药\n    二行\n\n尾。',
+    identitySample: { itemId: 303, requestId: null, revision: null },
+    expectations: [
+      { kind: 'section', level: 1, titleText: '标题 🚀', start: 0, end: 35, available: true, expectedSlice: '# 标题 🚀\n中段。  \n\n    ind 药\n    二行\n\n尾。' },
+      { kind: 'code-block', lang: '', start: 15, end: 31, available: true, expectedSlice: '    ind 药\n    二行' },
+      { kind: 'code-payload', forBlock: 1, available: false, reason: '行前缀使内文非连续源切片' },
+    ],
+  },
+  'fx4-crlf.json': {
+    name: 'fx4-crlf-canonical',
+    sourceOriginal: '# 首\r\n\r\n| a | b |\r\n|---|---|\r\n| 1 | 2 |\r\n\r\n# 次首\r\n尾段。\r\n',
+    canonical: '# 首\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n# 次首\n尾段。\n',
+    identitySample: { itemId: 404, requestId: 'req-fx4', revision: null },
+    expectations: [
+      { kind: 'section', level: 1, titleText: '首', start: 0, end: 36, available: true, expectedSlice: '# 首\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n' },
+      { kind: 'section', level: 1, titleText: '次首', start: 36, end: 45, available: true, expectedSlice: '# 次首\n尾段。\n' },
+    ],
+  },
+};
 
 // ---------- S1：人工期望逐字符（4 fixtures × 区间+身份+切片三重） ----------
 for (const f of ['fx1-basic.json', 'fx2-setext-duplicate.json', 'fx3-emoji-indent.json', 'fx4-crlf.json']) {
-  const d = JSON.parse(fs.readFileSync(path.join(EXPECT_DIR, f), 'utf8'));
+  const fixturePath = path.join(EXPECT_DIR, f);
+  const d = fs.existsSync(fixturePath) ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : FALLBACK_FIXTURES[f];
   const src = d.canonical !== undefined ? d.canonical : d.source;
   const decision = md(src);
   const sc = NS.build(decision, d.identitySample);

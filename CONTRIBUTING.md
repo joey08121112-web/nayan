@@ -7,7 +7,7 @@
 - macOS 13+，Apple 芯片（Intel 未测试）
 - Xcode Command Line Tools（`xcode-select --install`）
 - Rust（rustup）
-- Node.js 20+
+- Node.js 22.5+（MCP 与同步服务使用内置 `node:sqlite`）
 - `cd app && npm install`（装 @tauri-apps/cli）
 
 ## 跑测试

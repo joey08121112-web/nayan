@@ -1566,10 +1566,10 @@ function load(silent, stagger){
     var trash=Array.isArray(res[3])?res[3].filter(function(it){ return !!it.deleted_at; }):[];
     var snap=JSON.stringify(items)+'|'+JSON.stringify(lists)+'|'+JSON.stringify(groups)+'|'+JSON.stringify(trash);
     if(silent && snap===state.snap) return;      // 数据没变不重绘
-    // 正在详情/表单里打字时跳过这轮自动刷新，4 秒后会再试
+    // 正在详情/表单里打字时跳过这轮自动刷新，4 秒后会再试（整页区 #board 也算：对比页的补充和问题、清单改名会被重画冲掉；搜索框的壳不重建，照常刷新）
     var a=document.activeElement;
-    if(silent && a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable) &&
-       (gid('detail').contains(a) || gid('recentList').contains(a))) return;
+    if(silent && a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable) && a.id!=='sq' &&
+       (gid('detail').contains(a) || gid('recentList').contains(a) || gid('board').contains(a))) return;
     // ② 自动刷新发现新条目 → 让它飞进来（⌥⇧S / 剪贴板 / MCP 新收录都有入场感）
     if(silent && state.items.length){
       var known={}; state.items.forEach(function(x){ known[x.id]=1; });
@@ -1598,6 +1598,8 @@ function fmtDateTime(s){
   return dayLabel(k)+(t?' · '+t:'');
 }
 function projOf(it){ return (it.workspace||'').trim(); }
+/* 正文纯文本：HTML 收录的行 quote 是空串，用后端派生的 body_text（搜索、摘要、不靠 AI 的拆步都走这里） */
+function bodyText(it){ return (it && (it.quote || it.body_text)) || ''; }
 function toolName(it){ return TOOL_LABEL[it.source_tool]||it.source_tool||'其他'; }
 function findItem(id){ return state.items.filter(function(x){ return x.id===id; })[0] || null; }
 function findStep(stepId){
@@ -1647,7 +1649,7 @@ function visibleItems(){
     if(v.t==='proj' && projOf(it)!==v.proj) return false;
     if(v.t==='projtool' && (projOf(it)!==v.proj || (it.source_tool||'other')!==v.tool)) return false;
     if(q){
-      var hay=((it.title||'')+' '+(it.quote||'')+' '+(it.my_note||'')+' '+(it.user_msg||'')).toLowerCase();
+      var hay=((it.title||'')+' '+bodyText(it)+' '+(it.my_note||'')+' '+(it.user_msg||'')).toLowerCase();
       if(hay.indexOf(q)<0) return false;
     }
     return true;
@@ -2246,7 +2248,7 @@ function entryHTML(it){
   var steps=it.steps||[], hasSteps=steps.length>0;
   var hasUM=!!String(it.user_msg||'').trim(), hasNote=!!String(it.my_note||'').trim();
   var src=srcOf(it);
-  var multi=String(it.quote||'').indexOf('\n')>=0;
+  var multi=bodyText(it).indexOf('\n')>=0;
   var back=state.view.t==='single'?'回到归档':(state.view.t==='lread'?'回到清单':(state.view.t==='sread'?'回到搜索':'回到钉板'));
   var curList=inList(it)?listById(it.list_id):null;
   var h='<div class="rbar" data-tauri-drag-region>'+
@@ -2269,7 +2271,7 @@ function entryHTML(it){
     '<div class="dmeta">'+
       '<span class="mchip">'+avHTML(it)+esc(toolName(it))+'</span>'+
       '<span class="sep"></span><button type="button" class="mlink" data-act="editproj" title="'+escQ(ws?('归属项目：'+ws+'（点击修改）'):'还没归属项目，点这里设置')+'">'+esc(projLabel(it))+'</button>'+
-      '<span class="sep"></span><span>'+esc(shortTime(it.created_at))+'</span>'+
+      '<span class="sep"></span><span title="收录时间">'+esc(fullTime(it.created_at))+'</span>'+
       (curList?'<span class="badge">在「'+esc(curList.name)+'」</span>':'')+
       (curList && curList.mode==='date'?'<span class="badge wait">⏳ 等：'+esc(it.wait_note||'以后再看')+(it.remind_on?' · '+dueDayLabel(it.remind_on):'')+'</span>':'')+
       (src.win?'<span class="sep" id="sesSep" hidden></span><span id="sesSlot"></span>':'')+
@@ -2699,7 +2701,7 @@ function bindEntry(it){
         refresh(api('POST','/api/suggestions/'+it.id+'/steps',{mode:'append',steps:[{content:v,is_cmd:looksCmd(v)}]}));
       }
       else if(act==='linesplit'){
-        var lines=String(it.quote||'').split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+        var lines=bodyText(it).split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
         if(lines.length<2){ toast('原文不足两行，试试 AI 拆步'); return; }
         refresh(api('POST','/api/suggestions/'+it.id+'/steps',{steps:lines.map(function(l){ return {content:l,is_cmd:looksCmd(l)}; })}));
       }
@@ -2898,6 +2900,7 @@ function aboutHTML(){
     '<div class="ss-group">'+
       '<div class="ss-row"><div class="grow"><b>纳言 NaYan</b><div class="hint">AI 回复的分组收录器 · 本地优先 · 数据只存本机</div></div><span id="ss-ver" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--sub)"></span></div>'+
       '<div class="ss-row"><div class="grow"><b>源码与反馈</b><div class="hint">GitHub 开源仓库</div></div><a href="https://github.com/joey08121112-web/nayan" target="_blank">github.com/joey08121112-web/nayan ↗</a></div>'+
+      '<div class="ss-row"><div class="grow"><b>本地数据目录</b><div class="hint">inbox.db 与配置文件所在文件夹（复制即可完整备份）</div></div><button type="button" class="sec" id="openDataDir">在访达中打开</button></div>'+
     '</div>'+
     '<div class="ss-group">'+
       '<div class="ss-row"><div class="grow"><b>快捷键备忘</b><div class="hint" id="hkMemo">⌥S 划词捕获 · ⌥Z 框选捕获 · ⌘, 打开本设置</div></div></div>'+
@@ -2966,6 +2969,14 @@ function fillVersion(){
       window.__TAURI__.app.getVersion().then(function(v){ var e=gid('ss-ver'); if(e) e.textContent='v'+v; });
     }
   } catch(e){}
+  var ob=gid('openDataDir');
+  if(ob) ob.onclick=function(){
+    if(!TAPI){ toast('打开数据目录需要桌面版'); return; }
+    api('GET','/api/settings').then(function(s){
+      if(!s || !s.data_dir) throw new Error('未找到数据目录路径');
+      return TAPI.invoke('open_path',{path:s.data_dir});
+    }).catch(function(e){ toast(e.message||String(e)); });
+  };
 }
 
 function syncSeg(){
@@ -3220,7 +3231,7 @@ function aiConsent(f, label){
 }
 /* 不靠 AI 的拆步：多行按行拆；一行就按句子拆 */
 function localSteps(it){
-  var t=String(it.quote||it.title||'');
+  var t=bodyText(it)||String(it.title||'');
   var lines=t.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
   if(lines.length<2) lines=t.split(/(?<=[。！？!?；;])\s*/).map(function(l){ return l.trim(); }).filter(Boolean);
   return lines.slice(0,30);
@@ -3290,7 +3301,7 @@ function plainSnip(t,n){
   return t.slice(0,n);
 }
 function sumOf(it,n){
-  var t=plainSnip(it.quote,n+60), ti=plainSnip(it.title,n);
+  var t=plainSnip(bodyText(it),n+60), ti=plainSnip(it.title,n);
   if(!t) return '';
   if(ti && t.indexOf(ti)===0) t=t.slice(ti.length).trim();     // 标题就是原文第一句时，摘要从后面接
   return t.slice(0,n);
@@ -3452,6 +3463,7 @@ function renderListPage(box){
     h+='<div class="brow">'+avHTML(it,true)+'<button type="button" class="bopen" data-lact="open" data-id="'+it.id+'"><span class="bt"><div class="bt1">'+esc(it.title)+'</div>'+
       '<div class="bt2">'+(date?'<span class="badge wait">⏳ 等：'+esc(it.wait_note||'以后再看')+(it.remind_on && !isDue(it)?' · '+dueDayLabel(it.remind_on):'')+'</span>':'')+
       (date && isDue(it)?'<span class="badge win">到时候了</span>':'')+esc(sm)+'</div></span></button>'+
+      '<span class="bm" title="收录时间">'+esc(fullTime(it.created_at))+'</span>'+
       '<button type="button" class="tb" data-lact="pin" data-id="'+it.id+'">钉住</button>'+
       '<button type="button" class="lk" data-lact="back" data-id="'+it.id+'">移回收件箱</button></div>';
   });
@@ -3768,6 +3780,13 @@ function shortTime(s){
   if(Number(p[0])===now.getFullYear()) return Number(p[1])+' 月 '+Number(p[2])+' 日';
   return p[0]+' 年 '+Number(p[1])+' 月 '+Number(p[2])+' 日';
 }
+/* 具体到分钟的时间：清单行、阅读页用（今年不写年份） */
+function fullTime(s){
+  var k=dayKey(s), t=String(s||'').slice(11,16);
+  if(!k) return '';
+  var p=k.split('-');
+  return (Number(p[0])===new Date().getFullYear()?'':p[0]+' 年 ')+Number(p[1])+' 月 '+Number(p[2])+' 日'+(t?' '+t:'');
+}
 function projLabel(it){ var w=projOf(it); return w?lastSeg(w):'未归属'; }
 /* 回到来源：只有窗口会话或网页链接才有去处（没有就不放按钮） */
 function srcOf(it){
@@ -3879,6 +3898,7 @@ function openItemCtx(it, x, y){
       return;
     }
     if(act==='proj'){ ctxProjForm(it, m); return; }
+    if(act==='rename' && !gid('recentList').querySelector('[data-rid="'+it.id+'"]')){ ctxRenameForm(it, m); return; }
     ctxClose();
     if(act==='rename') startRecentRename(it.id, it.title||'', function(v){ return api('PATCH','/api/suggestions/'+it.id,{ title:v }); });
     else if(act==='pin') patchStatus(it, grpOf(it.status)==='todo'?'inbox':'todo');
@@ -4020,6 +4040,33 @@ gid('recentList').addEventListener('contextmenu',function(ev){
   if(cg!=null){ openGroupCtx(Number(cg), ev.clientX, ev.clientY); return; }
   var it=findItem(Number(rid)); if(it) openItemCtx(it, ev.clientX, ev.clientY);
 });
+/* 主区（清单页、钉板卡片、收件箱、搜索、归档）的行也能右键，菜单同侧栏；勾选对比时、最近删除里不弹 */
+gid('board').addEventListener('contextmenu',function(ev){
+  var row=ev.target.closest?ev.target.closest('.brow,.bcard'):null;
+  if(!row || row.classList.contains('pickrow') || row.hasAttribute('data-trash-row')) return;
+  var cmp=row.querySelector('[data-cmp]');
+  if(cmp){ ev.preventDefault(); openGroupCtx(Number(cmp.getAttribute('data-cmp')), ev.clientX, ev.clientY); return; }
+  var ref=row.hasAttribute('data-id')?row:row.querySelector('[data-id],[data-sopen]'); if(!ref) return;
+  var it=findItem(Number(ref.getAttribute('data-id')||ref.getAttribute('data-sopen'))); if(!it) return;
+  ev.preventDefault(); openItemCtx(it, ev.clientX, ev.clientY);
+});
+/* 不在侧栏「最近待看」里的条目：重命名就在菜单里换成输入框 */
+function ctxRenameForm(it, m0){
+  var r=m0.getBoundingClientRect();
+  var m=ctxOpen('<div class="ctxform"><label class="lq" for="cxTitle">重命名</label>'+
+    '<input type="text" id="cxTitle" value="'+escQ(it.title||'')+'">'+
+    '<div class="row"><span class="grow"></span><button type="button" class="lk" data-cxr-cancel="1">取消</button><button type="button" class="cta" data-cxr-ok="1">保存</button></div></div>', r.left, r.top, true);
+  var inp=gid('cxTitle'); inp.focus(); inp.select();
+  function save(){
+    var v=inp.value.trim(); ctxClose();
+    if(v && v!==(it.title||'')) refresh(api('PATCH','/api/suggestions/'+it.id,{ title:v }));
+  }
+  inp.onkeydown=function(ev){ if(ev.key==='Enter' && !ev.isComposing && ev.keyCode!==229){ ev.preventDefault(); save(); } };
+  m.onclick=function(ev){
+    var t=ev.target.closest?ev.target:null; if(!t) return;
+    if(t.closest('[data-cxr-ok]')) save(); else if(t.closest('[data-cxr-cancel]')) ctxClose();
+  };
+}
 document.addEventListener('mousedown',function(ev){
   if(!CTX.el) return;
   if(CTX.el.contains(ev.target) || (CTX.sub && CTX.sub.contains(ev.target))) return;
@@ -4029,6 +4076,7 @@ document.addEventListener('keydown',function(ev){ if(ev.key==='Escape' && CTX.el
 window.addEventListener('blur', ctxClose);
 window.addEventListener('resize', ctxClose);
 document.querySelector('.sidebar').addEventListener('scroll', ctxClose, true);
+gid('board').addEventListener('scroll', ctxClose, true);
 
 /* 钉板：钉住的横向滑动卡片 + 收件箱；点卡片任何空白处看原文；默认只放原文摘要与「回到来源」，步骤/进度仅在拆过步骤后出现 */
 var BOARD_C=2*Math.PI*17;
@@ -4200,6 +4248,7 @@ function renderArchivePage(box){
     var sm=sumOf(it,120);
     h+='<div class="brow"><button type="button" class="bopen" data-bact="open" data-id="'+it.id+'">'+avHTML(it,true)+
       '<span class="bt"><div class="bt1">'+esc(it.title)+'</div>'+(sm?'<div class="bt2">'+esc(sm)+'</div>':'')+'</span></button>'+
+      '<span class="bm" title="收录时间">'+esc(fullTime(it.created_at))+'</span>'+
       '<button type="button" class="tb" data-bact="restore" data-id="'+it.id+'">移回收件箱</button></div>';
   });
   if(!rows.length) h+='<p class="bempty">还没有归档的。</p>';
@@ -4250,7 +4299,7 @@ function searchLocLabel(it){
   if(k==='list'){ var l=listById(it.list_id); return '在「'+(l?l.name:'清单')+'」'; }
   return { pin:'钉住', inbox:'收件箱', arch:'归档' }[k];
 }
-function searchHay(it){ return ((it.title||'')+'\n'+(it.quote||'')+'\n'+(it.my_note||'')+'\n'+(it.user_msg||'')).toLowerCase(); }
+function searchHay(it){ return ((it.title||'')+'\n'+bodyText(it)+'\n'+(it.my_note||'')+'\n'+(it.user_msg||'')).toLowerCase(); }
 function searchHits(){
   var ws=searchWords(); if(!ws.length) return [];
   return state.items.filter(function(it){ var h=searchHay(it); return ws.every(function(w){ return h.indexOf(w)>=0; }); })
@@ -4270,7 +4319,7 @@ function hlHTML(text, ws){
 }
 /* 摘要：取正文里第一个命中前后一段（两行）；只有标题命中时退回普通摘要 */
 function searchSnip(it, ws){
-  var body=[it.quote, it.my_note, it.user_msg].map(function(x){ return plainSnip(x||'', 4000); }).filter(Boolean).join(' · ');
+  var body=[bodyText(it), it.my_note, it.user_msg].map(function(x){ return plainSnip(x||'', 4000); }).filter(Boolean).join(' · ');
   var low=body.toLowerCase(), at=-1;
   ws.forEach(function(w){ var i=low.indexOf(w); if(i>=0 && (at<0 || i<at)) at=i; });
   if(at<0) return esc(sumOf(it,160));
@@ -4392,7 +4441,8 @@ document.addEventListener('click',function(ev){
   Array.prototype.forEach.call(document.querySelectorAll('details.dmenu[open]'),function(d){ if(!d.contains(ev.target)) d.open=false; });
 });
 function boardQuickAdd(){
-  var inp=gid('boardQuick'); var t=(inp.value||'').trim(); if(!t) return;
+  var inp=gid('boardQuick'); var t=(inp.value||'').trim(); if(!t || boardQuickAdd.busy) return;
+  boardQuickAdd.busy=true;
   inp.value=''; fitBoardQuick(); paintPlanChip();
   // 标题按统一规则取（第一句、30 字宽）；标题装不下全文时整段进原文，不丢字
   var first=NayanTitle.shortTitle(t);
@@ -4410,7 +4460,12 @@ function boardQuickAdd(){
       if(pl){ toast('已放进「'+pl.name+'」'); state.put={ list:0, wait:'' }; gid('boardWaitText').value=''; }
       load(false);
     })
-    .catch(function(err){ toast(err.message); });
+    .catch(function(err){
+      // 没收进去：把字还回输入框（等的时候又打了字就接在后面），不让整段消失
+      var now=inp.value.trim(); inp.value=now?t+'\n'+now:t; fitBoardQuick(); paintPlanChip(); inp.focus();
+      toast('没收进去，字还在输入框里：'+err.message);
+    })
+    .finally(function(){ boardQuickAdd.busy=false; });
 }
 function fitBoardQuick(){
   var el=gid('boardQuick'); el.style.height='auto';
@@ -4540,6 +4595,17 @@ window.addEventListener('keydown',function(ev){
   if(k==='escape' && aim && aim.open){ ev.preventDefault(); aim.open=false; aim.querySelector('summary').focus(); return; }
   if(aim && aim.open && /^[1-4]$/.test(k)){ ev.preventDefault(); var mb0=aim.querySelectorAll('[data-act="tidy"]')[Number(k)-1]; if(mb0 && !mb0.disabled) mb0.click(); return; }
   if(k==='a' && aim){ ev.preventDefault(); aim.open=!aim.open; if(aim.open){ var f0=aim.querySelector('[data-act="tidy"]:not([disabled])'); if(f0) f0.focus(); } return; }
+  /* Esc：先收起开着的菜单 / 等什么条；都没开就回到来的地方（清单、钉板、归档、搜索）。按在输入框里的 Esc 不算 */
+  if(k==='escape'){
+    var tg=ev.target;
+    if(ev.defaultPrevented || LAYOUT.isFocus() || (tg && (tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'||tg.tagName==='SELECT'||tg.isContentEditable))) return;
+    ev.preventDefault();
+    var dm=document.querySelector('#detail details.dmenu[open]');
+    if(dm){ dm.open=false; return; }
+    if(state.moveOpen){ state.moveOpen=false; var mm=gid('moveMenu'); if(mm) mm.hidden=true; return; }
+    if(state.moveTarget){ state.moveTarget=0; renderDetail(); return; }
+    readNav(it,'back'); return;
+  }
   if(k==='j'){ ev.preventDefault(); readNav(it,'next'); }
   else if(k==='k'){ ev.preventDefault(); readNav(it,'prev'); }
   else if(k==='p'){ ev.preventDefault(); patchStatus(it, grpOf(it.status)==='todo'?'inbox':'todo'); }

@@ -36,7 +36,7 @@ pub const POINTS_TASK: &str = "任务：给这条内容写要点。\n\
 pub const CLEAN_TASK: &str = "任务：把这条内容的排版清理干净，文字一个字都不改。\n\
 要删掉的：\n\
 - 乱码框和看不见的控制字符；\n\
-- 读屏留下的重复文字，比如「已运行 2 个命令已运行 2 个命令」只留一次；\n\
+- 读屏留下的重复文字，比如「已执行 2 条指令已执行 2 条指令」只留一次；\n\
 - 界面按钮上的字，比如「复制」「重试」「Copy code」「编辑」。\n\
 要补回的：\n\
 - 分段；以 •、-、1. 开头的内容排成列表；看得出是小标题的排成标题；\n\
@@ -425,8 +425,8 @@ mod tests {
 
     #[test]
     fn rule_clean_fixes_claude_selection() {
-        let raw = "已运行 2 个命令\u{FFFC}已运行 2 个命令 先确认分支干净，然后跑测试。• 第一步把 main 拉到最新 • 第二步构建";
-        assert_eq!(rule_clean(raw), "已运行 2 个命令 先确认分支干净，然后跑测试。\n- 第一步把 main 拉到最新\n- 第二步构建");
+        let raw = "已执行 2 条指令\u{FFFC}已执行 2 条指令 先确认分支干净，然后跑测试。• 第一步把 main 拉到最新 • 第二步构建";
+        assert_eq!(rule_clean(raw), "已执行 2 条指令 先确认分支干净，然后跑测试。\n- 第一步把 main 拉到最新\n- 第二步构建");
         // 表格分隔线、英文重复、「哈哈哈」不动
         assert_eq!(rule_clean("|---|---|---|"), "|---|---|---|");
         assert_eq!(rule_clean("hello hello hello"), "hello hello hello");

@@ -197,6 +197,51 @@ try {
     check('M2-golden', 'b10：分隔线语义（hr=1，无列表）', b10.hr === 1 && b10.liDepths.length === 0, JSON.stringify(b10));
   }
 
+  // AutoClaw/Streamdown 的真实复制形态：加粗用带语义声明的 span，代码仍是 code。
+  const copiedHtml = await cdp.eval(`(() => {
+    const source='<h3>第 5 行 <code>int[] ns</code></h3><p><span class="font-semibold" data-streamdown="strong" style="font-weight:600" onclick="window.__COPY_PWN__=1">造数组。</span>说明</p><blockquote>引用</blockquote><pre><code><span style="display:block">int a=1;</span><span style="display:block">int b=2;</span></code></pre>';
+    const el=document.getElementById('body-el');
+    const decision=readerBody({format:'html',format_provenance:'declared',canonical:source,original:{kind:'text',text:source}},'');
+    const result=renderReaderBody(el,decision,null);
+    const clean=sanitizeRichHtml(source);
+    const fragment=sanitizeRichHtml(source,true);
+    return {rendered:result.rendered,sourceUnchanged:decision.text===source,
+      headings:el.querySelectorAll('h3').length,code:el.querySelector('code').textContent,
+      strong:el.querySelector('strong')?.textContent,quote:el.querySelector('blockquote').textContent,
+      unsafe:fragment.querySelectorAll('[style],[class],[data-streamdown],[onclick]').length,
+      fragmentStrong:fragment.querySelector('strong')?.textContent,
+      codeLines:el.querySelector('pre').textContent,
+      existingNewline:sanitizeRichHtml('<pre><code><span style="display:block">a</span>\\n<span style="display:block">b</span></code></pre>',true).textContent,
+      stable:sanitizeRichHtml(clean)===clean,pwned:window.__COPY_PWN__||null};
+  })()`);
+  check('copy-html','AutoClaw 复制形态：标题、代码、加粗、引用保留；存储源文不改写',
+    copiedHtml.rendered&&copiedHtml.sourceUnchanged&&copiedHtml.headings===1&&copiedHtml.code==='int[] ns'
+    &&copiedHtml.strong==='造数组。'&&copiedHtml.quote==='引用',JSON.stringify(copiedHtml));
+  check('copy-html','语义转换兼容 DOM/字符串输出且幂等，来源样式/事件/元数据零透传',
+    copiedHtml.fragmentStrong==='造数组。'&&copiedHtml.stable&&copiedHtml.unsafe===0&&copiedHtml.pwned===null,JSON.stringify(copiedHtml));
+  check('copy-html','块级代码 span 还原行边界，已有换行不重复添加',
+    copiedHtml.codeLines==='int a=1;\nint b=2;'&&copiedHtml.existingNewline==='a\nb',JSON.stringify(copiedHtml));
+
+  // ZCode 用户原选区的表格结构（只省略复制 HTML 中的来源 CSS）。
+  const zcodeTable = await cdp.eval(`(() => {
+    const source='<table data-streamdown="table" style="border-collapse:separate"><thead><tr><th>字段</th><th>getter</th><th>setter</th></tr></thead><tbody><tr><td><code>private String name;</code></td><td><code>public String getName() { return name; }</code></td><td><code>public void setName(String name) { this.name = name; }</code></td></tr><tr><td><code>private int age;</code></td><td><code>public int getAge() { return age; }</code></td><td><code>public void setAge(int age) { this.age = age; }</code></td></tr></tbody></table>';
+    const decision=readerBody({format:'html',format_provenance:'declared',canonical:source,original:{kind:'text',text:source}},'');
+    const el=document.getElementById('body-el');
+    const result=renderReaderBody(el,decision,null);
+    return {rendered:result.rendered,sourceUnchanged:decision.text===source,
+      tables:el.querySelectorAll('table').length,
+      headers:[...el.querySelectorAll('th')].map(n=>n.textContent),
+      rows:[...el.querySelectorAll('tbody tr')].map(row=>[...row.querySelectorAll('td')].map(n=>n.textContent)),
+      code:el.querySelectorAll('td code').length,
+      unsafe:el.querySelectorAll('[style],[data-streamdown]').length};
+  })()`);
+  check('copy-html','ZCode getter/setter 表格：三列表头、两行正文、六处行内代码原样保留',
+    zcodeTable.rendered&&zcodeTable.sourceUnchanged&&zcodeTable.tables===1&&zcodeTable.code===6&&zcodeTable.unsafe===0
+    &&JSON.stringify(zcodeTable.headers)===JSON.stringify(['字段','getter','setter'])
+    &&JSON.stringify(zcodeTable.rows)===JSON.stringify([
+      ['private String name;','public String getName() { return name; }','public void setName(String name) { this.name = name; }'],
+      ['private int age;','public int getAge() { return age; }','public void setAge(int age) { this.age = age; }']]),JSON.stringify(zcodeTable));
+
   // ---- M3：敌意 HTML fixture（S03 清洗 + 零执行/零外联/零 on* 属性） ----
   // 用独立容器 body-el2：链接出口绑定在元素上（首次绑定即固定 opener），须未被前段污染
   const m3 = await cdp.eval(`(async () => {

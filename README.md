@@ -18,6 +18,7 @@
 - **钉板**：把今天就要动手的那几条钉在最顺手的地方。
 - **我的清单**：按主题自建清单，每条建议放进一个清单；清单可以设「每天回顾」或「到日期提醒」。
 - **同题对比**：同一个问题问过好几个 AI？把它们收进同一组，逐条对照要点，还可以生成综合结论。
+- **AI 整理**：阅读页一键「理成要点」「清理排版」「拆成步骤」「重起标题」（快捷键 A）；原文永远不改，可随时切回或撤销。
 - **排成清单**：一段话里混着「待办 + 时间」？一键拆成带时间与状态的步骤（⌘⏎）。
 - **搜索**：多关键词 AND、标题优先、命中高亮；⌘F 直达。
 - **到期提醒**：给建议设一个「什么时候再看我」，到点在首页提醒。
@@ -37,7 +38,7 @@
 
 ### 下载预览版
 
-到 [Releases](https://github.com/joey08121112-web/nayan/releases) 下载 `NaYan-0.3.0.dmg`，打开后把纳言拖进「应用程序」。需要 macOS 13 或更新、Apple 芯片的 Mac。
+到 [Releases](https://github.com/joey08121112-web/nayan/releases) 下载 `NaYan-0.3.1.dmg`，打开后把纳言拖进「应用程序」。需要 macOS 13 或更新、Apple 芯片的 Mac。
 
 预览版**还没有经过苹果公证**，第一次打开会被系统拦下：
 1. 双击纳言，出现提示后点「完成」。
@@ -53,7 +54,7 @@ xattr -dr com.apple.quarantine /Applications/NaYan.app
 
 ### 从源码构建
 
-需要：macOS 13+（Apple 芯片；Intel 未测试）、Xcode Command Line Tools、Rust（rustup）、Node.js 20+。
+需要：macOS 13+（Apple 芯片；Intel 未测试）、Xcode Command Line Tools、Rust（rustup）、Node.js 22.5+。
 
 ```bash
 git clone https://github.com/joey08121112-web/nayan
@@ -89,7 +90,7 @@ AI 是**可选增强**，默认关闭。设置里分三档：
 2. **自己的 Key**：填自己的 API Key 直连（DeepSeek / 智谱 / OpenAI 兼容接口均可，也支持本机 Ollama 的 base_url）。Key 只存在本机配置里，请求由 App 直接发给所选服务。
 3. **纳言订阅**：官方托管，尚未推出。
 
-开启后每个用 AI 的地方（拆步 / 对比 / 计划 / 起标题）还有单独开关；发送前会明确提示。
+开启后每个用 AI 的地方（拆步 / 对比 / 计划 / 起标题 / 阅读页 AI 整理）还有单独开关；发送前会明确提示。
 
 完整的隐私说明（数据放在哪里、什么时候联网、哪些端口只在本机）见 [PRIVACY.md](PRIVACY.md)。
 

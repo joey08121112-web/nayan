@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 建议收件箱 MCP Server · 阶段 2
 // 零依赖 stdio MCP server：让 AI 助手直接把建议写进收件箱
-// 注册方法见 MCP-SETUP.md；协议冒烟测试：node test-mcp.mjs
+// 注册方法见 README.md「MCP 接入」；回归测试：node scripts/test-all.mjs --only mcp-ingestion
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -66,7 +66,7 @@ function mapTool(name) {
   if (n.indexOf('opencode') >= 0) return 'opencode';
   if (n.indexOf('zcode') >= 0 || n.indexOf('z-code') >= 0) return 'zcode';
   if (n.indexOf('antigravity') >= 0 || n.indexOf('gravity') >= 0) return 'antigravity';
-  if (n.indexOf('zed') >= 0) return 'zcode';
+  if (n.indexOf('zed') >= 0) return 'zed';
   if (n.indexOf('dsh') >= 0 || n.indexOf('deepseek') >= 0) return 'dsh';
   return (n.slice(0, 40)) || 'mcp';
 }
