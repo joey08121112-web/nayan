@@ -2831,7 +2831,8 @@ function generalHTML(){
       '<div class="ss-row"><div class="grow"><b>首次使用引导</b><div class="hint">再看看收录方式，或试收一条。</div></div><button type="button" class="tb" id="reopenOnboarding">重新看一遍引导</button></div>'+
     '</div>'+
     '<h3 class="ss-cat-title" style="font-size:13px;color:var(--sub)">权限状态</h3>'+
-    '<div class="ss-group"><div id="permRows" style="padding:6px 0"><span class="hint">检查中…</span></div></div>';
+    '<div class="ss-group"><div id="permRows" style="padding:6px 0"><span class="hint">检查中…</span></div></div>'+
+    '<div class="hint" style="margin-top:6px">提示：覆盖安装新版后，若系统设置里已勾选但仍显示未授权，请在系统设置中先点「−」移除纳言，再点「＋」重新添加。</div>';
 }
 gid('screenCapture').onclick=function(){if(!TAPI){toast('屏幕框选需要桌面版');return;}TAPI.invoke('box_select_start_from_app').catch(function(e){toast('框选失败：'+(e.message||e));});};
 function captureHTML(){
@@ -2901,9 +2902,10 @@ function aiHTML(){
 function aboutHTML(){
   return '<h2 class="ss-cat-title">关于</h2>'+
     '<div class="ss-group">'+
-      '<div class="ss-row"><div class="grow"><b>纳言 NaYan</b><div class="hint">AI 回复的分组收录器 · 本地优先 · 数据只存本机</div></div><span id="ss-ver" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--sub)"></span></div>'+
-      '<div class="ss-row"><div class="grow"><b>源码与反馈</b><div class="hint">GitHub 开源仓库</div></div><a href="https://github.com/joey08121112-web/nayan" target="_blank">github.com/joey08121112-web/nayan ↗</a></div>'+
+      '<div class="ss-row"><div class="grow"><b>纳言 NaYan</b><div class="hint">AI 回复的分组收录器 · 本地优先 · 数据只存本机</div></div><div style="display:flex;align-items:center;gap:10px"><span id="ss-ver" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--sub)"></span><a href="https://github.com/joey08121112-web/nayan/releases" target="_blank" style="font-size:12.5px">检查更新 ↗</a></div></div>'+
+      '<div class="ss-row"><div class="grow"><b>源码与反馈</b><div class="hint">GitHub 开源仓库与问题反馈</div></div><div style="display:flex;align-items:center;gap:12px"><a href="https://github.com/joey08121112-web/nayan" target="_blank">GitHub 仓库 ↗</a><a href="https://github.com/joey08121112-web/nayan/issues" target="_blank">问题反馈（Issues）↗</a></div></div>'+
       '<div class="ss-row"><div class="grow"><b>本地数据目录</b><div class="hint">inbox.db 与配置文件所在文件夹（复制即可完整备份）</div></div><button type="button" class="sec" id="openDataDir">在访达中打开</button></div>'+
+      '<div class="ss-row"><div class="grow"><b>运行日志</b><div class="hint">nayan.log（排障或提交反馈时可在访达中定位查看）</div></div><button type="button" class="sec" id="openLogFile">查看日志</button></div>'+
       '<div class="ss-row"><div class="grow"><b>导出全部记录</b><div class="hint">把未删除的记录、步骤与清单导出到数据目录 exports/ 文件夹</div></div><div style="display:flex;gap:8px"><button type="button" class="sec" id="exportMd">导出 Markdown</button><button type="button" class="sec" id="exportJson">导出 JSON</button></div></div>'+
     '</div>'+
     '<div class="ss-group">'+
@@ -2979,6 +2981,14 @@ function fillVersion(){
     api('GET','/api/settings').then(function(s){
       if(!s || !s.data_dir) throw new Error('未找到数据目录路径');
       return TAPI.invoke('open_path',{path:s.data_dir});
+    }).catch(function(e){ toast(e.message||String(e)); });
+  };
+  var lb=gid('openLogFile');
+  if(lb) lb.onclick=function(){
+    if(!TAPI){ toast('查看日志需要桌面版'); return; }
+    api('GET','/api/settings').then(function(s){
+      if(!s || !s.data_dir) throw new Error('未找到数据目录路径');
+      return TAPI.invoke('reveal_path',{path:s.data_dir.replace(/\/+$/,'')+'/nayan.log'});
     }).catch(function(e){ toast(e.message||String(e)); });
   };
   function bindExport(btnId,fmt,label){

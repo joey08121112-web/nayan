@@ -50,7 +50,7 @@
 xattr -dr com.apple.quarantine /Applications/NaYan.app
 ```
 
-预览版用的是临时签名，换新版本后，系统可能要你重新授予「辅助功能」和「屏幕录制」。
+预览版用的是临时签名，换新版本后，系统可能要你重新授予「辅助功能」和「屏幕录制」（若系统设置里已勾选但软件内仍显示未授权，请在系统设置中先点 `−` 号移除纳言，再点 `＋` 号重新添加）。
 
 ### 从源码构建
 
@@ -118,6 +118,8 @@ command = "node"
 args = ["/path/to/nayan/mcp-server.js"]
 ```
 
+> **提示（GUI 客户端找不到 Node 22.5+）**：如果你使用 `nvm`、`fnm`、`volta` 或 Homebrew 管理 Node 版本，在 Claude Desktop 或 Cursor 的 `mcp.json` 中建议把 `"command"` 写成 `which node` 查出的绝对路径（例如 `"/opt/homebrew/bin/node"`），避免桌面软件启动子进程时找不到 PATH 里的新版 Node。
+
 浏览器扩展在 `extension/`（Chrome MV3）：装上后在网页上划词/框选，直接通过纳言桌面端内置的本机服务（默认 `127.0.0.1:8787`，未打开桌面端时也可单独运行 `node sync-server.js`）写入收件箱。
 
 ## 开发与测试
@@ -150,6 +152,17 @@ site/           官网静态页
 tests/          测试（渲染 / 收录 / 摄取 / 迁移 / reader 回归）
 scripts/        test-all.mjs 等工程脚本
 ```
+
+## 路线图（Roadmap）
+
+- [x] **WarmV4 暖白阅读工作台**（钉板、收件箱、清单、到期提醒、同题对比、最近删除）
+- [x] **五路顺手收录**（`⌥⇧S` 划词结构还原、`⌥⇧X` 框选 + 本机 Vision OCR、剪贴板监听、Chrome 扩展、MCP 服务端）
+- [x] **阅读页「✦ AI 整理」与本地规则双轨兜底**（理成要点、清理排版、重起标题、拆成步骤，原文不覆盖可撤销）
+- [x] **桌面端内置 `:8787` 扩展/快捷指令接收与 macOS 钥匙串（Keychain）凭据加密存储**（`v0.4.0`）
+- [x] **一键全量数据导出（Markdown / JSON）与中英双语官网**（`v0.4.0`）
+- [ ] **Apple Developer ID 签名与公证（Notarization）**：消除首次打开 Gatekeeper 拦截提示
+- [ ] **通用二进制（Universal Binary / Intel Mac 支持）与 Homebrew Cask 分发**
+- [ ] **iOS / iPadOS 伴侣端与可选端到端加密 iCloud 同步**
 
 ## License
 

@@ -89,12 +89,16 @@ html[lang="en"] .scrolly .tx h2{ word-break:normal; }
 .hero .meta{ margin-top:16px; font-size:.85rem; color:var(--sub); }
 .stage{ margin-top:56px; background:var(--clay-wash); border-radius:24px; padding:clamp(16px,4vw,48px); }
 .stage{ position:relative; }
-.hud{ position:absolute; left:clamp(-8px,-1vw,0px); bottom:clamp(-28px,-2vw,-12px); width:min(320px,62%); background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:14px 16px; box-shadow:0 22px 50px -22px rgba(20,20,19,.4); display:grid; grid-template-columns:28px minmax(0,1fr); gap:4px 12px; text-align:left; font-size:.86rem; }
-.hud .av{ grid-row:span 2; width:28px; height:28px; border-radius:7px; background:#A4614A; color:#fff; display:grid; place-items:center; font-size:.78rem; font-weight:600; }
+.hud{ position:absolute; left:clamp(-8px,-1vw,0px); bottom:clamp(-28px,-2vw,-12px); width:min(340px,65%); background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:14px 16px; box-shadow:0 22px 50px -22px rgba(20,20,19,.4); display:grid; grid-template-columns:28px minmax(0,1fr); gap:4px 12px; text-align:left; font-size:.86rem; transition:transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease; }
+.hud.pop{ transform:translateY(-6px) scale(1.02); box-shadow:0 28px 60px -18px rgba(164,97,74,.45); border-color:color-mix(in srgb,var(--clay) 45%,var(--line)); }
+.hud .av{ grid-row:span 2; width:28px; height:28px; border-radius:7px; background:#A4614A; color:#fff; display:grid; place-items:center; font-size:.78rem; font-weight:600; transition:background .2s; }
 .hud b{ font-weight:600; }
 .hud span{ color:var(--sub); font-size:.8rem; }
 .hud kbd{ height:22px; min-width:22px; font-size:.72rem; border-radius:5px; padding:0 5px; }
-.keyhint{ position:absolute; right:clamp(12px,3vw,40px); top:clamp(-18px,-1.4vw,-10px); display:flex; gap:5px; }
+.keyhint{ position:absolute; right:clamp(12px,3vw,40px); top:clamp(-18px,-1.4vw,-10px); display:inline-flex; align-items:center; gap:5px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:5px 10px 5px 6px; cursor:pointer; font:inherit; color:var(--ink2); box-shadow:0 8px 24px -10px rgba(20,20,19,.25); transition:transform .14s ease, border-color .15s; }
+.keyhint:hover{ border-color:color-mix(in srgb,var(--clay) 50%,var(--line)); transform:translateY(-1px); }
+.keyhint:active, .keyhint.pressed{ transform:translateY(1px) scale(.97); }
+.keyhint .try-lbl{ font-size:.78rem; color:var(--clay-ink); margin-left:4px; font-weight:500; }
 @media (max-width:640px){ .hud,.keyhint{ display:none; } }
 .stage img{ border-radius:12px; box-shadow:0 1px 2px rgba(20,20,19,.06),0 24px 60px -24px rgba(20,20,19,.28); width:100%; height:auto; }
 
@@ -235,7 +239,7 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
         <a class="btn line" href="#how" data-en="See how it works">看看怎么用</a>
       </div>
       <p class="meta" data-en="Free &amp; Open Source · macOS 13+ · Apple Silicon · 100% Local SQLite">免费 · macOS 13 或更新 · Apple 芯片 · 数据只存在你的电脑</p>
-      <div class="stage"><img src="assets/shots/board.jpg" width="2880" height="1800" alt="纳言的钉板：上方是正在照着做的两张卡片，下方是收件箱" data-en-alt="NaYan Board view: two pinned active cards on top, inbox queue below"><div class="keyhint" aria-hidden="true"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><div class="hud" aria-hidden="true"><span class="av">C</span><b data-en="Saved to NaYan">收进纳言</b><span data-en="Convert blog images to WebP with lazy loading · from Claude Code · Personal Blog">配图统一转 WebP，加 lazy 加载 · 来自 Claude Code · 个人博客</span></div></div>
+      <div class="stage"><img src="assets/shots/board.jpg" width="2880" height="1800" alt="纳言的钉板：上方是正在照着做的两张卡片，下方是收件箱" data-en-alt="NaYan Board view: two pinned active cards on top, inbox queue below"><button class="keyhint" id="tryCapBtn" type="button" title="点一下体验收录 / Click to simulate capture"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd><span class="try-lbl" data-en="Click to try">点一下试试</span></button><div class="hud" id="heroHud" aria-live="polite"><span class="av" id="hudAv">C</span><b id="hudTitle" data-en="Saved to NaYan">收进纳言</b><span id="hudSub" data-en="Convert blog images to WebP with lazy loading · from Claude Code · Personal Blog">配图统一转 WebP，加 lazy 加载 · 来自 Claude Code · 个人博客</span></div></div>
     </section>
 
     <section id="how">
@@ -351,8 +355,8 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
         <details><summary data-en="Is NaYan free?">要花钱吗？</summary><p data-en="NaYan is free and open source under the MIT license. An optional hosted AI subscription may be offered in the future for convenience, but every feature works without it.">纳言免费，代码开源。以后会有可选的「纳言订阅」，只是省去自己配 AI Key 的麻烦，不订阅也能用全部功能。</p></details>
         <details><summary data-en="Can I use it without an AI API key?">没有 AI Key 能用吗？</summary><p data-en="Yes. &ldquo;No AI&rdquo; is the default mode, and every single feature has a deterministic local fallback.">能。默认就是不用 AI，所有功能都有不靠 AI 的做法。</p></details>
         <details><summary data-en="Which Macs are supported?">支持哪些电脑？</summary><p data-en="macOS 13 (Ventura) or later on Apple Silicon Macs.">目前是 macOS 13 或更新、Apple 芯片的 Mac。</p></details>
-        <details><summary data-en="macOS says &ldquo;cannot be verified&rdquo; on first launch?">第一次打开，提示「无法验证」或打不开？</summary><p data-en="The preview build is not yet notarized by Apple. After clicking &ldquo;Done&rdquo;, open System Settings › Privacy &amp; Security, scroll to the bottom, and click &ldquo;Open Anyway&rdquo;. Or run <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code> in Terminal.">预览版还没有经过苹果公证，第一次打开会被系统拦下。点「完成」后，打开「系统设置 › 隐私与安全性」，拉到底部点「仍要打开」，输入密码即可，之后就能正常打开。也可以在终端运行 <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code>。</p></details>
-        <details><summary data-en="What system permissions are needed?">需要哪些系统权限？</summary><p data-en="Selection Capture uses Accessibility; Region OCR uses Screen Recording. Both are optional—manual entry, MCP, and the browser extension work without either permission.">划词需要「辅助功能」，框选需要「屏幕录制」。不给的话对应的收录方式用不了，其他功能照常。</p></details>
+        <details><summary data-en="macOS says &ldquo;cannot be verified&rdquo; on first launch?">第一次打开，提示「无法验证」或打不开？</summary><p><span data-en="The preview build is not yet notarized by Apple. After clicking &ldquo;Done&rdquo;, open System Settings › Privacy &amp; Security, scroll to the bottom, and click &ldquo;Open Anyway&rdquo;. Or run <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code> in Terminal.">预览版还没有经过苹果公证，第一次打开会被系统拦下。点「完成」后，打开「系统设置 › 隐私与安全性」，拉到底部点「仍要打开」，输入密码即可，之后就能正常打开。也可以在终端运行 <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code>。</span> <button class="btn line sm" id="copyXattrBtn" type="button" style="height:26px;padding:0 10px;font-size:.78rem;margin-left:6px;vertical-align:middle" data-en="Copy command">复制命令</button></p></details>
+        <details><summary data-en="What system permissions are needed?">需要哪些系统权限？</summary><p data-en="Selection Capture uses Accessibility; Region OCR uses Screen Recording. Both are optional—manual entry, MCP, and the browser extension work without either permission. Tip: after installing an update, if macOS System Settings shows the permission checked but NaYan still says unauthorized, remove NaYan with &ldquo;−&rdquo; in System Settings and add it again with &ldquo;+&rdquo;.">划词需要「辅助功能」，框选需要「屏幕录制」。不给的话对应的收录方式用不了，其他功能照常。提示：覆盖安装新版本后，若系统设置里已勾选但软件内仍显示未授权，请在系统设置中先点「−」移除纳言，再点「＋」重新添加。</p></details>
         <details><summary data-en="How do I install the Chrome extension?">浏览器扩展怎么安装？</summary><p data-en="Clone or download the repository, open <code>chrome://extensions</code> in Chrome, enable &ldquo;Developer mode&rdquo; in the top right, click &ldquo;Load unpacked&rdquo;, and select the <code>extension/</code> folder. With the NaYan desktop app running, web captures are saved directly.">克隆或下载仓库后，在 Chrome 打开 <code>chrome://extensions</code>，开启右上角「开发者模式」，点「加载已解压的扩展程序」并选择仓库里的 <code>extension/</code> 目录即可。只要纳言桌面端开着，网页框选就会直接收进收件箱。</p></details>
         <details><summary data-en="Where is my data stored? How do I back it up?">数据存在哪里？怎么备份？</summary><p data-en="Everything lives in <code>~/Library/Application Support/com.nayan.app/inbox.db</code>. Copy that file for a full backup, or export all records to Markdown / JSON anytime in Settings › About.">在 ~/Library/Application Support/com.nayan.app/inbox.db。拷走这个文件就是完整备份；也可以在「设置 › 关于」里一键导出全部记录（Markdown 或 JSON）。</p></details>
       </div>
@@ -433,6 +437,38 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
       history.replaceState(null,'',u.pathname+u.search+u.hash);
     }catch(e){}
   });
+})();
+(function(){
+  var xb=document.getElementById('copyXattrBtn');
+  if(xb){
+    var xcmd='xattr -dr com.apple.quarantine /Applications/NaYan.app';
+    xb.addEventListener('click',function(){
+      var isEn=document.documentElement.lang==='en';
+      try{ navigator.clipboard.writeText(xcmd).then(function(){ xb.textContent=isEn?'Copied':'已复制'; setTimeout(function(){ xb.textContent=isEn?'Copy command':'复制命令'; },1600); }); }catch(e){}
+    });
+  }
+  var tryBtn=document.getElementById('tryCapBtn'), hud=document.getElementById('heroHud'), av=document.getElementById('hudAv'), sub=document.getElementById('hudSub');
+  if(tryBtn && hud && av && sub){
+    var samples=[
+      { av:'C', bg:'#A4614A', zh:'配图统一转 WebP，加 lazy 加载 · 来自 Claude Code · 个人博客', en:'Convert blog images to WebP with lazy loading · from Claude Code · Personal Blog' },
+      { av:'G', bg:'#2E6B5E', zh:'SQLite 开启 WAL 模式，读写不再阻塞 · 来自 ChatGPT · 后端优化', en:'Enable SQLite WAL mode for concurrent reads and writes · from ChatGPT · Backend' },
+      { av:'D', bg:'#3B5998', zh:'家用 NAS 优先每周冷备到移动硬盘 · 来自 DeepSeek · 家里的NAS', en:'Prefer weekly cold backups over RAID 1 for home NAS · from DeepSeek · Home NAS' }
+    ];
+    var idx=0;
+    function fireCapture(){
+      idx=(idx+1)%samples.length;
+      var s=samples[idx], isEn=document.documentElement.lang==='en';
+      tryBtn.classList.add('pressed');
+      hud.classList.remove('pop'); void hud.offsetWidth; hud.classList.add('pop');
+      av.textContent=s.av; av.style.background=s.bg;
+      sub.setAttribute('data-zh', s.zh); sub.setAttribute('data-en', s.en);
+      sub.textContent=isEn?s.en:s.zh;
+      setTimeout(function(){ tryBtn.classList.remove('pressed'); },180);
+      setTimeout(function(){ hud.classList.remove('pop'); },520);
+    }
+    tryBtn.addEventListener('click', fireCapture);
+    addEventListener('keydown',function(e){ if(e.altKey && e.shiftKey && (e.code==='KeyS'||e.key==='S'||e.key==='s')){ e.preventDefault(); fireCapture(); } });
+  }
 })();
 </script>
 </body>

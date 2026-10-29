@@ -62,9 +62,13 @@ window.__setCandidates = function (p) {
   buildGroups();
   window.__mode = cands.length >= 8 ? 'ax' : 'ocr';
   if (!dragging) {
-    setHint(window.__mode === 'ocr'
-      ? '<b>这个 App 不提供文字</b> · 改用截图识别，可能有错字'
-      : '拖拽框选文字');
+    if (p.ax_trusted === false) {
+      setHint('<b>未授辅助功能权限</b> · 当前改用截图识别（授权后可直接取原字）');
+    } else {
+      setHint(window.__mode === 'ocr'
+        ? '<b>这个 App 不提供文字</b> · 改用截图识别，可能有错字'
+        : '拖拽框选文字');
+    }
   }
 };
 

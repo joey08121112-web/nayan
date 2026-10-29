@@ -442,12 +442,26 @@ fn read_http_request(stream: &mut TcpStream) -> Result<HttpReq, (u16, &'static s
     let path = parts.next().unwrap_or("/").to_string();
     let mut content_length = 0usize;
     let mut origin = None;
+    let mut content_type = None;
     for l in lines {
         if let Some((k, v)) = l.split_once(':') {
             if k.trim().eq_ignore_ascii_case("content-length") {
                 content_length = v.trim().parse().unwrap_or(0);
             } else if k.trim().eq_ignore_ascii_case("origin") {
                 origin = Some(v.trim().to_string());
+            } else if k.trim().eq_ignore_ascii_case("content-type") {
+                content_type = Some(v.trim().to_ascii_lowercase());
+            }
+        }
+    }
+    if method == "POST" {
+        if let Some(ct) = &content_type {
+            if !ct.starts_with("application/json") {
+                return Err((
+                    415,
+                    "415 Unsupported Media Type",
+                    "仅接受 Content-Type: application/json（拦截表单简单请求 CSRF）".into(),
+                ));
             }
         }
     }
@@ -507,23 +521,29 @@ fn write_http_response(
     let _ = stream.flush();
 }
 
-/// 启动内置 127.0.0.1:8787 接收线程（端口被外部 sync-server.js 占用时友好退让，不阻塞启动）
+/// 启动内置 127.0.0.1:8787 接收线程（端口暂被占用时后台轮询等待释放并自动接管，不阻塞启动）
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
-        let listener = match TcpListener::bind(("127.0.0.1", EXT_PORT)) {
-            Ok(l) => {
-                crate::log_line(&format!(
-                    "[扩展服务] 已启动内置接收 127.0.0.1:{}（支持 Chrome 扩展与快捷指令直连）",
-                    EXT_PORT
-                ));
-                l
-            }
-            Err(e) => {
-                crate::log_line(&format!(
-                    "[扩展服务] 127.0.0.1:{} 已被占用（{}），沿用已有服务",
-                    EXT_PORT, e
-                ));
-                return;
+        let mut logged_busy = false;
+        let listener = loop {
+            match TcpListener::bind(("127.0.0.1", EXT_PORT)) {
+                Ok(l) => {
+                    crate::log_line(&format!(
+                        "[扩展服务] 已启动内置接收 127.0.0.1:{}（支持 Chrome 扩展与快捷指令直连）",
+                        EXT_PORT
+                    ));
+                    break l;
+                }
+                Err(e) => {
+                    if !logged_busy {
+                        crate::log_line(&format!(
+                            "[扩展服务] 127.0.0.1:{} 暂被占用（{}），将在端口释放后自动接管",
+                            EXT_PORT, e
+                        ));
+                        logged_busy = true;
+                    }
+                    std::thread::sleep(Duration::from_secs(3));
+                }
             }
         };
         for stream in listener.incoming() {

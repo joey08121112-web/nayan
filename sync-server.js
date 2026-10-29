@@ -120,6 +120,10 @@ const server = createServer(async function (req, res) {
       return json(req, res, 200, rows);
     }
     if (req.method === 'POST' && url.pathname === '/api/suggestions') {
+      const ct = String(req.headers['content-type'] || '').toLowerCase();
+      if (ct && !ct.includes('application/json')) {
+        return json(req, res, 415, { error: '仅接受 Content-Type: application/json' });
+      }
       let b;
       try { b = await readBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
       const title = String(b.title || '').trim();

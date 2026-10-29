@@ -812,6 +812,37 @@ fn snapshot_gate_before_upgrade(conn: &Connection, db_path: &Path, source_versio
     Ok(snap)
 }
 
+/// 清理数据目录下过多的历史升级快照（默认保留最近 `keep` 份 `.premigrate-*.snapshot` 与 `.premigrate-manifest-*.json`，防止长期跨版本累积占满磁盘）
+pub fn prune_old_snapshots(data_dir: &Path, keep: usize) -> usize {
+    let mut removed = 0;
+    for marker in [".premigrate-v-", ".premigrate-manifest-m-"] {
+        let Ok(entries) = std::fs::read_dir(data_dir) else { continue };
+        let mut files: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok().map(|x| x.path()))
+            .filter(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.contains(marker))
+            })
+            .collect();
+        if files.len() <= keep {
+            continue;
+        }
+        // 文件名含递增毫秒时间戳（inbox.db.premigrate-v-<ms>-<pid>-<ctr>.snapshot），按文件名升序即时间从旧到新
+        files.sort();
+        let to_remove = files.len().saturating_sub(keep);
+        for old in files.into_iter().take(to_remove) {
+            if std::fs::remove_file(&old).is_ok() {
+                removed += 1;
+            }
+        }
+    }
+    if removed > 0 {
+        crate::log_line(&format!("[数据库] 已自动清理 {} 个旧版升级快照文件（保留最近 {} 份）", removed, keep));
+    }
+    removed
+}
+
 
 // ---------- S03：结构化内容读写 ----------
 
@@ -2111,5 +2142,24 @@ mod v4_tests {
             let before=std::fs::read(&p).unwrap();assert!(open_and_migrate(&p).unwrap_err().contains("user_version=5"));assert_eq!(std::fs::read(&p).unwrap(),before);
             let _=std::fs::remove_dir_all(d);
         }
+    }
+    #[test]
+    fn prune_old_snapshots_keeps_latest_n() {
+        let d = std::env::temp_dir().join(unique_suffix("nayan-prune"));
+        std::fs::create_dir_all(&d).unwrap();
+        for i in 1..=5 {
+            std::fs::write(d.join(format!("inbox.db.premigrate-v-100{}-1-0.snapshot", i)), b"snap").unwrap();
+            std::fs::write(d.join(format!("inbox.db.premigrate-manifest-m-100{}-1-0.json", i)), b"{}").unwrap();
+        }
+        let removed = prune_old_snapshots(&d, 3);
+        assert_eq!(removed, 4);
+        let mut rem: Vec<String> = std::fs::read_dir(&d)
+            .unwrap()
+            .filter_map(|e| e.ok().and_then(|x| x.file_name().into_string().ok()))
+            .collect();
+        rem.sort();
+        assert_eq!(rem.len(), 6);
+        assert!(rem.iter().all(|n| n.contains("1003") || n.contains("1004") || n.contains("1005")));
+        let _ = std::fs::remove_dir_all(d);
     }
 }

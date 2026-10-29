@@ -3463,7 +3463,7 @@ fn box_select_start(app: AppHandle) {
             "[框选] AX 就绪：{} 块，{}ms，目标={}（{}）{}",
             local.len(), t0.elapsed().as_millis(), name, title, if own { " · 自身窗口跳过走查" } else { "" }
         ));
-        let payload = json!({"blocks": local, "ox": ox, "oy": oy});
+        let payload = json!({"blocks": local, "ox": ox, "oy": oy, "ax_trusted": ax_capture::ax_trusted()});
         *BOX_CANDS.lock().unwrap() = Some(payload.clone());
         // 直接注入页面（emit_to 事件在本机 webview 上不可靠，会整包丢失）；页面未就绪时由 ready 握手补取
         if let Some(w) = h.get_webview_window("boxselect") {
@@ -4352,6 +4352,7 @@ fn main() {
             });
 
             if !is_test {
+                migrations::prune_old_snapshots(&app_data, 3);
                 let h = app.handle().clone();
                 let captures = app_data.join("captures");
                 std::thread::spawn(move || loop {
