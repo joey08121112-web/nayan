@@ -47,6 +47,6 @@ PR 会触发 CI（GitHub Actions，macos-14）：`cargo test --locked` 加无需
 
 ## 报问题
 
-开 Issue 时请附：macOS 版本、纳言版本（菜单栏图标 → 关于）、复现步骤、`~/Library/Application Support/com.nayan.app/nayan.log` 里相关的几行（**注意先摘掉你不想公开的内容**）。
+开 Issue 时请附：macOS 版本、纳言版本（设置 › 关于）、复现步骤、`~/Library/Application Support/com.nayan.app/nayan.log` 里相关的几行（**注意先摘掉你不想公开的内容**）。
 
 安全问题请勿开公开 Issue，直接私下联系维护者。

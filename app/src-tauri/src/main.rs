@@ -2796,16 +2796,39 @@ fn single_instance_guard(app: &AppHandle) -> bool {
             });
             true
         }
-        Err(_) => {
-            if let Ok(mut s) = std::net::TcpStream::connect(("127.0.0.1", SINGLETON_PORT)) {
-                let _ = s.set_write_timeout(Some(Duration::from_millis(200)));
-                let _ = s.set_read_timeout(Some(Duration::from_millis(200)));
-                let _ = std::io::Write::write_all(&mut s, SINGLETON_WAKE);
-                let _ = std::io::Read::read(&mut s, &mut [0u8; 2]);
+        Err(e) => {
+            // 只有对方回了 "ok"（各版本纳言都会回）才认定已有实例并退出；端口被别的程序占着就照常启动，只是不带单实例保护
+            let mut reply = [0u8; 2];
+            let mut got = 0;
+            if let Ok(mut s) = std::net::TcpStream::connect_timeout(
+                &std::net::SocketAddr::from(([127, 0, 0, 1], SINGLETON_PORT)),
+                Duration::from_millis(500),
+            ) {
+                let _ = s.set_write_timeout(Some(Duration::from_millis(500)));
+                let _ = s.set_read_timeout(Some(Duration::from_millis(1000)));
+                if std::io::Write::write_all(&mut s, SINGLETON_WAKE).is_ok() {
+                    while got < reply.len() {
+                        match std::io::Read::read(&mut s, &mut reply[got..]) {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => got += n,
+                        }
+                    }
+                }
             }
-            false
+            if is_singleton_ack(&reply[..got]) {
+                return false;
+            }
+            log_line(&format!(
+                "[单实例] 127.0.0.1:{} 被其他程序占用（{}），对方不是纳言；照常启动，本次不做单实例保护",
+                SINGLETON_PORT, e
+            ));
+            true
         }
     }
+}
+
+fn is_singleton_ack(buf: &[u8]) -> bool {
+    buf == b"ok"
 }
 
 fn base64_encode(data: &[u8]) -> String {
@@ -4696,6 +4719,9 @@ mod onboarding_tests {
         assert!(is_singleton_wake_signal(b"show"));
         assert!(!is_singleton_wake_signal(b""));
         assert!(!is_singleton_wake_signal(b"GET / HTTP/1.1\r\n"));
+        assert!(is_singleton_ack(b"ok"));
+        assert!(!is_singleton_ack(b""));
+        assert!(!is_singleton_ack(b"HT"));
     }
     #[test]
     fn onboarding_only_for_fresh_empty_library_and_seen_survives_reload() {
