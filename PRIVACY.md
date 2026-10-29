@@ -2,7 +2,7 @@
 
 > English summary: NaYan keeps everything on your Mac. It makes no network requests on its own — the only outbound traffic goes to an AI provider you explicitly configure, and only when you use an AI feature. No analytics, no crash reporting, no update checks, no accounts, no cloud sync.
 
-对应版本：0.3.1。
+对应版本：0.4.0。
 
 ## 你的数据都在这台电脑上
 
@@ -11,7 +11,7 @@
 ```
 ~/Library/Application Support/com.nayan.app/
 ├── inbox.db      全部记录（SQLite：建议、步骤、清单、同题对比、回收站）
-├── config.json   设置（含你填的 AI API Key，见下文）
+├── config.json   设置（API Key 保存在 macOS 系统钥匙串中，不以明文落盘）
 └── nayan.log     运行日志
 ```
 
@@ -33,7 +33,7 @@
 | 本机 Ollama | `http://127.0.0.1:11434/v1`（不出本机） |
 | 自定义 | 你自己填写的 OpenAI 兼容 base_url |
 
-- API Key 只保存在本机 `config.json`，不会出现在任何请求目的地之外的地方。
+- API Key 保存在本机 macOS 系统钥匙串（`com.nayan.app`）中，`config.json` 不保存明文密钥；Key 不会出现在任何请求目的地之外的地方。
 - 各项 AI 功能在「设置 › AI」里均有独立开关（关闭时自动走本机规则处理，不发网络请求）；每个 AI 功能第一次使用前，界面都会明确提示这段内容将发给哪家服务商，可以随时拒绝。
 - 「纳言订阅」尚未推出。在它推出之前，纳言没有官方服务器。
 
@@ -42,7 +42,7 @@
 | 端口 | 谁在用 | 说明 |
 | --- | --- | --- |
 | 58777 | 桌面 App | 单实例守卫（防止同时开两个纳言），只绑定 `127.0.0.1`，只接受本机连接 |
-| 8787 | `sync-server.js`（可选） | 给浏览器扩展用的本机写入服务；需要时手动运行，只绑定 `127.0.0.1` |
+| 8787 | 桌面 App / `sync-server.js` | 给浏览器扩展与快捷指令用的本机写入服务（桌面端可在「设置 › 捕获」里关闭），只绑定 `127.0.0.1` 并拦截普通网页跨域请求 |
 | — | `mcp-server.js`（可选） | 给 AI 编程助手用的 MCP 服务器，stdio 进程通信，不使用网络 |
 
 浏览器扩展只在 `extension/manifest.json` 列出的 AI 对话网站上运行，读取你在页面里选中的内容，只发给本机的 `http://localhost:8787`，不发往任何外部地址。桌面 App 的界面与后端之间通过 App 内部通道通信，不监听网络端口。

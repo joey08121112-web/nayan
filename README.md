@@ -38,7 +38,7 @@
 
 ### 下载预览版
 
-到 [Releases](https://github.com/joey08121112-web/nayan/releases) 下载 `NaYan-0.3.1.dmg`，打开后把纳言拖进「应用程序」。需要 macOS 13 或更新、Apple 芯片的 Mac。
+到 [Releases](https://github.com/joey08121112-web/nayan/releases) 下载 `NaYan-0.4.0.dmg`，打开后把纳言拖进「应用程序」。需要 macOS 13 或更新、Apple 芯片的 Mac。
 
 预览版**还没有经过苹果公证**，第一次打开会被系统拦下：
 1. 双击纳言，出现提示后点「完成」。
@@ -118,7 +118,7 @@ command = "node"
 args = ["/path/to/nayan/mcp-server.js"]
 ```
 
-浏览器扩展在 `extension/`（Chrome MV3）：装上后在网页上划词/框选，经本机同步服务（`sync-server.js`，默认 8787 端口）写入收件箱。
+浏览器扩展在 `extension/`（Chrome MV3）：装上后在网页上划词/框选，直接通过纳言桌面端内置的本机服务（默认 `127.0.0.1:8787`，未打开桌面端时也可单独运行 `node sync-server.js`）写入收件箱。
 
 ## 开发与测试
 

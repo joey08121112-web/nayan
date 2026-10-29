@@ -7,7 +7,7 @@
 <meta name="description" content="纳言是一个 macOS 本地收件箱，专门接住 AI 说过的好建议：划词、框选、MCP 一键收录，钉板、清单、同题对比帮你把它们做完。免费开源，数据只存在你的电脑。">
 <meta property="og:title" content="纳言 NaYan · 值得的话，值得一个去处">
 <meta property="og:description" content="接住 AI 说过的好建议，一次只看一条，一条条做完。免费开源，本地优先。">
-<meta property="og:image" content="assets/shots/board.jpg">
+<meta property="og:image" content="https://joey08121112-web.github.io/nayan/assets/shots/board.jpg">
 <link rel="icon" type="image/png" href="assets/icon.png">
 <link rel="apple-touch-icon" href="assets/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -68,7 +68,17 @@ p{ margin:0; }
 .btn.line{ border-color:var(--line); color:var(--ink); background:transparent; }
 .btn.line:hover{ background:var(--surface); }
 .btn.sm{ height:36px; padding:0 14px; font-size:.9rem; border-radius:10px; }
-@media (max-width:760px){ .nav nav{ display:none; } }
+.lang-switch{ display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 12px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--sub); font:inherit; font-size:.86rem; cursor:pointer; transition:background .15s, border-color .15s, color .15s; white-space:nowrap; }
+.lang-switch:hover{ background:var(--surface); color:var(--ink); border-color:color-mix(in srgb,var(--ink) 22%,var(--line)); }
+.lang-switch svg{ width:15px; height:15px; opacity:.8; flex-shrink:0; }
+.lang-switch .l-zh, .lang-switch .l-en{ transition:color .15s; }
+.lang-switch .l-sep{ opacity:.45; font-size:.8rem; }
+html[lang="zh-CN"] .lang-switch .l-zh{ color:var(--ink); font-weight:600; }
+html[lang="en"] .lang-switch .l-en{ color:var(--ink); font-weight:600; }
+html[lang="en"] .hero h1{ max-width:16em; }
+html[lang="en"] .scrolly .tx p{ max-width:34em; }
+html[lang="en"] .scrolly .tx h2{ word-break:normal; }
+@media (max-width:760px){ .nav nav{ display:none; } .nav .wrap{ gap:12px; } }
 
 /* 首屏 */
 .hero{ padding-block:88px 56px; text-align:center; }
@@ -203,10 +213,14 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
 
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="#top"><img src="assets/icon.png" alt="">纳言</a>
-    <nav aria-label="页面导航"><a href="#how">怎么用</a><a href="#features">功能</a><a href="#capture">收录方式</a><a href="#ai">AI</a><a href="#privacy">隐私</a><a href="#faq">问答</a></nav>
+    <a class="brand" href="#top"><img src="assets/icon.png" alt=""><span data-en="NaYan">纳言</span></a>
+    <nav aria-label="页面导航" data-en-aria="Primary navigation"><a href="#how" data-en="How it works">怎么用</a><a href="#features" data-en="Features">功能</a><a href="#capture" data-en="Capture">收录方式</a><a href="#ai" data-en="AI">AI</a><a href="#privacy" data-en="Privacy">隐私</a><a href="#faq" data-en="FAQ">问答</a></nav>
     <span class="grow"></span>
-    <a class="btn dark sm" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.1/NaYan-0.3.1.dmg">下载 Mac 版</a>
+    <button class="lang-switch" id="langBtn" type="button" aria-label="Switch to English" title="切换语言 / Switch language">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <span class="l-zh">中</span><span class="l-sep">/</span><span class="l-en">EN</span>
+    </button>
+    <a class="btn dark sm" href="https://github.com/joey08121112-web/nayan/releases/download/v0.4.0/NaYan-0.4.0.dmg" data-en="Download for Mac">下载 Mac 版</a>
   </div>
 </header>
 
@@ -214,144 +228,145 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
   <div class="wrap">
     <section class="hero" style="padding-bottom:0">
       <svg class="spark" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 31V9.5A1.5 1.5 0 0 1 15.5 8h17A1.5 1.5 0 0 1 34 9.5V31" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M19 15h10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M19 21h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".55"/><path d="M8 33h32" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/></svg>
-      <h1>值得的话，<br>值得一个去处。</h1>
-      <p class="lede">你每天和好几个 AI 来回说话，真正有用的往往只有几句。纳言把这几句接住，放进一个只属于你的收件箱，再陪你把它们一条条做完。</p>
+      <h1 data-en="Words worth keeping<br>deserve a home.">值得的话，<br>值得一个去处。</h1>
+      <p class="lede" data-en="You talk to several AI assistants every day, yet only a few lines truly matter. NaYan catches those gems, keeps them in a private local inbox, and helps you turn them into action—one by one.">你每天和好几个 AI 来回说话，真正有用的往往只有几句。纳言把这几句接住，放进一个只属于你的收件箱，再陪你把它们一条条做完。</p>
       <div class="cta">
-        <a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.1/NaYan-0.3.1.dmg">下载 Mac 版</a>
-        <a class="btn line" href="#how">看看怎么用</a>
+        <a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.4.0/NaYan-0.4.0.dmg" data-en="Download for Mac">下载 Mac 版</a>
+        <a class="btn line" href="#how" data-en="See how it works">看看怎么用</a>
       </div>
-      <p class="meta">免费 · macOS 13 或更新 · Apple 芯片 · 数据只存在你的电脑</p>
-      <div class="stage"><img src="assets/shots/board.jpg" width="2880" height="1800" alt="纳言的钉板：上方是正在照着做的两张卡片，下方是收件箱"><div class="keyhint" aria-hidden="true"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><div class="hud" aria-hidden="true"><span class="av">C</span><b>收进纳言</b><span>配图统一转 WebP，加 lazy 加载 · 来自 Claude Code · 个人博客</span></div></div>
+      <p class="meta" data-en="Free &amp; Open Source · macOS 13+ · Apple Silicon · 100% Local SQLite">免费 · macOS 13 或更新 · Apple 芯片 · 数据只存在你的电脑</p>
+      <div class="stage"><img src="assets/shots/board.jpg" width="2880" height="1800" alt="纳言的钉板：上方是正在照着做的两张卡片，下方是收件箱" data-en-alt="NaYan Board view: two pinned active cards on top, inbox queue below"><div class="keyhint" aria-hidden="true"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><div class="hud" aria-hidden="true"><span class="av">C</span><b data-en="Saved to NaYan">收进纳言</b><span data-en="Convert blog images to WebP with lazy loading · from Claude Code · Personal Blog">配图统一转 WebP，加 lazy 加载 · 来自 Claude Code · 个人博客</span></div></div>
     </section>
 
     <section id="how">
       <div class="sec-head center" style="text-align:center">
-        <p class="eyebrow">一条话的四站</p>
-        <h2 style="margin-top:10px">从听到一句好建议，到把它做完</h2>
+        <p class="eyebrow" data-en="THE 4-STAGE FLOW">一条话的四站</p>
+        <h2 style="margin-top:10px" data-en="From a great suggestion to getting it done">从听到一句好建议，到把它做完</h2>
       </div>
       <div class="flow"><ol>
-        <li><span class="n">1</span><h3>接住</h3><p>在任何 App 里选中那段话，按一下快捷键，它就进了收件箱，来源、项目、窗口一并记下。</p></li>
-        <li><span class="n">2</span><h3>收件箱</h3><p>新来的话先排队。想看的时候一次只看一条，没有红点催你。</p></li>
-        <li><span class="n">3</span><h3>整理</h3><p>钉到钉板马上做，放进清单以后再看，或者直接归档。几家 AI 说法不一，就放在一起逐条对比。</p></li>
-        <li><span class="n">4</span><h3>做完</h3><p>长回答拆成能勾选的步骤，命令一键复制。做完归档，随时能搜回来。</p></li>
+        <li><span class="n">1</span><h3 data-en="Capture">接住</h3><p data-en="Select text in any app and press a shortcut. It lands in your inbox with its source app, project, and window recorded automatically.">在任何 App 里选中那段话，按一下快捷键，它就进了收件箱，来源、项目、窗口一并记下。</p></li>
+        <li><span class="n">2</span><h3 data-en="Inbox">收件箱</h3><p data-en="New items wait quietly in line. Review them one at a time when you are ready—no red badges, no pressure.">新来的话先排队。想看的时候一次只看一条，没有红点催你。</p></li>
+        <li><span class="n">3</span><h3 data-en="Organize">整理</h3><p data-en="Pin to the Board for today, file into a List for later, or archive right away. Got different answers from multiple AIs? Compare them side by side.">钉到钉板马上做，放进清单以后再看，或者直接归档。几家 AI 说法不一，就放在一起逐条对比。</p></li>
+        <li><span class="n">4</span><h3 data-en="Execute">做完</h3><p data-en="Break long replies into checkable steps and copy shell commands in one click. Archive when done and search anytime.">长回答拆成能勾选的步骤，命令一键复制。做完归档，随时能搜回来。</p></li>
       </ol></div>
     </section>
 
-    <section class="scrolly" id="features" style="--n:5;padding-block:0" aria-label="功能介绍">
+    <section class="scrolly" id="features" style="--n:5;padding-block:0" aria-label="功能介绍" data-en-aria="Feature walkthrough">
       <div class="pin">
         <div class="step now" data-label="钉板">
-          <div class="tx"><p class="idx">钉板</p><h2>今天要做的，<br>钉在最顺手的地方</h2><p>打开纳言先看到钉板：正在照着做的几件事，每件都带着步骤和进度。收件箱在它下面排队。</p><ul><li>说一句「9 点开会，下午 3 点去医院」，就能排成带时间的清单</li><li>⌘⏎ 一下钉上去，不用 AI 也能拆</li></ul></div>
-          <div class="im" style="--tint:var(--t1)"><img src="assets/shots/board.jpg" width="2880" height="1800" loading="eager" alt="钉板：正在照着做的卡片和收件箱"></div>
+          <div class="tx"><p class="idx" data-en="Board">钉板</p><h2 data-en="Pin what matters today<br>right where you need it">今天要做的，<br>钉在最顺手的地方</h2><p data-en="Open NaYan to your Board: the few things you are actively working on, complete with checkable steps and progress. Your inbox queues neatly below.">打开纳言先看到钉板：正在照着做的几件事，每件都带着步骤和进度。收件箱在它下面排队。</p><ul><li data-en="Type &ldquo;9am design review, 3pm clinic visit&rdquo; to turn natural language into a timed checklist">说一句「9 点开会，下午 3 点去医院」，就能排成带时间的清单</li><li data-en="Press ⌘⏎ to split and pin—works offline without AI">⌘⏎ 一下钉上去，不用 AI 也能拆</li></ul></div>
+          <div class="im" style="--tint:var(--t1)"><img src="assets/shots/board.jpg" width="2880" height="1800" loading="eager" alt="钉板：正在照着做的卡片和收件箱" data-en-alt="Board view: pinned active cards and inbox queue"></div>
         </div>
         <div class="step next" data-label="阅读">
-          <div class="tx"><p class="idx">阅读</p><h2>原文还在，<br>步骤可勾</h2><p>每一条都保留 AI 回答的原始排版，下面是拆好的执行步骤。点「✦ AI 整理」可以提炼要点、清理排版或重起标题，原文永远不改；点「回到来源」能跳回当初那个窗口。</p><ul><li>J / K 上下翻，E 归档，P 钉住，A 打开 AI 整理</li><li>可以写自己的想法、挂上附件</li></ul></div>
-          <div class="im" style="--tint:var(--t2)"><img src="assets/shots/reader.jpg" width="2880" height="1800" loading="eager" alt="阅读页：AI 原文和四个执行步骤"></div>
+          <div class="tx"><p class="idx" data-en="Reader">阅读</p><h2 data-en="Original formatting intact,<br>actionable steps below">原文还在，<br>步骤可勾</h2><p data-en="Every item preserves the AI's original headings, lists, tables, and code blocks, with actionable steps right below. Click &ldquo;✦ AI Tidy&rdquo; to extract key points, clean up formatting, or retitle without ever mutating the original text.">每一条都保留 AI 回答的原始排版，下面是拆好的执行步骤。点「✦ AI 整理」可以提炼要点、清理排版或重起标题，原文永远不改；点「回到来源」能跳回当初那个窗口。</p><ul><li data-en="Press J / K to navigate, E to archive, P to pin, A for AI Tidy">J / K 上下翻，E 归档，P 钉住，A 打开 AI 整理</li><li data-en="Add your own notes and attach local files">可以写自己的想法、挂上附件</li></ul></div>
+          <div class="im" style="--tint:var(--t2)"><img src="assets/shots/reader.jpg" width="2880" height="1800" loading="eager" alt="阅读页：AI 原文和四个执行步骤" data-en-alt="Reader view: original AI reply and checkable execution steps"></div>
         </div>
         <div class="step next" data-label="同题对比">
-          <div class="tx"><p class="idx">同题对比</p><h2>一个问题问三家，<br>逐条挑</h2><p>把几家 AI 的回答放进一组，按段落并排。好的点「采纳」，不要的划掉，最后汇成你自己的结论。</p></div>
-          <div class="im" style="--tint:var(--t3)"><img src="assets/shots/compare.jpg" width="2880" height="1800" loading="lazy" alt="同题对比：三家的回答并排，右侧是采纳的结论"></div>
+          <div class="tx"><p class="idx" data-en="Compare">同题对比</p><h2 data-en="Ask three AIs the same question,<br>pick the best points">一个问题问三家，<br>逐条挑</h2><p data-en="Group replies from Claude, ChatGPT, or DeepSeek side by side. Keep the insights that work, strike out the rest, and synthesize your own conclusion.">把几家 AI 的回答放进一组，按段落并排。好的点「采纳」，不要的划掉，最后汇成你自己的结论。</p></div>
+          <div class="im" style="--tint:var(--t3)"><img src="assets/shots/compare.jpg" width="2880" height="1800" loading="lazy" alt="同题对比：三家的回答并排，右侧是采纳的结论" data-en-alt="Compare view: side-by-side AI answers with synthesized conclusion on the right"></div>
         </div>
         <div class="step next" data-label="搜索">
-          <div class="tx"><p class="idx">搜索</p><h2>几个月前收的那句，<br>还找得到</h2><p>⌘F 打开搜索。多个关键词同时匹配，标题优先，命中处高亮。框选截图里识别出的文字也能搜到。</p></div>
-          <div class="im" style="--tint:var(--t4)"><img src="assets/shots/search.jpg" width="2880" height="1800" loading="lazy" alt="搜索 NAS 的结果列表"></div>
+          <div class="tx"><p class="idx" data-en="Search">搜索</p><h2 data-en="Find that gem you saved<br>months ago">几个月前收的那句，<br>还找得到</h2><p data-en="Press ⌘F for instant multi-keyword search with title priority and match highlighting—including text recognized from screen-region OCR captures.">⌘F 打开搜索。多个关键词同时匹配，标题优先，命中处高亮。框选截图里识别出的文字也能搜到。</p></div>
+          <div class="im" style="--tint:var(--t4)"><img src="assets/shots/search.jpg" width="2880" height="1800" loading="lazy" alt="搜索 NAS 的结果列表" data-en-alt="Search results view with keyword highlighting"></div>
         </div>
         <div class="step next" data-label="深色">
-          <div class="tx"><p class="idx">深色</p><h2>夜里也看得舒服</h2><p>跟随系统切换深浅色。暖纸一样的配色，在深色下换成低亮度的墨色。</p></div>
-          <div class="im" style="--tint:var(--t5)"><img src="assets/shots/board-dark.jpg" width="2880" height="1800" loading="lazy" alt="深色模式下的钉板"></div>
+          <div class="tx"><p class="idx" data-en="Dark Mode">深色</p><h2 data-en="Easy on the eyes at night">夜里也看得舒服</h2><p data-en="Follows your macOS appearance automatically. Warm paper tones by day, low-glare ink tones by night.">跟随系统切换深浅色。暖纸一样的配色，在深色下换成低亮度的墨色。</p></div>
+          <div class="im" style="--tint:var(--t5)"><img src="assets/shots/board-dark.jpg" width="2880" height="1800" loading="lazy" alt="深色模式下的钉板" data-en-alt="Board view in Dark Mode"></div>
         </div>
-        <div class="sc-rail" aria-hidden="false"><span class="num" id="scNum">1 / 5</span><span class="track"><i id="scBar"></i></span><nav id="scNav" aria-label="跳到"><button type="button" data-k="0" aria-current="true">钉板</button><button type="button" data-k="1">阅读</button><button type="button" data-k="2">同题对比</button><button type="button" data-k="3">搜索</button><button type="button" data-k="4">深色</button></nav></div>
+        <div class="sc-rail" aria-hidden="false"><span class="num" id="scNum">1 / 5</span><span class="track"><i id="scBar"></i></span><nav id="scNav" aria-label="跳到" data-en-aria="Jump to section"><button type="button" data-k="0" aria-current="true" data-en="Board">钉板</button><button type="button" data-k="1" data-en="Reader">阅读</button><button type="button" data-k="2" data-en="Compare">同题对比</button><button type="button" data-k="3" data-en="Search">搜索</button><button type="button" data-k="4" data-en="Dark">深色</button></nav></div>
       </div>
     </section>
 
     <section id="capture" style="padding-top:0">
       <div class="sec-head">
-        <p class="eyebrow">收录方式</p>
-        <h2 style="margin-top:10px">那句话在哪，就从哪收</h2>
-        <p class="lede">快捷键都能在设置里改，被别的 App 占用时会提示你。</p>
+        <p class="eyebrow" data-en="CAPTURE CHANNELS">收录方式</p>
+        <h2 style="margin-top:10px" data-en="Capture from wherever you read">那句话在哪，就从哪收</h2>
+        <p class="lede" data-en="All shortcuts are customizable in Settings, with conflict detection if another app is using them.">快捷键都能在设置里改，被别的 App 占用时会提示你。</p>
       </div>
       <div class="ways">
-        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><h3>划词</h3><p>在终端、编辑器、浏览器里选中文字，按快捷键，自动保留段落、列表、表格和代码结构。角落弹出小窗，顺手记一句想法，回车收进来。</p></div>
-        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>X</kbd></div><h3>框选</h3><p>回答太长不想一点点选，就框一块。能读到界面文字的直接读，读不到的截图识别，原图一起保存。</p></div>
-        <div class="way"><div class="k"><kbd>⌘</kbd><kbd>C</kbd></div><h3>剪贴板</h3><p>在你指定的几个 App 里复制，角落浮出一张小卡，回车收下，Esc 忽略。默认关闭。</p><span class="tag">需要在设置里打开</span></div>
-        <div class="way"><div class="k"><kbd>MCP</kbd><kbd>扩展</kbd></div><h3>让 AI 自己记</h3><p>在 Claude Code、Codex 这类支持 MCP 的工具里说「把这几条记到纳言」，它会拆好逐条写进来。网页上的 AI 对话用浏览器扩展收。</p></div>
+        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>S</kbd></div><h3 data-en="Selection Capture">划词</h3><p data-en="Select text in any terminal, IDE, or browser and press the shortcut. Headings, lists, tables, and code blocks are preserved automatically. Add a quick note in the corner HUD and hit Return.">在终端、编辑器、浏览器里选中文字，按快捷键，自动保留段落、列表、表格和代码结构。角落弹出小窗，顺手记一句想法，回车收进来。</p></div>
+        <div class="way"><div class="k"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>X</kbd></div><h3 data-en="Region OCR">框选</h3><p data-en="Drag a box over any screen region. Reads accessibility text directly when available or runs local macOS Vision OCR while keeping the original screenshot attached.">回答太长不想一点点选，就框一块。能读到界面文字的直接读，读不到的截图识别，原图一起保存。</p></div>
+        <div class="way"><div class="k"><kbd>⌘</kbd><kbd>C</kbd></div><h3 data-en="Clipboard Watch">剪贴板</h3><p data-en="Copy inside your watched AI apps to summon a subtle corner card—press Return to keep or Esc to dismiss. Off by default.">在你指定的几个 App 里复制，角落浮出一张小卡，回车收下，Esc 忽略。默认关闭。</p><span class="tag" data-en="Opt-in in Settings">需要在设置里打开</span></div>
+        <div class="way"><div class="k"><kbd>MCP</kbd><kbd data-en="Ext">扩展</kbd></div><h3 data-en="Let AI &amp; Browser Save Directly">让 AI 自己记</h3><p data-en="In MCP-compatible tools like Claude Code or Codex, just say &ldquo;save these suggestions to NaYan.&rdquo; For web AI chats, the Chrome extension connects directly to the desktop app.">在 Claude Code、Codex 这类支持 MCP 的工具里说「把这几条记到纳言」，它会拆好逐条写进来。网页上的 AI 对话用浏览器扩展直连桌面端收录。</p></div>
       </div>
     </section>
 
     <section id="ai" style="padding-top:0">
       <div class="sec-head">
-        <p class="eyebrow">AI 来源</p>
-        <h2 style="margin-top:10px">AI 是加分项，不是门票</h2>
-        <p class="lede">理要点、清排版、起标题、拆步骤、同题对比、排清单，每一样都有不靠 AI 的做法。想让它更聪明一点，再选一档。</p>
+        <p class="eyebrow" data-en="AI SOURCES">AI 来源</p>
+        <h2 style="margin-top:10px" data-en="AI is a bonus, never a gatekeeper">AI 是加分项，不是门票</h2>
+        <p class="lede" data-en="Summarizing key points, cleaning formatting, titling, splitting steps, comparing answers, and scheduling—every feature has a deterministic local rule. Connect an AI model only if you want an extra boost.">理要点、清排版、起标题、拆步骤、同题对比、排清单，每一样都有不靠 AI 的做法。想让它更聪明一点，再选一档。</p>
       </div>
       <div class="tiers">
-        <div class="tier on"><span class="pill">默认</span><h3>不用 AI</h3><p>要点取每段首句，清理排版只去乱码框与紧邻重复，标题取第一句，步骤按行拆。什么都不往外发。</p></div>
-        <div class="tier"><h3>自己的 Key</h3><p>填你自己的 API Key，支持 DeepSeek、智谱、OpenAI 兼容接口和本机 Ollama，还能写一段「给 AI 的补充要求」。每个功能单独开关，第一次发送前会告诉你发给谁。</p></div>
-        <div class="tier"><h3>纳言订阅</h3><p>不用自己申请 Key，打开就能用。还在准备中。</p></div>
+        <div class="tier on"><span class="pill" data-en="Default">默认</span><h3 data-en="No AI">不用 AI</h3><p data-en="Extracts first sentences as key points, strips screen-reader artifacts and duplicates, titles from the opening clause, and splits steps by line. Zero network requests.">要点取每段首句，清理排版只去乱码框与紧邻重复，标题取第一句，步骤按行拆。什么都不往外发。</p></div>
+        <div class="tier"><h3 data-en="Bring Your Own Key">自己的 Key</h3><p data-en="Use your own API key (stored in macOS Keychain) with DeepSeek, Zhipu GLM, any OpenAI-compatible API, or local Ollama, plus custom prompt instructions. Toggle each feature individually with explicit first-use consent.">填你自己的 API Key（存入 macOS 钥匙串），支持 DeepSeek、智谱、OpenAI 兼容接口和本机 Ollama，还能写一段「给 AI 的补充要求」。每个功能单独开关，第一次发送前会告诉你发给谁。</p></div>
+        <div class="tier"><h3 data-en="NaYan Cloud">纳言订阅</h3><p data-en="Zero-setup hosted AI without managing your own API keys. Coming soon.">不用自己申请 Key，打开就能用。还在准备中。</p></div>
       </div>
     </section>
 
     <section id="privacy" style="padding-top:0">
       <div class="quote">
         <div>
-          <blockquote>你收进来的话，首先应该只属于你。</blockquote>
-          <cite>纳言的隐私原则</cite>
+          <blockquote data-en="What you save should belong to you—and only you.">你收进来的话，首先应该只属于你。</blockquote>
+          <cite data-en="NaYan's Privacy Principle">纳言的隐私原则</cite>
         </div>
         <div class="facts">
-          <div><b>只存在本机</b><span>所有内容在你 Mac 上的一个 SQLite 文件里，没有账号，没有云端。</span></div>
-          <div><b>断网照常用</b><span>收录、整理、搜索都不需要网络。</span></div>
-          <div><b>删了还能找回</b><span>删除的条目在「最近删除」里放 30 天，可以恢复。</span></div>
-          <div><b>完整的清单在这里</b><span>什么时候会联网、哪些端口只在本机、两项权限各管什么——见<a href="https://github.com/joey08121112-web/nayan/blob/main/PRIVACY.md">完整隐私说明（PRIVACY.md）</a>。</span></div>
+          <div><b data-en="Stored only on your Mac">只存在本机</b><span data-en="All records live in a single SQLite file on your Mac, with API keys stored in macOS Keychain. No accounts, no cloud.">所有内容在你 Mac 上的一个 SQLite 文件里，API Key 存入系统钥匙串，没有账号，没有云端。</span></div>
+          <div><b data-en="Works 100% offline">断网照常用</b><span data-en="Capturing, organizing, searching, and exporting work completely offline.">收录、整理、搜索、导出都不需要网络。</span></div>
+          <div><b data-en="30-day Recently Deleted">删了还能找回</b><span data-en="Deleted items stay in Recently Deleted for 30 days and can be restored anytime.">删除的条目在「最近删除」里放 30 天，可以恢复。</span></div>
+          <div><b data-en="Full transparency">完整的清单在这里</b><span data-en="When network requests happen, which localhost ports are used, and what each macOS permission does—see <a href=&quot;https://github.com/joey08121112-web/nayan/blob/main/PRIVACY.md&quot;>PRIVACY.md</a>.">什么时候会联网、哪些端口只在本机、两项权限各管什么——见<a href="https://github.com/joey08121112-web/nayan/blob/main/PRIVACY.md">完整隐私说明（PRIVACY.md）</a>。</span></div>
         </div>
       </div>
     </section>
 
     <section style="padding-top:0">
       <div class="origin">
-        <p class="eyebrow">为什么叫纳言</p>
-        <p class="classic">「命汝作纳言，夙夜出纳朕命，惟允。」<small>《尚书 · 舜典》</small></p>
-        <p class="body">纳言是中国古代的一个官职，管的是言语的出入：把下面的话如实带上去，把上面的话准确传下来。纳是接住，言是那些值得留下的话。</p>
+        <p class="eyebrow" data-en="WHY THE NAME NAYAN">为什么叫纳言</p>
+        <p class="classic" data-en="“命汝作纳言，夙夜出纳朕命，惟允。”<small>Book of Documents · Canon of Shun (《尚书 · 舜典》)</small>">「命汝作纳言，夙夜出纳朕命，惟允。」<small>《尚书 · 舜典》</small></p>
+        <p class="body" data-en="In ancient China, the NaYan (&ldquo;Receiver of Words&rdquo;) was an official entrusted with gathering wise counsel faithfully and turning decrees into action. &ldquo;Na&rdquo; means to receive; &ldquo;Yan&rdquo; means words worth keeping.">纳言是中国古代的一个官职，管的是言语的出入：把下面的话如实带上去，把上面的话准确传下来。纳是接住，言是那些值得留下的话。</p>
       </div>
     </section>
 
     <section id="dev" style="padding-top:0">
       <div class="dev">
         <div>
-          <p class="eyebrow">开源 · MIT</p>
-          <h2 style="margin-top:10px">代码公开，接口也开放</h2>
-          <p class="lede" style="margin-top:16px">纳言用 Tauri 写成，代码以 MIT 协议开源。自带一个零依赖的 MCP 服务，接进你常用的 AI 编程工具只要一行命令。</p>
+          <p class="eyebrow" data-en="OPEN SOURCE · MIT">开源 · MIT</p>
+          <h2 style="margin-top:10px" data-en="Open code, open protocol">代码公开，接口也开放</h2>
+          <p class="lede" style="margin-top:16px" data-en="Built with Tauri v2 (Rust + vanilla JS) and open-sourced under the MIT license. Ships with a zero-dependency MCP server that connects to your favorite coding agents in one command.">纳言用 Tauri 写成，代码以 MIT 协议开源。自带一个零依赖的 MCP 服务，接进你常用的 AI 编程工具只要一行命令。</p>
         </div>
         <div>
-          <pre class="term" id="mcpCmd"><span class="c"># 接进 Claude Code</span>
+          <pre class="term" id="mcpCmd"><span class="c" data-en="# Add to Claude Code"># 接进 Claude Code</span>
 <span class="p">$</span> claude mcp add --scope user suggestion-inbox -- node /path/to/nayan/mcp-server.js
 
-<span class="c"># 然后在对话里说</span>
-把这条建议记到纳言</pre>
-          <button class="btn line sm copy" id="copyBtn" type="button">复制命令</button>
+<span class="c" data-en="# Then say in chat"># 然后在对话里说</span>
+<span data-en="Save this suggestion to NaYan">把这条建议记到纳言</span></pre>
+          <button class="btn line sm copy" id="copyBtn" type="button" data-en="Copy command">复制命令</button>
         </div>
       </div>
     </section>
 
     <section id="faq" style="padding-top:0">
-      <h2 class="center" style="text-align:center">常见问题</h2>
+      <h2 class="center" style="text-align:center" data-en="Frequently Asked Questions">常见问题</h2>
       <div class="faq">
-        <details><summary>要花钱吗？</summary><p>纳言免费，代码开源。以后会有可选的「纳言订阅」，只是省去自己配 AI Key 的麻烦，不订阅也能用全部功能。</p></details>
-        <details><summary>没有 AI Key 能用吗？</summary><p>能。默认就是不用 AI，所有功能都有不靠 AI 的做法。</p></details>
-        <details><summary>支持哪些电脑？</summary><p>目前是 macOS 13 或更新、Apple 芯片的 Mac。</p></details>
-        <details><summary>第一次打开，提示「无法验证」或打不开？</summary><p>预览版还没有经过苹果公证，第一次打开会被系统拦下。点「完成」后，打开「系统设置 › 隐私与安全性」，拉到底部点「仍要打开」，输入密码即可，之后就能正常打开。也可以在终端运行 <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code>。</p></details>
-        <details><summary>需要哪些系统权限？</summary><p>划词需要「辅助功能」，框选需要「屏幕录制」。不给的话对应的收录方式用不了，其他功能照常。</p></details>
-        <details><summary>数据存在哪里？怎么备份？</summary><p>在 ~/Library/Application Support/com.nayan.app/inbox.db。拷走这个文件就是完整备份；也可以在「设置 › 关于」里一键导出全部记录（Markdown 或 JSON）。</p></details>
+        <details><summary data-en="Is NaYan free?">要花钱吗？</summary><p data-en="NaYan is free and open source under the MIT license. An optional hosted AI subscription may be offered in the future for convenience, but every feature works without it.">纳言免费，代码开源。以后会有可选的「纳言订阅」，只是省去自己配 AI Key 的麻烦，不订阅也能用全部功能。</p></details>
+        <details><summary data-en="Can I use it without an AI API key?">没有 AI Key 能用吗？</summary><p data-en="Yes. &ldquo;No AI&rdquo; is the default mode, and every single feature has a deterministic local fallback.">能。默认就是不用 AI，所有功能都有不靠 AI 的做法。</p></details>
+        <details><summary data-en="Which Macs are supported?">支持哪些电脑？</summary><p data-en="macOS 13 (Ventura) or later on Apple Silicon Macs.">目前是 macOS 13 或更新、Apple 芯片的 Mac。</p></details>
+        <details><summary data-en="macOS says &ldquo;cannot be verified&rdquo; on first launch?">第一次打开，提示「无法验证」或打不开？</summary><p data-en="The preview build is not yet notarized by Apple. After clicking &ldquo;Done&rdquo;, open System Settings › Privacy &amp; Security, scroll to the bottom, and click &ldquo;Open Anyway&rdquo;. Or run <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code> in Terminal.">预览版还没有经过苹果公证，第一次打开会被系统拦下。点「完成」后，打开「系统设置 › 隐私与安全性」，拉到底部点「仍要打开」，输入密码即可，之后就能正常打开。也可以在终端运行 <code>xattr -dr com.apple.quarantine /Applications/NaYan.app</code>。</p></details>
+        <details><summary data-en="What system permissions are needed?">需要哪些系统权限？</summary><p data-en="Selection Capture uses Accessibility; Region OCR uses Screen Recording. Both are optional—manual entry, MCP, and the browser extension work without either permission.">划词需要「辅助功能」，框选需要「屏幕录制」。不给的话对应的收录方式用不了，其他功能照常。</p></details>
+        <details><summary data-en="How do I install the Chrome extension?">浏览器扩展怎么安装？</summary><p data-en="Clone or download the repository, open <code>chrome://extensions</code> in Chrome, enable &ldquo;Developer mode&rdquo; in the top right, click &ldquo;Load unpacked&rdquo;, and select the <code>extension/</code> folder. With the NaYan desktop app running, web captures are saved directly.">克隆或下载仓库后，在 Chrome 打开 <code>chrome://extensions</code>，开启右上角「开发者模式」，点「加载已解压的扩展程序」并选择仓库里的 <code>extension/</code> 目录即可。只要纳言桌面端开着，网页框选就会直接收进收件箱。</p></details>
+        <details><summary data-en="Where is my data stored? How do I back it up?">数据存在哪里？怎么备份？</summary><p data-en="Everything lives in <code>~/Library/Application Support/com.nayan.app/inbox.db</code>. Copy that file for a full backup, or export all records to Markdown / JSON anytime in Settings › About.">在 ~/Library/Application Support/com.nayan.app/inbox.db。拷走这个文件就是完整备份；也可以在「设置 › 关于」里一键导出全部记录（Markdown 或 JSON）。</p></details>
       </div>
     </section>
 
     <section class="final" style="padding-top:0">
-      <h2>别再让好建议滚过屏幕。</h2>
-      <div class="cta"><a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.3.1/NaYan-0.3.1.dmg">下载 Mac 版</a><a class="btn line" href="#how">先看看怎么用</a></div>
-      <p class="meta" style="margin-top:14px;color:var(--sub);font-size:.85rem">v0.3.1 预览版 · 尚未经过苹果公证，第一次打开见下方「常见问题」</p>
+      <h2 data-en="Stop letting great advice scroll away.">别再让好建议滚过屏幕。</h2>
+      <div class="cta"><a class="btn dark" href="https://github.com/joey08121112-web/nayan/releases/download/v0.4.0/NaYan-0.4.0.dmg" data-en="Download for Mac">下载 Mac 版</a><a class="btn line" href="#how" data-en="See how it works">先看看怎么用</a></div>
+      <p class="meta" style="margin-top:14px;color:var(--sub);font-size:.85rem" data-en="v0.4.0 Preview · Not yet notarized by Apple (see FAQ above for first launch)">v0.4.0 预览版 · 尚未经过苹果公证，第一次打开见上方「常见问题」</p>
     </section>
   </div>
 </main>
 
-<footer><div class="wrap"><span>© 2026 纳言 NaYan</span><span>本地优先 · 一次只看一条</span><span class="grow"></span><a href="https://github.com/joey08121112-web/nayan" style="color:inherit">源码（GitHub）</a><span>MIT License</span></div></footer>
+<footer><div class="wrap"><span data-en="© 2026 NaYan (纳言)">© 2026 纳言 NaYan</span><span data-en="Local-first · One thing at a time">本地优先 · 一次只看一条</span><span class="grow"></span><a href="https://github.com/joey08121112-web/nayan" style="color:inherit" data-en="Source (GitHub)">源码（GitHub）</a><span>MIT License</span></div></footer>
 
 <script>
 (function(){
@@ -377,9 +392,46 @@ footer .wrap{ display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; }
   var b=document.getElementById('copyBtn'); if(!b) return;
   var cmd='claude mcp add --scope user suggestion-inbox -- node /path/to/nayan/mcp-server.js';
   b.addEventListener('click',function(){
-    var done=function(){ b.textContent='已复制'; setTimeout(function(){ b.textContent='复制命令'; },1600); };
+    var isEn=document.documentElement.lang==='en';
+    var done=function(){ b.textContent=isEn?'Copied':'已复制'; setTimeout(function(){ b.textContent=isEn?'Copy command':'复制命令'; },1600); };
     try{ navigator.clipboard.writeText(cmd).then(done,function(){ sel(); }); }catch(e){ sel(); }
-    function sel(){ var r=document.createRange(); r.selectNodeContents(document.getElementById('mcpCmd')); var s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent='已选中，按 ⌘C 复制'; }
+    function sel(){ var r=document.createRange(); r.selectNodeContents(document.getElementById('mcpCmd')); var s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent=isEn?'Selected, press ⌘C to copy':'已选中，按 ⌘C 复制'; }
+  });
+})();
+(function(){
+  // 中英双语切换（右上角 🌐 中 / EN 按钮，支持 ?lang=en 与 localStorage 记忆）
+  var btn=document.getElementById('langBtn'); if(!btn) return;
+  var nodes=[].slice.call(document.querySelectorAll('[data-en]'));
+  var alts=[].slice.call(document.querySelectorAll('[data-en-alt]'));
+  var arias=[].slice.call(document.querySelectorAll('[data-en-aria]'));
+  nodes.forEach(function(el){ el.setAttribute('data-zh', el.innerHTML); });
+  alts.forEach(function(el){ el.setAttribute('data-zh-alt', el.getAttribute('alt')||''); });
+  arias.forEach(function(el){ el.setAttribute('data-zh-aria', el.getAttribute('aria-label')||''); });
+  function applyLang(lang){
+    var en=(lang==='en');
+    document.documentElement.lang=en?'en':'zh-CN';
+    document.title=en?'NaYan · Words worth keeping deserve a home':'纳言 NaYan · 值得的话，值得一个去处';
+    nodes.forEach(function(el){ el.innerHTML=el.getAttribute(en?'data-en':'data-zh'); });
+    alts.forEach(function(el){ el.setAttribute('alt', el.getAttribute(en?'data-en-alt':'data-zh-alt')); });
+    arias.forEach(function(el){ el.setAttribute('aria-label', el.getAttribute(en?'data-en-aria':'data-zh-aria')); });
+    btn.setAttribute('aria-label', en?'切换到中文':'Switch to English');
+    try{ localStorage.setItem('nayan-site-lang', en?'en':'zh'); }catch(e){}
+  }
+  var initLang='zh';
+  try{
+    var q=new URLSearchParams(location.search).get('lang');
+    if(q==='en'||q==='zh') initLang=q;
+    else if(localStorage.getItem('nayan-site-lang')==='en') initLang='en';
+  }catch(e){}
+  if(initLang==='en') applyLang('en');
+  btn.addEventListener('click',function(){
+    var next=document.documentElement.lang==='en'?'zh':'en';
+    applyLang(next);
+    try{
+      var u=new URL(location.href);
+      if(next==='en') u.searchParams.set('lang','en'); else u.searchParams.delete('lang');
+      history.replaceState(null,'',u.pathname+u.search+u.hash);
+    }catch(e){}
   });
 })();
 </script>

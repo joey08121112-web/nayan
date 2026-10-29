@@ -4,13 +4,9 @@
 
 ## 安装（开发者模式）
 
-1. 先启动一次纳言桌面 App（初始化主数据库 `~/Library/Application Support/com.nayan.app/inbox.db`）
-2. 在仓库根目录启动本机写入服务（需 Node.js 22.5+，只监听回环地址 `127.0.0.1:8787`）：
-   ```bash
-   node sync-server.js
-   ```
-3. Chrome 打开 `chrome://extensions`，右上角开启「开发者模式」
-4. 点「加载已解压的扩展程序」，选择本目录（`extension/`）
+1. 打开纳言桌面 App（v0.4.0 起桌面端默认在本机 `127.0.0.1:8787` 自动接收扩展写入，无需再手动跑脚本；若未打开桌面端，也可在仓库根目录运行 `node sync-server.js`）
+2. Chrome 打开 `chrome://extensions`，右上角开启「开发者模式」
+3. 点「加载已解压的扩展程序」，选择本目录（`extension/`）
 
 ## 三种入口
 

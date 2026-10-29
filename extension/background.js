@@ -114,7 +114,7 @@ async function saveSuggestion(p) {
     return { ok: true, id: row.id };
   } catch (e) {
     flash('!');
-    return { ok: false, error: '连不上收件箱（纳言同步服务 sync-server 在运行吗？）' };
+    return { ok: false, error: '连不上收件箱（请先打开纳言桌面端，或运行 sync-server.js）' };
   }
 }
 

@@ -8,6 +8,7 @@ mod ax_capture;
 mod carbon_hotkeys;
 mod clipboard_watch;
 mod content;
+mod ext_server;
 mod html_text;
 mod migrations;
 mod ocr;
@@ -38,7 +39,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 const STATUSES: [&str; 5] = ["inbox", "todo", "doing", "done", "dropped"];
 const KINDS: [&str; 2] = ["suggestion", "idle"];
-const SUG_COLS: &str =
+pub(crate) const SUG_COLS: &str =
     "id, title, quote, my_note, source_tool, workspace, session_ref, tags, status, kind, priority, created_at, updated_at, user_msg, window_id, list_id, wait_note, remind_on, compare_group_id, deleted_at, ai_extras, content_envelope";
 /// v3 清单提醒方式与新建清单的轮换色（与第四版原型 PALETTE 一致）
 const LIST_MODES: [&str; 3] = ["none", "daily", "date"];
@@ -85,6 +86,9 @@ struct Config {
     /// 旧配置默认已看过，避免升级时打断；全新安装显式 false。
     #[serde(default = "d_true")]
     onboarding_seen: bool,
+    /// v0.4.0：是否开启桌面端内置 127.0.0.1:8787 浏览器扩展与快捷指令接收服务（默认开启）
+    #[serde(default = "d_true")]
+    ext_server: bool,
 }
 /// 每个用到 AI 的地方单独开关；关着就走不靠 AI 的做法（按行拆 / 按段落拆 / 按时间点拆 / 取第一句）
 #[derive(Deserialize, Clone, serde::Serialize)]
@@ -140,6 +144,90 @@ fn preset_for(provider: &str) -> Option<(&'static str, &'static str)> {
     }
 }
 
+const KEYCHAIN_SERVICE: &str = "com.nayan.app";
+const KEYCHAIN_ACCOUNT: &str = "ai_api_key";
+
+fn should_use_keychain(path: &std::path::Path) -> bool {
+    if cfg!(test) || test_profile::test_mode() {
+        return false;
+    }
+    path.parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        == Some("com.nayan.app")
+}
+
+/// 将密钥经 stdin + 十六进制（-X）写入 macOS 登录钥匙串（不经命令行参数，避免 ps 泄露）
+fn keychain_set_for(service: &str, account: &str, secret: &str) -> bool {
+    use std::io::Write;
+    use std::process::Stdio;
+    let hex: String = secret.as_bytes().iter().map(|b| format!("{:02x}", b)).collect();
+    let Ok(mut child) = Command::new("/usr/bin/security")
+        .arg("-i")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    else {
+        return false;
+    };
+    if let Some(mut stdin) = child.stdin.take() {
+        let cmd = format!(
+            "add-generic-password -U -A -s \"{}\" -a \"{}\" -X {}\n",
+            service, account, hex
+        );
+        let _ = stdin.write_all(cmd.as_bytes());
+    }
+    child.wait().map(|s| s.success()).unwrap_or(false)
+}
+
+fn keychain_get_for(service: &str, account: &str) -> Option<String> {
+    let out = Command::new("/usr/bin/security")
+        .args(["find-generic-password", "-s", service, "-a", account, "-w"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8(out.stdout).ok()?;
+    let trimmed = s.trim_end_matches(&['\r', '\n'][..]).trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+fn keychain_delete_for(service: &str, account: &str) -> bool {
+    Command::new("/usr/bin/security")
+        .args(["delete-generic-password", "-s", service, "-a", account])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// 持久化配置：在生产目录自动将 API Key 存入 macOS 钥匙串，磁盘 config.json 置空 api_key 并设为 0600
+fn save_config(path: &PathBuf, cfg: &Config) -> Result<(), String> {
+    let mut disk_cfg = cfg.clone();
+    if should_use_keychain(path) {
+        if cfg.api_key.trim().is_empty() {
+            let _ = keychain_delete_for(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
+        } else if keychain_set_for(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, cfg.api_key.trim()) {
+            disk_cfg.api_key = String::new();
+        }
+    }
+    let text = serde_json::to_string_pretty(&disk_cfg).map_err(|e| e.to_string())?;
+    fs::write(path, text).map_err(|e| format!("保存设置失败：{}", e))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
 fn load_config(path: &PathBuf) -> Config {
     let mut cfg = fs::read_to_string(path)
         .ok()
@@ -160,7 +248,27 @@ fn load_config(path: &PathBuf) -> Config {
             ai_consent: Vec::new(),
             ai_extra: String::new(),
             onboarding_seen: false,
+            ext_server: true,
         });
+    if should_use_keychain(path) {
+        if !cfg.api_key.trim().is_empty() {
+            // 自动将旧版明文 config.json 中的 API Key 迁入 macOS 钥匙串并擦除磁盘明文
+            if keychain_set_for(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, cfg.api_key.trim()) {
+                let mut disk_cfg = cfg.clone();
+                disk_cfg.api_key = String::new();
+                if let Ok(text) = serde_json::to_string_pretty(&disk_cfg) {
+                    let _ = fs::write(path, text);
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
+                    }
+                }
+            }
+        } else if let Some(k) = keychain_get_for(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT) {
+            cfg.api_key = k;
+        }
+    }
     // 旧配置（没有 ai_source）：配过 Key 的老用户 = 自己的 Key（拆步/对比/计划默认开、起标题默认关），没配的 = 不用 AI
     if cfg.ai_source.is_empty() {
         cfg.ai_source = if cfg.api_key.trim().is_empty() { "none".into() } else { "own".into() };
@@ -217,7 +325,7 @@ fn open_db(path: &PathBuf) -> Result<Connection, String> {
     migrations::open_and_migrate(path)
 }
 
-fn sug_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
+pub(crate) fn sug_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
     Ok(json!({
         "id": r.get::<_, i64>(0)?,
         "title": r.get::<_, String>(1)?,
@@ -266,7 +374,7 @@ fn html_body_text(envelope_json: &str) -> String {
     v["canonical"].as_str().map(html_text::to_plain).unwrap_or_default()
 }
 
-fn attach_steps(conn: &Connection, rows: &mut [Value]) {
+pub(crate) fn attach_steps(conn: &Connection, rows: &mut [Value]) {
     for row in rows.iter_mut() {
         let id = row["id"].as_i64().unwrap_or(0);
         let steps: Vec<Value> = match conn.prepare(
@@ -635,7 +743,7 @@ fn compat_quote(c: &CapturedContent) -> String {
 }
 
 /// S05 大小上限核验：文本按字符数（Rust codepoint 口径）、二进制按字节数。
-fn content_size(c: &CapturedContent) -> usize {
+pub(crate) fn content_size(c: &CapturedContent) -> usize {
     match c.original() {
         Original::Text { text } => text.chars().count(),
         Original::Bytes { bytes, .. } => bytes.len(),
@@ -646,7 +754,7 @@ fn content_size(c: &CapturedContent) -> usize {
 /// request_id 双向一致、显式大小上限（超限整笔拒绝，绝不截断）、request_id 幂等
 /// （重复提交恰一个成功项，跨进程重启仍成立——按 envelope 内 request_id 持久查重）、
 /// 单条 INSERT 原子落库（envelope + quote 兼容视图同一事务）。任何失败零行。
-fn create_with_content(conn: &Connection, body: &Value) -> Result<Value, String> {
+pub(crate) fn create_with_content(conn: &Connection, body: &Value) -> Result<Value, String> {
     let request_id = body["request_id"].as_str().map(|s| s.trim()).unwrap_or("");
     if request_id.is_empty() {
         return Err("结构化收录必须携带 request_id（采集请求身份）——拒绝盲存".into());
@@ -1601,13 +1709,7 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
             let mut g = state.cfg.lock().map_err(|_| "配置被占用")?;
             let mut cfg = g.0.clone();
             cfg.onboarding_seen = true;
-            fs::write(&g.1, serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?)
-                .map_err(|e| format!("保存引导状态失败：{}", e))?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let _ = fs::set_permissions(&g.1, fs::Permissions::from_mode(0o600));
-            }
+            save_config(&g.1, &cfg).map_err(|e| e.replace("保存设置失败", "保存引导状态失败"))?;
             g.0 = cfg;
             Ok(json!({"seen": true}))
         }
@@ -1628,6 +1730,8 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
                 "clipboard_watch": g.0.clipboard_watch,
                 "clip_scope": g.0.clip_scope,
                 "clip_apps": g.0.clip_apps,
+                "ext_server": g.0.ext_server,
+                "ext_port": ext_server::EXT_PORT,
                 "data_dir": g.1.parent().map(|p| p.display().to_string()).unwrap_or_default()
             }))
         }
@@ -1728,13 +1832,13 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
                 clipboard_watch::CLIP_WATCH_ON.store(on, std::sync::atomic::Ordering::Relaxed);
                 log_line(&format!("[设置] 剪贴板监听 = {}", on));
             }
-            let text = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-            fs::write(&*cfg_path, text).map_err(|e| format!("保存设置失败：{}", e))?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let _ = fs::set_permissions(&*cfg_path, fs::Permissions::from_mode(0o600));
+            if let Some(v) = body.get("ext_server") {
+                let on = v.as_bool().unwrap_or(true);
+                cfg.ext_server = on;
+                ext_server::EXT_SERVER_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+                log_line(&format!("[设置] 浏览器扩展接收 = {}", on));
             }
+            save_config(&*cfg_path, cfg)?;
             Ok(json!({
                 "ok": true,
                 "provider": cfg.provider,
@@ -1746,7 +1850,8 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
                 "ai_consent": cfg.ai_consent,
                 "ai_extra": cfg.ai_extra,
                 "ai_host": ai_host(&cfg.base_url),
-                "clipboard_watch": cfg.clipboard_watch
+                "clipboard_watch": cfg.clipboard_watch,
+                "ext_server": cfg.ext_server
             }))
         }
         ("POST", ["api", "export"]) => {
@@ -4235,7 +4340,7 @@ fn main() {
             let has_items: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM suggestions)", [], |r| r.get(0))?;
             if has_items && !cfg.onboarding_seen {
                 cfg.onboarding_seen = true;
-                fs::write(&cfg_path, serde_json::to_string_pretty(&cfg)?)?;
+                let _ = save_config(&cfg_path, &cfg);
             }
             if let Err(e) = trash::purge_expired(&mut conn, &app_data.join("captures"), "now") {
                 log_line(&format!("[最近删除] 启动自动清理失败：{}", e));
@@ -4502,6 +4607,8 @@ fn main() {
                     "[剪贴板] 监听已启动（{}）",
                     if cfg.clipboard_watch { "开" } else { "关" }
                 ));
+                ext_server::EXT_SERVER_ON.store(cfg.ext_server, std::sync::atomic::Ordering::Relaxed);
+                ext_server::start(app.handle().clone());
             } else if let Some(source) = test_profile.as_ref().and_then(|p| p.native_capture_source.as_ref()) {
                 clipboard_watch::start_native_test(app.handle().clone(), source)?;
                 log_line(&format!("显式原生验证：仅监听 {}，≤600s", source));
@@ -6561,6 +6668,17 @@ mod ai_source_tests {
         let back = load_config(&cfgp);
         assert_eq!(back.ai_source, "own");
         assert!(back.ai_features.title);
+        assert!(back.ext_server);
+        let r_ext = handle_api(&st, "POST", "/api/settings", &json!({"ext_server": false})).unwrap();
+        assert_eq!(r_ext["ext_server"], json!(false));
+        assert!(!load_config(&cfgp).ext_server);
+
+        // macOS 钥匙串往返验证（使用进程隔离临时服务名，测试后立即删除）
+        let svc = format!("com.nayan.app.unit-test.{}", std::process::id());
+        assert!(keychain_set_for(&svc, "ai_api_key", "dummy-unit-test-secret-999"));
+        assert_eq!(keychain_get_for(&svc, "ai_api_key").as_deref(), Some("dummy-unit-test-secret-999"));
+        assert!(keychain_delete_for(&svc, "ai_api_key"));
+        assert_eq!(keychain_get_for(&svc, "ai_api_key"), None);
     }
 }
 

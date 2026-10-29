@@ -2851,8 +2851,11 @@ function captureHTML(){
         '<div class="hint" style="margin-top:8px">用 <span class="hkPair">⌥S/⌥Z</span> 捕获过的 App 会自动加入。微信等日常复制不受影响。首次使用弹一次「允许粘贴」授权。</div>'+
       '</div>'+
     '</div>'+
-    '<label class="flabel">其他通道</label>'+
-    '<div class="hint">MCP：已接入的工具里对 AI 说一句话即可入库 · 网页 AI：装浏览器扩展，自动附带原对话链接。</div>';
+    '<label class="flabel">外部通道</label>'+
+    '<div class="ss-group">'+
+      '<div class="ss-row"><div class="grow"><b>浏览器扩展与快捷指令接收</b><div class="hint">在本机 127.0.0.1:8787 直接接收 Chrome 扩展与快捷指令，无需手动跑 sync-server.js</div></div><label class="sw"><input type="checkbox" id="s-ext-server"><span class="sl"></span></label></div>'+
+    '</div>'+
+    '<div class="hint" style="margin-top:6px">MCP：已接入的工具里对 AI 说一句话即可入库 · 网页 AI：装浏览器扩展，自动附带原对话链接。</div>';
 }
 var AI_FEAT=[['split','拆成步骤','阅读页「＋ 拆成步骤」','按行拆'],['compare','同题对比拆要点','摘原文、标出几家都说到的','按段落拆'],
   ['plan','排成清单','「记一条」里写的计划','按时间点拆'],['title','收录时起短标题','收进来以后再改，不耽误收录','取第一句'],
@@ -2880,7 +2883,7 @@ function aiHTML(){
     '<input id="s-base" placeholder="https://open.bigmodel.cn/api/paas/v4">'+
     '<label class="flabel" for="s-model">模型名</label>'+
     '<input id="s-model" placeholder="glm-4.6 / deepseek-chat / gpt-4o-mini / qwen2.5:7b">'+
-    '<label class="flabel" for="s-key">API Key <span class="hint" id="keyHint">只存在这台电脑</span></label>'+
+    '<label class="flabel" for="s-key">API Key <span class="hint" id="keyHint">保存在 macOS 钥匙串，只存在这台电脑</span></label>'+
     '<input id="s-key" type="password" placeholder="OpenAI 兼容接口的 Key">'+
     '<div class="addrow"><button type="button" class="primary" id="saveSet">保存设置</button>'+
     '<button type="button" class="sec" id="testSet">测试连接</button></div>'+
@@ -3121,6 +3124,12 @@ function bindCapture(){
       .then(function(){ toast(enabled?'剪贴板监听已开启':'剪贴板监听已关闭'); })
       .catch(function(e){ toast(e.message); });
   };
+  if(gid('s-ext-server')) gid('s-ext-server').onchange=function(){
+    var enabled=this.checked;
+    api('POST','/api/settings',{ext_server:enabled})
+      .then(function(){ toast(enabled?'已开启浏览器扩展与快捷指令接收':'已关闭浏览器扩展与快捷指令接收'); })
+      .catch(function(e){ toast(e.message); });
+  };
 }
 function bindAI(){
   if(!gid('s-provider')) return;
@@ -3165,6 +3174,7 @@ function loadSettings(){
       gid('s-key').placeholder=s.has_key?'已保存 ✓（留空 = 不修改）':'OpenAI 兼容接口的 Key';
     }
     if(gid('s-clip')) gid('s-clip').checked=(s.clipboard_watch!==false);
+    if(gid('s-ext-server')) gid('s-ext-server').checked=(s.ext_server!==false);
     if(gid('hk-1')) gid('hk-1').textContent=fmtHotkey(s.hotkey);
     if(gid('hk-2')) gid('hk-2').textContent=fmtHotkey(s.hotkey_box);
     paintHotkeyHints(s);
@@ -3217,7 +3227,7 @@ function paintAiSettings(){
   gid('aiOwn').hidden=a.source!=='own';
   Array.prototype.forEach.call(document.querySelectorAll('#aiFeats [data-feat]'),function(c){ c.checked=!!a.features[c.getAttribute('data-feat')]; });
   var ex=gid('s-aiextra'); if(ex && document.activeElement!==ex) ex.value=a.extra||'';
-  var kh=gid('keyHint'); if(kh) kh.textContent=a.provider==='ollama'?'本机 Ollama 可以不填':'只存在这台电脑';
+  var kh=gid('keyHint'); if(kh) kh.textContent=a.provider==='ollama'?'本机 Ollama 可以不填':'保存在 macOS 钥匙串，只存在这台电脑';
   var on=AI_FEAT.filter(function(f){ return a.features[f[0]]; }).map(function(f){ return '「'+f[1]+'」'; }).concat(['「重起标题」（阅读页点了才发）']);
   gid('aiPrivacy').innerHTML=a.source!=='own'?'':('<span aria-hidden="true">⚠︎</span><span>'+(on.length?on.join('')+'会把<b>那一条的原文</b>发给 '+esc(a.host||'你填的接口')+(a.provider==='ollama'?'（本机，不出这台电脑）':'')+'。':'')+
     '关掉的功能完全在本机处理。纳言订阅上线后，内容经纳言的服务器转发，不保存。</span>');
