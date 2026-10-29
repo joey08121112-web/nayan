@@ -1751,8 +1751,153 @@ pub(crate) fn handle_api(state: &AppState, method: &str, path: &str, body: &Valu
                 "clipboard_watch": cfg.clipboard_watch
             }))
         }
+        ("POST", ["api", "export"]) => {
+            let fmt = match body["format"].as_str().unwrap_or("markdown") {
+                "" | "markdown" | "md" => "markdown",
+                "json" => "json",
+                _ => return Err("导出格式只能是 markdown 或 json".into()),
+            };
+            let data_dir = state
+                .cfg
+                .lock()
+                .map_err(|_| "配置被占用")?
+                .1
+                .parent()
+                .ok_or("缺少数据目录")?
+                .to_path_buf();
+            export_all_records(&conn, &data_dir, fmt)
+        }
         _ => Err("not found".into()),
     }
+}
+
+fn export_all_records(conn: &Connection, data_dir: &std::path::Path, fmt: &str) -> Result<Value, String> {
+    let sql = format!("SELECT {} FROM suggestions WHERE deleted_at IS NULL ORDER BY id DESC", SUG_COLS);
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    let mut rows: Vec<Value> = stmt
+        .query_map([], sug_from_row)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    attach_steps(conn, &mut rows);
+
+    let mut list_stmt = conn
+        .prepare(&format!("{} ORDER BY l.ord, l.id", LIST_SELECT))
+        .map_err(|e| e.to_string())?;
+    let lists: Vec<Value> = list_stmt
+        .query_map([], list_from_row)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let mut list_names = std::collections::HashMap::<i64, String>::new();
+    for l in &lists {
+        if let (Some(id), Some(name)) = (l["id"].as_i64(), l["name"].as_str()) {
+            list_names.insert(id, name.to_string());
+        }
+    }
+
+    let now: String = conn
+        .query_row("SELECT datetime('now','localtime')", [], |r| r.get(0))
+        .unwrap_or_else(|_| "2026-10-29 00:00:00".into());
+    let day = now.chars().take(10).collect::<String>();
+
+    let exports_dir = data_dir.join("exports");
+    fs::create_dir_all(&exports_dir).map_err(|e| format!("创建导出目录失败：{}", e))?;
+
+    let (filename, content) = if fmt == "json" {
+        let payload = json!({
+            "exported_at": now,
+            "version": env!("CARGO_PKG_VERSION"),
+            "count": rows.len(),
+            "lists": lists,
+            "items": rows,
+        });
+        let text = serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?;
+        (format!("纳言导出-{}.json", day), text)
+    } else {
+        let mut md = format!(
+            "# 纳言导出记录\n\n> 导出时间：{} · 共 {} 条记录\n\n",
+            now,
+            rows.len()
+        );
+        for it in &rows {
+            let id = it["id"].as_i64().unwrap_or(0);
+            let title = it["title"].as_str().unwrap_or("未命名");
+            let status = match it["status"].as_str().unwrap_or("inbox") {
+                "doing" => "进行中",
+                "todo" => "钉住",
+                "done" => "已归档",
+                "dropped" => "已放弃",
+                _ => "收件箱",
+            };
+            let tool = tool_display(it["source_tool"].as_str().unwrap_or("other"));
+            let created = it["created_at"].as_str().unwrap_or("");
+            let mut meta = vec![
+                format!("来源：{}", tool),
+                format!("状态：{}", status),
+                format!("时间：{}", created),
+            ];
+            if let Some(lid) = it["list_id"].as_i64() {
+                if let Some(lname) = list_names.get(&lid) {
+                    meta.push(format!("清单：{}", lname));
+                }
+            }
+            let ws = it["workspace"].as_str().unwrap_or("").trim();
+            if !ws.is_empty() {
+                meta.push(format!("项目：{}", ws));
+            }
+            md.push_str(&format!("## #{} {}\n\n- {}\n\n", id, title, meta.join(" · ")));
+            if let Some(pts) = it["ai"]["points"]["items"].as_array() {
+                if !pts.is_empty() {
+                    md.push_str("### 要点\n\n");
+                    for (i, p) in pts.iter().enumerate() {
+                        if let Some(s) = p.as_str() {
+                            md.push_str(&format!("{}. {}\n", i + 1, s));
+                        }
+                    }
+                    md.push('\n');
+                }
+            }
+            let quote = it["quote"].as_str().unwrap_or("").trim();
+            if !quote.is_empty() {
+                md.push_str(quote);
+                md.push_str("\n\n");
+            }
+            if let Some(steps) = it["steps"].as_array() {
+                if !steps.is_empty() {
+                    md.push_str("### 步骤\n\n");
+                    for s in steps {
+                        let mark = if s["done"].as_bool() == Some(true) { "x" } else { " " };
+                        let c = s["content"].as_str().unwrap_or("");
+                        md.push_str(&format!("- [{}] {}\n", mark, c));
+                    }
+                    md.push('\n');
+                }
+            }
+            let note = it["my_note"].as_str().unwrap_or("").trim();
+            if !note.is_empty() {
+                md.push_str(&format!("### 备注\n\n{}\n\n", note));
+            }
+            md.push_str("---\n\n");
+        }
+        (format!("纳言导出-{}.md", day), md)
+    };
+
+    let out_path = exports_dir.join(filename);
+    fs::write(&out_path, &content).map_err(|e| format!("写入导出文件失败：{}", e))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&out_path, fs::Permissions::from_mode(0o600));
+    }
+    log_line(&format!("[导出] {} 条记录 → {}", rows.len(), out_path.display()));
+    Ok(json!({
+        "ok": true,
+        "format": fmt,
+        "count": rows.len(),
+        "path": out_path.display().to_string(),
+        "dir": exports_dir.display().to_string(),
+    }))
 }
 
 // ---------- AI 拆步 ----------
@@ -4461,6 +4606,44 @@ mod onboarding_tests {
         assert_eq!(handle_api(&st,"GET","/api/onboarding",&Value::Null).unwrap()["show"], false);
         fs::write(&cfg_path,"{}").unwrap();
         assert!(load_config(&cfg_path).onboarding_seen, "旧配置即使空库也不打断升级用户");
+    }
+    #[test]
+    fn export_records_writes_markdown_and_json_and_skips_trash() {
+        let root = std::env::temp_dir().join(format!("nayan-export-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        fs::create_dir_all(&root).unwrap();
+        let cfg_path = root.join("config.json");
+        let st = AppState { db: Mutex::new(open_db(&root.join("inbox.db")).unwrap()), cfg: Mutex::new((load_config(&cfg_path), cfg_path)) };
+        let l = handle_api(&st, "POST", "/api/lists", &json!({"name": "周末看", "mode": "none"})).unwrap();
+        let lid = l["id"].as_i64().unwrap();
+        let kept = handle_api(&st, "POST", "/api/suggestions", &json!({
+            "title": "导出的测试条目",
+            "quote": "正文内容",
+            "my_note": "我的备注",
+            "source_tool": "claude",
+            "workspace": "demo",
+            "list_id": lid
+        })).unwrap();
+        let kid = kept["id"].as_i64().unwrap();
+        handle_api(&st, "POST", &format!("/api/suggestions/{}/steps", kid), &json!({"steps": [{"content": "第一步", "done": true}]})).unwrap();
+        let trashed = handle_api(&st, "POST", "/api/suggestions", &json!({"title": "已删除的条目", "quote": "不应导出"})).unwrap();
+        handle_api(&st, "DELETE", &format!("/api/suggestions/{}", trashed["id"].as_i64().unwrap()), &Value::Null).unwrap();
+
+        let md_res = handle_api(&st, "POST", "/api/export", &json!({"format": "markdown"})).unwrap();
+        assert_eq!(md_res["count"], 1);
+        let md_text = fs::read_to_string(md_res["path"].as_str().unwrap()).unwrap();
+        assert!(md_text.contains("导出的测试条目"));
+        assert!(md_text.contains("正文内容"));
+        assert!(md_text.contains("- [x] 第一步"));
+        assert!(md_text.contains("我的备注"));
+        assert!(md_text.contains("清单：周末看"));
+        assert!(!md_text.contains("已删除的条目"));
+
+        let js_res = handle_api(&st, "POST", "/api/export", &json!({"format": "json"})).unwrap();
+        assert_eq!(js_res["count"], 1);
+        let js_val: Value = serde_json::from_str(&fs::read_to_string(js_res["path"].as_str().unwrap()).unwrap()).unwrap();
+        assert_eq!(js_val["count"], 1);
+        assert_eq!(js_val["items"][0]["title"], "导出的测试条目");
+        assert!(handle_api(&st, "POST", "/api/export", &json!({"format": "xml"})).is_err());
     }
 }
 

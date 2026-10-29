@@ -1,6 +1,6 @@
 {
   "_comment": "R9-B2 测试基线（对齐 HANDOFF-CODEX-04 §0.2，2026-10-11 实测复核）。pass=null 表示该测试无计数、以标记行/退出码判定。envelope-goldens 不在 §0.2 清单内，按 2026-10-11 实测记 20。 2026-10-11 合并 R9 A 线后：cargo 132、real-app-v4 68，新增 box-overlay 7、trash-external 19。 R10/C4：cargo 133、trash-external 26，2026-10-11 全套 24 绿。 R11（2026-10-12）：trash-external 31。",
-  "cargo": { "pass": 175, "fail": 0, "note": "另有 6 ignored 属正常（真实模型实测 real_ai_probe / real_ai_tidy_probe / real_ai_clean_raw 等）；R11 A 线新增首次引导、权限真值表、录制空闲超时 3 项；R12 新增 AI 整理 14 项与 v4→v5 迁移 2 项；R07 合入划词结构还原与快捷键拦截 10 项；2026-10-22 修复新增 HTML 转纯文本 5 项、HTML 行 body_text 与同题对比脱组各 1 项；2026-10-28 新增压平选区复制恢复 5 项与 ZCode 表格清洗 1 项" },
+  "cargo": { "pass": 176, "fail": 0, "note": "另有 6 ignored 属正常（真实模型实测 real_ai_probe / real_ai_tidy_probe / real_ai_clean_raw 等）；R11 A 线新增首次引导、权限真值表、录制空闲超时 3 项；R12 新增 AI 整理 14 项与 v4→v5 迁移 2 项；R07 合入划词结构还原与快捷键拦截 10 项；2026-10-22 修复新增 HTML 转纯文本 5 项、HTML 行 body_text 与同题对比脱组各 1 项；2026-10-28 新增压平选区复制恢复 5 项与 ZCode 表格清洗 1 项；2026-10-29 新增一键导出 Markdown/JSON 测试 1 项" },
   "dom": { "pass": 130 },
   "helpers": { "pass": 64 },
   "rich-dom": { "pass": 48 },

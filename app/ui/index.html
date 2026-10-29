@@ -2901,6 +2901,7 @@ function aboutHTML(){
       '<div class="ss-row"><div class="grow"><b>纳言 NaYan</b><div class="hint">AI 回复的分组收录器 · 本地优先 · 数据只存本机</div></div><span id="ss-ver" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--sub)"></span></div>'+
       '<div class="ss-row"><div class="grow"><b>源码与反馈</b><div class="hint">GitHub 开源仓库</div></div><a href="https://github.com/joey08121112-web/nayan" target="_blank">github.com/joey08121112-web/nayan ↗</a></div>'+
       '<div class="ss-row"><div class="grow"><b>本地数据目录</b><div class="hint">inbox.db 与配置文件所在文件夹（复制即可完整备份）</div></div><button type="button" class="sec" id="openDataDir">在访达中打开</button></div>'+
+      '<div class="ss-row"><div class="grow"><b>导出全部记录</b><div class="hint">把未删除的记录、步骤与清单导出到数据目录 exports/ 文件夹</div></div><div style="display:flex;gap:8px"><button type="button" class="sec" id="exportMd">导出 Markdown</button><button type="button" class="sec" id="exportJson">导出 JSON</button></div></div>'+
     '</div>'+
     '<div class="ss-group">'+
       '<div class="ss-row"><div class="grow"><b>快捷键备忘</b><div class="hint" id="hkMemo">⌥S 划词捕获 · ⌥Z 框选捕获 · ⌘, 打开本设置</div></div></div>'+
@@ -2977,6 +2978,19 @@ function fillVersion(){
       return TAPI.invoke('open_path',{path:s.data_dir});
     }).catch(function(e){ toast(e.message||String(e)); });
   };
+  function bindExport(btnId,fmt,label){
+    var b=gid(btnId);
+    if(!b) return;
+    b.onclick=function(){
+      b.disabled=true;
+      api('POST','/api/export',{format:fmt}).then(function(r){
+        toast('已导出 '+r.count+' 条记录（'+label+'）');
+        if(TAPI && r && r.path){ TAPI.invoke('reveal_path',{path:r.path}).catch(function(){}); }
+      }).catch(function(e){ toast(e.message||String(e)); }).finally(function(){ b.disabled=false; });
+    };
+  }
+  bindExport('exportMd','markdown','Markdown');
+  bindExport('exportJson','json','JSON');
 }
 
 function syncSeg(){
